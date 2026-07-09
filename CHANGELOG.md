@@ -47,6 +47,31 @@
   - `src/api/tauri.ts`：新增 `saveCreation` / `listCreations` 类型
   - `src/pages/LibraryPage.tsx`：接入真实作品数据
   - `src-tauri/tests/db_smoke.rs`：4 个集成测试（open / upsert / mark_completed / creations+assets）全部通过
+- **W2.4 + W2.5 + W2.6 + W2.7 + W2.8 Agent Loop 核心 + 端到端 demo**
+  - 后端 Agent Loop
+    - `src-tauri/src/model.rs`：`Model` trait + `ModelRouter`（多模型路由接口，W3 接 LiteLLM）
+    - `src-tauri/src/model_mock.rs`：Mock 模型，按关卡+轮次生成 ReAct 轨迹
+    - `src-tauri/src/tools.rs`：`Tool` trait + `ToolRegistry`，6 个 mock MCP 工具
+      - `generate_image` / `image_to_video` / `synthesize_speech` / `add_subtitle` / `add_bgm` / `text_chat`
+    - `src-tauri/src/agent.rs`：ReAct 循环 + 事件流（`agent://event` 通道）
+      - `EventSink` trait 抽象：`TauriEventSink`（生产）/ `NoopEventSink`（测试）
+      - 入口 + 出口双重 `KeywordFilter` 审核（W2.7）
+      - 工具白名单强制（防越权）
+      - MAX_STEPS=6 保护
+    - `src-tauri/src/safety.rs`：关键词审核（pass / warn / block 三态）
+  - 后端测试
+    - `src-tauri/src/safety.rs`：4 个单元测试（pass / block / warn / too-long）
+    - `src-tauri/tests/agent_smoke.rs`：5 个集成测试（L1 轨迹 / L2 轨迹 / 屏蔽输入 / 事件流顺序 / 警告不阻断）
+    - 总计 13 个测试全部通过
+  - 前端
+    - `src/api/tauri.ts`：新增 `checkSafety` / `onAgentEvent` + `AgentEvent` 类型
+    - `src/stores/agentStore.ts`：订阅 `agent://event`，把 Thought / ToolCall / ToolResult 实时落进 messages
+    - `src/pages/AgentRunnerPage.tsx`：关卡运行页
+      - 左：任务说明 + 评分维度
+      - 中：对话流（user / assistant / thought / tool 四种气泡）+ 输入框
+      - 资产展示区（image / video / audio）
+      - "提交并查看评分"按钮：调 submit_level + save_creation
+    - `src/App.tsx`：新增 `runner` 路由
 
 ### TODO
 - 真实品牌图标（设计师出图后替换）

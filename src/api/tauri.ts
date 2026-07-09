@@ -2,6 +2,7 @@
 // 所有跨进程调用都集中在这里，方便 mock 和测试
 
 import { invoke } from '@tauri-apps/api/core';
+import { listen, type UnlistenFn } from '@tauri-apps/api/event';
 import type { Level, LevelProgress, ScoringCriteria } from '../../shared/types/level';
 
 // ============ 关卡 ============
@@ -138,4 +139,43 @@ export async function getAppVersion(): Promise<string> {
 
 export async function greet(name: string): Promise<string> {
   return invoke<string>('greet', { name });
+}
+
+// ============ 安全审核 (W2.7) ============
+
+export type SafetyVerdict =
+  | 'pass'
+  | { warn: { reason: string } }
+  | { block: { reason: string } };
+
+export async function checkSafety(text: string): Promise<SafetyVerdict> {
+  // Rust 返回的是枚举 tagged union（snake_case 自动），前端会收到
+  // { "pass": null } | { "warn": { "reason": "..." } } | { "block": { "reason": "..." } }
+  return invoke<SafetyVerdict>('check_safety', { text });
+}
+
+// ============ Agent 事件流 (W2.4) ============
+
+export type AgentEvent =
+  | { kind: 'started'; sessionId: string }
+  | { kind: 'thought'; sessionId: string; step: number; thought: string }
+  | { kind: 'tool_call'; sessionId: string; step: number; tool: string; args: unknown }
+  | { kind: 'tool_result'; sessionId: string; step: number; tool: string; result: string; assets: AgentAsset[] }
+  | { kind: 'final_answer'; sessionId: string; answer: string }
+  | { kind: 'done'; sessionId: string; steps: number; durationMs: number }
+  | { kind: 'error'; sessionId: string; message: string };
+
+export interface AgentAsset {
+  type: 'image' | 'video' | 'audio';
+  url: string;
+  thumbnailUrl?: string;
+  prompt: string;
+  tool: string;
+  tokensCost: number;
+}
+
+export async function onAgentEvent(
+  handler: (event: AgentEvent) => void,
+): Promise<UnlistenFn> {
+  return listen<AgentEvent>('agent://event', (e) => handler(e.payload));
 }

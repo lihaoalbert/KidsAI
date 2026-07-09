@@ -1,8 +1,13 @@
-// Agent Loop 命令（W2.2 仅占位，W2.4 实现核心循环）
-// 当前返回 mock 数据，验证前后端通信链路
+// Agent Loop（W2.4 + W2.5 + W2.6 合并实现）
+// ReAct 循环：Model -> Tool -> Observation -> ... -> Final Answer
+// 事件流：每步通过 tauri::Emitter 发向前端
 
 use serde::{Deserialize, Serialize};
-use tauri::AppHandle;
+use tauri::{AppHandle, Emitter};
+
+use crate::model::{ModelMessage, ModelRequest, ModelRouter};
+use crate::safety::{KeywordFilter, SafetyVerdict};
+use crate::tools::{GeneratedAsset, ToolOutput, ToolRegistry};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentRunRequest {
@@ -22,6 +27,8 @@ pub struct AgentRunResponse {
     pub tool_calls: Vec<ToolCallRecord>,
     pub assets: Vec<GeneratedAsset>,
     pub duration_ms: u64,
+    pub model: String,
+    pub steps: u32,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -32,44 +39,319 @@ pub struct ToolCallRecord {
     pub timestamp: i64,
 }
 
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct GeneratedAsset {
-    #[serde(rename = "type")]
-    pub kind: String, // "image" | "video" | "audio"
-    pub url: String,
-    #[serde(skip_serializing_if = "Option::is_none")]
-    pub thumbnail_url: Option<String>,
-    pub prompt: String,
-    pub tool: String,
-    pub tokens_cost: u32,
+// ============ 事件流 payload ============
+// 前端通过 `agent://event` channel 监听
+
+#[derive(Debug, Clone, Serialize)]
+#[serde(tag = "kind", rename_all = "snake_case")]
+pub enum AgentEvent {
+    Started {
+        session_id: String,
+    },
+    Thought {
+        session_id: String,
+        step: u32,
+        thought: String,
+    },
+    ToolCall {
+        session_id: String,
+        step: u32,
+        tool: String,
+        args: serde_json::Value,
+    },
+    ToolResult {
+        session_id: String,
+        step: u32,
+        tool: String,
+        result: String,
+        assets: Vec<GeneratedAsset>,
+    },
+    FinalAnswer {
+        session_id: String,
+        answer: String,
+    },
+    Done {
+        session_id: String,
+        steps: u32,
+        duration_ms: u64,
+    },
+    Error {
+        session_id: String,
+        message: String,
+    },
 }
 
-/// 同步运行 Agent（W2.2 占位）
-/// 真实实现见 W2.4：ReAct 循环 + 事件流
+const EVENT_CHANNEL: &str = "agent://event";
+const MAX_STEPS: u32 = 6;
+
+/// 同步运行 Agent（mock 模型无 LLM 延迟）
 #[tauri::command]
 pub async fn run_agent(
-    _app: AppHandle,
+    app: AppHandle,
+    request: AgentRunRequest,
+) -> Result<AgentRunResponse, String> {
+    let registry = default_registry();
+    let router = ModelRouter::new(Box::new(crate::model_mock::MockModel));
+    let sink = TauriEventSink { app: &app };
+    run_loop(&sink, &registry, &router, request)
+}
+
+fn emit(app: &AppHandle, event: &AgentEvent) {
+    if let Err(e) = app.emit(EVENT_CHANNEL, event) {
+        eprintln!("[agent] emit failed: {e}");
+    }
+}
+
+/// 事件接收抽象：让测试不依赖 Tauri AppHandle
+pub trait EventSink {
+    fn emit(&self, event: &AgentEvent);
+}
+
+pub struct TauriEventSink<'a> {
+    pub app: &'a AppHandle,
+}
+
+impl<'a> EventSink for TauriEventSink<'a> {
+    fn emit(&self, event: &AgentEvent) {
+        emit(self.app, event);
+    }
+}
+
+pub struct NoopEventSink;
+
+impl EventSink for NoopEventSink {
+    fn emit(&self, _event: &AgentEvent) {}
+}
+
+/// 纯函数版 Agent Loop（事件 sink 可注入）
+/// 真实运行用 TauriEventSink；测试用 NoopEventSink
+pub fn run_loop(
+    sink: &dyn EventSink,
+    registry: &ToolRegistry,
+    router: &ModelRouter,
     request: AgentRunRequest,
 ) -> Result<AgentRunResponse, String> {
     let started = std::time::Instant::now();
     let session_id = format!("sess_{}", now_millis());
+    let filter = KeywordFilter::new();
 
-    // 占位：只回显输入，W2.4 会替换为真正的 ReAct 循环
+    // 入口审核
+    match filter.check(&request.user_input) {
+        SafetyVerdict::Block { reason } => {
+            sink.emit(&AgentEvent::Error {
+                session_id: session_id.clone(),
+                message: format!("输入未通过审核：{}", reason),
+            });
+            return Ok(AgentRunResponse {
+                session_id,
+                level_id: request.level_id,
+                final_answer: format!(
+                    "🚫 小启觉得这个内容不太合适：{}\n换个其他有意思的想法吧～",
+                    reason
+                ),
+                thoughts: vec!["入口审核拦截".to_string()],
+                tool_calls: vec![],
+                assets: vec![],
+                duration_ms: started.elapsed().as_millis() as u64,
+                model: router.primary_name().to_string(),
+                steps: 0,
+            });
+        }
+        SafetyVerdict::Warn { reason } => {
+            eprintln!("[agent] warn on input: {}", reason);
+        }
+        SafetyVerdict::Pass => {}
+    }
+
+    sink.emit(&AgentEvent::Started {
+        session_id: session_id.clone(),
+    });
+
+    let tools_desc = registry.describe(&request.tools);
+    let level_id_tag = format!("LEVEL_ID: {}", request.level_id);
+    let system_prompt = format!(
+        "{}\n\n[可用工具]\n{}\n[{}]\n",
+        request.system_prompt, tools_desc, level_id_tag
+    );
+
+    let mut history: Vec<ModelMessage> = vec![ModelMessage {
+        role: "user".to_string(),
+        content: request.user_input.clone(),
+        name: None,
+    }];
+
+    let mut thoughts: Vec<String> = Vec::new();
+    let mut tool_calls: Vec<ToolCallRecord> = Vec::new();
+    let mut assets: Vec<GeneratedAsset> = Vec::new();
+    let mut final_answer = String::new();
+    let mut step: u32 = 0;
+    let mut last_error: Option<String> = None;
+
+    while step < MAX_STEPS {
+        step += 1;
+        let model_req = ModelRequest {
+            system_prompt: system_prompt.clone(),
+            messages: history.clone(),
+            allowed_tools: request.tools.clone(),
+            temperature: 0.0,
+        };
+
+        let decision = match router.decide(&model_req) {
+            Ok(d) => d,
+            Err(e) => {
+                last_error = Some(format!("model error: {e}"));
+                break;
+            }
+        };
+
+        thoughts.push(decision.thought.clone());
+        sink.emit(&AgentEvent::Thought {
+            session_id: session_id.clone(),
+            step,
+            thought: decision.thought.clone(),
+        });
+
+        // 把 assistant 的决策 push 进 history，让 model 在下一步能"看到"自己上一步的决定
+        let assistant_msg = if let Some(t) = &decision.tool {
+            format!(
+                "[thought] {}\n[action] {}({})",
+                decision.thought,
+                t,
+                decision.tool_args.as_deref().unwrap_or("{}")
+            )
+        } else {
+            format!("[thought] {}\n[final] {}", decision.thought, decision.final_answer.as_deref().unwrap_or(""))
+        };
+        history.push(ModelMessage {
+            role: "assistant".to_string(),
+            content: assistant_msg,
+            name: None,
+        });
+
+        if let Some(tool_name) = &decision.tool {
+            let args_str = decision.tool_args.clone().unwrap_or_else(|| "{}".to_string());
+            let args_val: serde_json::Value =
+                serde_json::from_str(&args_str).unwrap_or(serde_json::Value::Null);
+
+            if !request.tools.iter().any(|t| t == tool_name) {
+                let err = format!("tool {} not in whitelist", tool_name);
+                sink.emit(&AgentEvent::Error {
+                    session_id: session_id.clone(),
+                    message: err.clone(),
+                });
+                last_error = Some(err);
+                break;
+            }
+
+            sink.emit(&AgentEvent::ToolCall {
+                session_id: session_id.clone(),
+                step,
+                tool: tool_name.clone(),
+                args: args_val.clone(),
+            });
+
+            let exec_result: Result<ToolOutput, String> = match registry.get(tool_name) {
+                Some(t) => t.execute(&args_str, &session_id),
+                None => Err(format!("tool not found: {tool_name}")),
+            };
+
+            let (result_text, new_assets) = match exec_result {
+                Ok(out) => {
+                    for a in &out.assets {
+                        assets.push(a.clone());
+                    }
+                    (out.result_text, out.assets)
+                }
+                Err(e) => {
+                    let msg = format!("tool {tool_name} failed: {e}");
+                    sink.emit(&AgentEvent::Error {
+                        session_id: session_id.clone(),
+                        message: msg.clone(),
+                    });
+                    last_error = Some(msg);
+                    break;
+                }
+            };
+
+            sink.emit(&AgentEvent::ToolResult {
+                session_id: session_id.clone(),
+                step,
+                tool: tool_name.clone(),
+                result: result_text.clone(),
+                assets: new_assets,
+            });
+
+            tool_calls.push(ToolCallRecord {
+                tool: tool_name.clone(),
+                args: args_val,
+                result: result_text.clone(),
+                timestamp: now_millis(),
+            });
+
+            history.push(ModelMessage {
+                role: "tool".to_string(),
+                content: result_text,
+                name: Some(tool_name.clone()),
+            });
+        } else if let Some(ans) = &decision.final_answer {
+            final_answer = ans.clone();
+            sink.emit(&AgentEvent::FinalAnswer {
+                session_id: session_id.clone(),
+                answer: ans.clone(),
+            });
+            break;
+        } else {
+            let fallback = "（小启没有想好怎么回答，先给你这段鼓励吧～再试试看？）".to_string();
+            final_answer = fallback.clone();
+            sink.emit(&AgentEvent::FinalAnswer {
+                session_id: session_id.clone(),
+                answer: fallback,
+            });
+            break;
+        }
+    }
+
+    let duration_ms = started.elapsed().as_millis() as u64;
+
+    if !final_answer.is_empty() {
+        match filter.check(&final_answer) {
+            SafetyVerdict::Block { reason } => {
+                eprintln!("[agent] exit block: {}", reason);
+                final_answer = "（小启想了一下，觉得这个回答不太合适，换个方向继续吧～）".to_string();
+            }
+            SafetyVerdict::Warn { reason } => {
+                eprintln!("[agent] exit warn: {}", reason);
+            }
+            SafetyVerdict::Pass => {}
+        }
+    }
+
+    if let Some(err) = last_error {
+        sink.emit(&AgentEvent::Error {
+            session_id: session_id.clone(),
+            message: err.clone(),
+        });
+        if final_answer.is_empty() {
+            final_answer = format!("（出错了：{}，但已生成部分内容）", err);
+        }
+    }
+
+    sink.emit(&AgentEvent::Done {
+        session_id: session_id.clone(),
+        steps: step,
+        duration_ms,
+    });
+
     Ok(AgentRunResponse {
         session_id,
         level_id: request.level_id,
-        final_answer: format!(
-            "（W2.2 占位）我收到了你的输入：\"{}\"。\n\nW2.4 会接入真正的 Agent Loop。",
-            request.user_input
-        ),
-        thoughts: vec![
-            "读取用户输入".to_string(),
-            "加载关卡 system_prompt".to_string(),
-            "（占位）W2.4 将在此执行 ReAct 循环".to_string(),
-        ],
-        tool_calls: vec![],
-        assets: vec![],
-        duration_ms: started.elapsed().as_millis() as u64,
+        final_answer,
+        thoughts,
+        tool_calls,
+        assets,
+        duration_ms,
+        model: router.primary_name().to_string(),
+        steps: step,
     })
 }
 
@@ -80,3 +362,6 @@ fn now_millis() -> i64 {
         .map(|d| d.as_millis() as i64)
         .unwrap_or(0)
 }
+
+// 让 default_registry 可以从 tools 模块导入
+use crate::tools::default_registry;

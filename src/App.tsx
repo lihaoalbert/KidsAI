@@ -5,8 +5,9 @@ import WorkshopPage from './pages/WorkshopPage';
 import LibraryPage from './pages/LibraryPage';
 import MyAgentPage from './pages/MyAgentPage';
 import LevelDetailPage from './pages/LevelDetailPage';
+import AgentRunnerPage from './pages/AgentRunnerPage';
 
-export type PageKey = 'home' | 'workshop' | 'library' | 'agent' | 'level';
+export type PageKey = 'home' | 'workshop' | 'library' | 'agent' | 'level' | 'runner';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<PageKey>('home');
@@ -22,19 +23,8 @@ function App() {
   };
 
   const handleStart = (levelId: string) => {
-    // Week 2.8 端到端 demo 阶段会接入关卡运行页（runner）
-    // 本周只完成"数据模型 + 详情页"，先给一个友好提示
-    alert(
-      `🚧 关卡 ${levelId} 的运行页（runner）将在 Week 2.8 接入！\n\n` +
-        `目前已就绪：\n` +
-        `• 关卡数据模型（W2.1）\n` +
-        `• 关卡详情页（W2.1）\n\n` +
-        `接下来：\n` +
-        `• Tauri 命令框架 + Zustand stores（W2.2）\n` +
-        `• 本地 SQLite 进度缓存（W2.3）\n` +
-        `• Agent Loop 核心（W2.4）\n` +
-        `• 端到端 L1 demo（W2.8）`,
-    );
+    setSelectedLevelId(levelId);
+    setCurrentPage('runner');
   };
 
   const renderPage = () => {
@@ -53,6 +43,13 @@ function App() {
             levelId={selectedLevelId}
             onBack={handleBackToHome}
             onStart={handleStart}
+          />
+        );
+      case 'runner':
+        return (
+          <AgentRunnerPage
+            levelId={selectedLevelId}
+            onBack={handleBackToHome}
           />
         );
     }

@@ -34,6 +34,19 @@
   - `src/stores/levelStore.ts`：关卡状态 + 解锁判断
   - `src/stores/agentStore.ts`：Agent 会话 / 消息流
   - `src/stores/tokenStore.ts`：学币余额
+- **W2.3 本地 SQLite 集成**
+  - `Cargo.toml`：新增 `rusqlite = { version = "0.32", features = ["bundled"] }`（无系统依赖）
+  - `src-tauri/src/db.rs`：单例 `Db`（Mutex<Connection>），启动时自动 migrate
+    - `level_progress`：原子 UPSERT（attempts+1），mark_completed 取 max(best_score)
+    - `creations`：用户输入 + Agent 输出 JSON
+    - `assets`：每个作品的生成资产（image / video / audio）
+    - 时间戳统一存毫秒（INTEGER）
+  - `src-tauri/src/levels.rs`：改用 Db 存储，命令签名不变
+  - `src-tauri/src/creations.rs`：`save_creation` / `list_creation` s 命令
+  - `src-tauri/src/lib.rs`：启动时打开 `~/Library/Application Support/com.kidsai.studio/kidsai.db`（macOS）
+  - `src/api/tauri.ts`：新增 `saveCreation` / `listCreations` 类型
+  - `src/pages/LibraryPage.tsx`：接入真实作品数据
+  - `src-tauri/tests/db_smoke.rs`：4 个集成测试（open / upsert / mark_completed / creations+assets）全部通过
 
 ### TODO
 - 真实品牌图标（设计师出图后替换）

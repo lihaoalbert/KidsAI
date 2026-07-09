@@ -40,6 +40,59 @@ export async function completedLevelIds(): Promise<string[]> {
   return invoke<string[]>('completed_level_ids');
 }
 
+// ============ 作品 (W2.3) ============
+
+export interface AssetInput {
+  type: 'image' | 'video' | 'audio';
+  url: string;
+  thumbnailUrl?: string;
+  prompt: string;
+  tool: string;
+  tokensCost: number;
+}
+
+export interface SaveCreationRequest {
+  id: string;
+  levelId: string;
+  userInput: string;
+  agentOutput: Record<string, unknown>;
+  score?: number;
+  rubric?: ScoringCriteria;
+  feedback?: string;
+  assets: AssetInput[];
+}
+
+export interface CreationWithAssets {
+  id: string;
+  levelId: string;
+  userInput: string;
+  agentOutput: string; // JSON string from DB
+  score: number | null;
+  rubric: string | null;
+  feedback: string | null;
+  createdAt: number;
+  assets: Array<{
+    kind: string;
+    url: string;
+    thumbnailUrl: string | null;
+    prompt: string;
+    tool: string;
+    tokensCost: number;
+  }>;
+}
+
+export async function saveCreation(
+  request: SaveCreationRequest,
+): Promise<void> {
+  return invoke<void>('save_creation', { request });
+}
+
+export async function listCreations(
+  levelId?: string,
+): Promise<CreationWithAssets[]> {
+  return invoke<CreationWithAssets[]>('list_creations', { levelId });
+}
+
 // ============ Agent ============
 
 export interface AgentRunRequest {

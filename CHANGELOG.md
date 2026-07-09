@@ -19,6 +19,22 @@
   - 内测版自动构建（main 分支）
 - 应用图标占位（紫底 K 字）
 
+### Added (Week 2)
+- **W2.1 关卡数据模型**
+  - `shared/types/level.ts`：Level / LevelStep / ScoringCriteria / LevelProgress / LevelSubmission / AgentOutput 类型
+  - `src/data/levels.ts`：5 个 MVP 关卡 (L1-L5) 静态数据 + getLevel / getAvailableLevels
+  - `src/pages/LevelDetailPage.tsx`：关卡详情页（封面 / 步骤 / 评分维度 / 前置依赖 / 开始按钮）
+  - 路由：HomePage 卡片可点击进入详情页
+- **W2.2 Tauri 命令框架 + Zustand stores**
+  - `src-tauri/src/types.rs`：Rust 端 Level/LevelStep/ScoringCriteria/LevelProgress
+  - `src-tauri/src/content.rs`：5 个内置关卡（与前端数据保持一致）
+  - `src-tauri/src/levels.rs`：list_levels / get_level / list_progress / start_level / submit_level / completed_level_ids 命令（in-memory 存储，W2.3 换 SQLite）
+  - `src-tauri/src/agent.rs`：run_agent 命令（W2.4 实现真实循环）
+  - `src/api/tauri.ts`：前端命令封装
+  - `src/stores/levelStore.ts`：关卡状态 + 解锁判断
+  - `src/stores/agentStore.ts`：Agent 会话 / 消息流
+  - `src/stores/tokenStore.ts`：学币余额
+
 ### TODO
 - 真实品牌图标（设计师出图后替换）
 - Apple Developer / Windows 代码签名证书

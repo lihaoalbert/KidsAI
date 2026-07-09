@@ -72,6 +72,12 @@ pub struct CollectingSink {
     pub events: std::sync::Mutex<Vec<AgentEvent>>,
 }
 
+impl Default for CollectingSink {
+    fn default() -> Self {
+        Self::new()
+    }
+}
+
 impl CollectingSink {
     pub fn new() -> Self {
         Self {

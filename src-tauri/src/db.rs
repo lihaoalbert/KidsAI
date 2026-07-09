@@ -160,16 +160,7 @@ impl Db {
 
     // ============ 作品 ============
 
-    pub fn insert_creation(
-        &self,
-        creation_id: &str,
-        level_id: &str,
-        user_input: &str,
-        agent_output_json: &str,
-        score: Option<u32>,
-        rubric_json: Option<&str>,
-        feedback: Option<&str>,
-    ) -> rusqlite::Result<()> {
+    pub fn insert_creation(&self, c: &InsertCreation) -> rusqlite::Result<()> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             r#"
@@ -177,13 +168,13 @@ impl Db {
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7, ?8)
             "#,
             params![
-                creation_id,
-                level_id,
-                user_input,
-                agent_output_json,
-                score,
-                rubric_json,
-                feedback,
+                c.creation_id,
+                c.level_id,
+                c.user_input,
+                c.agent_output_json,
+                c.score,
+                c.rubric_json,
+                c.feedback,
                 now_millis()
             ],
         )?;
@@ -227,23 +218,22 @@ impl Db {
         }
     }
 
-    pub fn insert_asset(
-        &self,
-        creation_id: &str,
-        kind: &str,
-        url: &str,
-        thumbnail_url: Option<&str>,
-        prompt: &str,
-        tool: &str,
-        tokens_cost: u32,
-    ) -> rusqlite::Result<i64> {
+    pub fn insert_asset(&self, a: &InsertAsset) -> rusqlite::Result<i64> {
         let conn = self.conn.lock().unwrap();
         conn.execute(
             r#"
             INSERT INTO assets (creation_id, kind, url, thumbnail_url, prompt, tool, tokens_cost)
             VALUES (?1, ?2, ?3, ?4, ?5, ?6, ?7)
             "#,
-            params![creation_id, kind, url, thumbnail_url, prompt, tool, tokens_cost],
+            params![
+                a.creation_id,
+                a.kind,
+                a.url,
+                a.thumbnail_url,
+                a.prompt,
+                a.tool,
+                a.tokens_cost
+            ],
         )?;
         Ok(conn.last_insert_rowid())
     }
@@ -287,6 +277,28 @@ pub struct AssetRow {
     pub thumbnail_url: Option<String>,
     pub prompt: String,
     pub tool: String,
+    pub tokens_cost: u32,
+}
+
+/// insert_creation 入参（避免函数参数过多）
+pub struct InsertCreation<'a> {
+    pub creation_id: &'a str,
+    pub level_id: &'a str,
+    pub user_input: &'a str,
+    pub agent_output_json: &'a str,
+    pub score: Option<u32>,
+    pub rubric_json: Option<&'a str>,
+    pub feedback: Option<&'a str>,
+}
+
+/// insert_asset 入参
+pub struct InsertAsset<'a> {
+    pub creation_id: &'a str,
+    pub kind: &'a str,
+    pub url: &'a str,
+    pub thumbnail_url: Option<&'a str>,
+    pub prompt: &'a str,
+    pub tool: &'a str,
     pub tokens_cost: u32,
 }
 

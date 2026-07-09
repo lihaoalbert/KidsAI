@@ -71,21 +71,37 @@ fn db_creations_and_assets() {
     let path = fresh_db_path("creations");
     let db = kidsai_studio_lib::Db::open(&path).expect("open db");
 
-    db.insert_creation(
-        "c1",
-        "L1",
-        "一只小猫",
-        r#"{"thoughts":["a"],"finalAnswer":"b"}"#,
-        Some(80),
-        Some(r#"{"creativity":30,"technical":25,"narrative":20,"aesthetic":15,"compliance":10}"#),
-        Some("good"),
-    )
+    db.insert_creation(&kidsai_studio_lib::db::InsertCreation {
+        creation_id: "c1",
+        level_id: "L1",
+        user_input: "一只小猫",
+        agent_output_json: r#"{"thoughts":["a"],"finalAnswer":"b"}"#,
+        score: Some(80),
+        rubric_json: Some(r#"{"creativity":30,"technical":25,"narrative":20,"aesthetic":15,"compliance":10}"#),
+        feedback: Some("good"),
+    })
     .expect("insert creation");
 
-    db.insert_asset("c1", "image", "https://x/1.png", None, "一只小猫", "generate_image", 5)
-        .expect("insert asset 1");
-    db.insert_asset("c1", "video", "https://x/1.mp4", Some("https://x/1.jpg"), "一只小猫动起来", "image_to_video", 20)
-        .expect("insert asset 2");
+    db.insert_asset(&kidsai_studio_lib::db::InsertAsset {
+        creation_id: "c1",
+        kind: "image",
+        url: "https://x/1.png",
+        thumbnail_url: None,
+        prompt: "一只小猫",
+        tool: "generate_image",
+        tokens_cost: 5,
+    })
+    .expect("insert asset 1");
+    db.insert_asset(&kidsai_studio_lib::db::InsertAsset {
+        creation_id: "c1",
+        kind: "video",
+        url: "https://x/1.mp4",
+        thumbnail_url: Some("https://x/1.jpg"),
+        prompt: "一只小猫动起来",
+        tool: "image_to_video",
+        tokens_cost: 20,
+    })
+    .expect("insert asset 2");
 
     let rows = db.list_creations(None).expect("list creations");
     assert_eq!(rows.len(), 1);

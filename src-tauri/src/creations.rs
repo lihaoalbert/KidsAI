@@ -4,7 +4,7 @@
 use serde::{Deserialize, Serialize};
 use tauri::State;
 
-use crate::db::{AssetRow, CreationRow, Db};
+use crate::db::{AssetRow, CreationRow, Db, InsertAsset, InsertCreation};
 
 #[derive(Debug, Deserialize)]
 pub struct SaveCreationRequest {
@@ -49,27 +49,27 @@ pub fn save_creation(
         None => None,
     };
 
-    db.insert_creation(
-        &request.id,
-        &request.level_id,
-        &request.user_input,
-        &agent_output_str,
-        request.score,
-        rubric_str.as_deref(),
-        request.feedback.as_deref(),
-    )
+    db.insert_creation(&InsertCreation {
+        creation_id: &request.id,
+        level_id: &request.level_id,
+        user_input: &request.user_input,
+        agent_output_json: &agent_output_str,
+        score: request.score,
+        rubric_json: rubric_str.as_deref(),
+        feedback: request.feedback.as_deref(),
+    })
     .map_err(|e| e.to_string())?;
 
     for asset in &request.assets {
-        db.insert_asset(
-            &request.id,
-            &asset.kind,
-            &asset.url,
-            asset.thumbnail_url.as_deref(),
-            &asset.prompt,
-            &asset.tool,
-            asset.tokens_cost,
-        )
+        db.insert_asset(&InsertAsset {
+            creation_id: &request.id,
+            kind: &asset.kind,
+            url: &asset.url,
+            thumbnail_url: asset.thumbnail_url.as_deref(),
+            prompt: &asset.prompt,
+            tool: &asset.tool,
+            tokens_cost: asset.tokens_cost,
+        })
         .map_err(|e| e.to_string())?;
     }
     Ok(())

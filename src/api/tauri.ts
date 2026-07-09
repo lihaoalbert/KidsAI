@@ -123,12 +123,20 @@ export interface AgentRunResponse {
     tokensCost: number;
   }>;
   durationMs: number;
+  // W3.2: 真实 LLM token 累计 + 取消标记
+  tokensUsed?: number;
+  cancelled?: boolean;
 }
 
 export async function runAgent(
   request: AgentRunRequest,
 ): Promise<AgentRunResponse> {
   return invoke<AgentRunResponse>('run_agent', { request });
+}
+
+// W3.2: 中途取消正在运行的 agent 循环
+export async function cancelAgent(sessionId: string): Promise<boolean> {
+  return invoke<boolean>('cancel_agent', { sessionId });
 }
 
 // ============ 系统命令 ============
@@ -154,13 +162,17 @@ export async function checkSafety(text: string): Promise<SafetyVerdict> {
   return invoke<SafetyVerdict>('check_safety', { text });
 }
 
-// ============ Agent 事件流 (W2.4) ============
+// ============ Agent 事件流 (W2.4 + W3.2 流式 + 取消) ============
 
 export type AgentEvent =
   | { kind: 'started'; sessionId: string }
   | { kind: 'thought'; sessionId: string; step: number; thought: string }
   | { kind: 'tool_call'; sessionId: string; step: number; tool: string; args: unknown }
   | { kind: 'tool_result'; sessionId: string; step: number; tool: string; result: string; assets: AgentAsset[] }
+  // W3.2: 流式 — 每个 delta 一条事件，前端累积到一条 assistant 消息
+  | { kind: 'chunk'; sessionId: string; step: number; delta: string }
+  // W3.2: 取消 — 收到这条后立即停止生成
+  | { kind: 'cancelled'; sessionId: string }
   | { kind: 'final_answer'; sessionId: string; answer: string }
   | { kind: 'done'; sessionId: string; steps: number; durationMs: number }
   | { kind: 'error'; sessionId: string; message: string };

@@ -420,6 +420,8 @@ fn parse_decision(
     // 流式响应通常不返回 usage（按调用计费；usage 在非流式响应里）。
     // tokens 留给后续按字符估算或上游单独提供。
     let tokens_used = if text.is_empty() { 0 } else { (text.len() as u32) / 4 + 1 };
+    // W3.3: 推理模型会在 content 里塞 <think>...</think> 思考片段，必须剥除再交给前端
+    let text = strip_think_tags(&text);
 
     if let Some((_, buf)) = tool_bufs.into_iter().max_by_key(|(idx, _)| *idx) {
         if let (Some(id), Some(name)) = (buf.id, buf.name) {
@@ -448,6 +450,29 @@ fn parse_decision(
     }
 }
 
+/// 剥除推理模型的 <think>...</think> 思考片段
+/// - 完整配对的全部剥掉（greedy，连续多段也支持）
+/// - 未闭合（没有 `</think>`）的保守原样保留
+pub fn strip_think_tags(input: &str) -> String {
+    let mut out = String::with_capacity(input.len());
+    let mut rest = input;
+    while let Some(start) = rest.find("<think>") {
+        out.push_str(&rest[..start]);
+        rest = &rest[start + "<think>".len()..];
+        match rest.find("</think>") {
+            Some(end) => rest = &rest[end + "</think>".len()..],
+            None => {
+                // 未闭合 — 原样保留（保守）
+                out.push_str("<think>");
+                out.push_str(rest);
+                return out;
+            }
+        }
+    }
+    out.push_str(rest);
+    out
+}
+
 /// 从非流式 OpenAI 响应解析出 ModelDecision
 /// 公开出来供测试验证 JSON 解析逻辑（不依赖网络）
 pub fn parse_decision_from_response(
@@ -459,10 +484,12 @@ pub fn parse_decision_from_response(
 
     if let Some(tool_calls) = &msg.tool_calls {
         if let Some(tc) = tool_calls.first() {
-            let thought = msg
-                .content
-                .clone()
-                .unwrap_or_else(|| format!("调用 {}", tc.function.name.clone()));
+            let raw = msg.content.clone().unwrap_or_default();
+            let thought = if raw.is_empty() {
+                format!("调用 {}", tc.function.name.clone())
+            } else {
+                strip_think_tags(&raw)
+            };
             return ModelDecision {
                 thought,
                 tool: Some(tc.function.name.clone()),
@@ -474,7 +501,8 @@ pub fn parse_decision_from_response(
         }
     }
 
-    let answer = msg.content.clone().unwrap_or_default();
+    let raw = msg.content.clone().unwrap_or_default();
+    let answer = strip_think_tags(&raw);
     ModelDecision {
         thought: "直接给出最终回答".to_string(),
         tool: None,

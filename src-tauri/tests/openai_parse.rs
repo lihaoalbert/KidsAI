@@ -4,7 +4,9 @@
 use std::sync::Mutex;
 
 use kidsai_studio_lib::model::Model;
-use kidsai_studio_lib::model_openai::{parse_decision_from_response, ChatResponse, Choice};
+use kidsai_studio_lib::model_openai::{
+    parse_decision_from_response, strip_think_tags, ChatResponse, Choice,
+};
 use kidsai_studio_lib::test_helpers::run_agent_sync;
 
 // 串行化"会动环境变量"的测试
@@ -162,4 +164,36 @@ fn openai_compatible_constructs_with_dummy_key() {
     use kidsai_studio_lib::model_openai::OpenAiCompatible;
     let m = OpenAiCompatible::new("deepseek", "deepseek-chat", "https://api.deepseek.com", "sk-fake");
     assert_eq!(m.name(), "deepseek:deepseek-chat");
+}
+
+// ============ W3.3: <think> 标签剥离 ============
+
+#[test]
+fn strip_think_simple() {
+    assert_eq!(strip_think_tags("<think>foo</think>bar"), "bar");
+}
+
+#[test]
+fn strip_think_multi_segment() {
+    assert_eq!(
+        strip_think_tags("<think>a</think>中间<think>b</think>"),
+        "中间"
+    );
+}
+
+#[test]
+fn strip_think_no_tag_passthrough() {
+    assert_eq!(
+        strip_think_tags("纯文本没有 think 标签"),
+        "纯文本没有 think 标签"
+    );
+}
+
+#[test]
+fn strip_think_unclosed_passthrough() {
+    // 没有 </think> — 保守原样保留
+    assert_eq!(
+        strip_think_tags("<think>这个思考没有闭合"),
+        "<think>这个思考没有闭合"
+    );
 }

@@ -25,6 +25,7 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
     error,
     lastResponse,
     send,
+    cancel,
     reset,
   } = useAgentStore();
 
@@ -115,6 +116,10 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
     onBack?.();
   };
 
+  const handleCancel = async () => {
+    await cancel();
+  };
+
   return (
     <div className="p-6 max-w-5xl mx-auto h-full flex flex-col">
       {/* Header */}
@@ -200,6 +205,11 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                   {level.aiAvatar} {level.aiName} 正在思考…
                 </div>
               )}
+              {error && !isRunning && (
+                <div className="text-xs px-3 py-1 rounded bg-red-50 text-red-700 border border-red-200">
+                  {error}
+                </div>
+              )}
               <div ref={messagesEndRef} />
             </div>
 
@@ -232,14 +242,24 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                       提交并查看评分
                     </Button>
                   )}
-                  <Button
-                    variant="primary"
-                    size="sm"
-                    onClick={handleSubmit}
-                    disabled={isRunning || !userInput.trim()}
-                  >
-                    {isRunning ? '生成中…' : '🚀 开始生成'}
-                  </Button>
+                  {isRunning ? (
+                    <Button
+                      variant="secondary"
+                      size="sm"
+                      onClick={handleCancel}
+                    >
+                      取消
+                    </Button>
+                  ) : (
+                    <Button
+                      variant="primary"
+                      size="sm"
+                      onClick={handleSubmit}
+                      disabled={!userInput.trim()}
+                    >
+                      🚀 开始生成
+                    </Button>
+                  )}
                 </div>
               </div>
             </div>

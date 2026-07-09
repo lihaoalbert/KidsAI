@@ -117,6 +117,34 @@
   - **总计 25 个测试全过（4 单元 + 5 + 4 + 4 + 7 + 1 真实 LLM）**
   - **未实现**：前端 UI 集成（W3.3）— 把 `Chunk` 事件渲染到聊天框 + 取消按钮
 
+### Added (Week 3.3)
+- **前端流式集成 + 取消按钮（W3.3）**
+  - `src/api/tauri.ts`：
+    - 新增 `cancelAgent(sessionId)` — 调 `cancel_agent` Tauri 命令
+    - `AgentEvent` 加 `chunk { sessionId, step, delta }` + `cancelled { sessionId }` 变体
+    - `AgentRunResponse` 加 `tokensUsed?` + `cancelled?` 字段
+  - `src/stores/agentStore.ts`：
+    - 新增 `streaming: { messageId, step } | null` 流式槽位
+    - `chunk` 事件累积：同一 step 后续 chunk append 到现有消息；新 step 创建新 assistant 消息
+    - `final_answer` 事件：用干净 final_answer 替换 streaming 槽位的内容
+    - `cancelled` 事件：设置 `error="已取消"` + `isRunning=false` + 清空 streaming
+    - `started` 事件回填 server-side `sessionId`（前端预设的 `sess_xxx` 不可靠）
+    - 新增 `cancel()` action — 调 `cancelAgent` API
+    - `send()` 兜底：run_agent 异常路径用 `lastResponse.finalAnswer` 写入 streaming 槽位
+  - `src/pages/AgentRunnerPage.tsx`：
+    - isRunning 时显示"取消"按钮（替代"开始生成"）
+    - 取消后显示"已取消"红框 + 按钮回到"开始生成"
+- **后端 <think> 标签剥离（W3.3 — `[[llm-integration-quirks]]` #3）**
+  - `src-tauri/src/model_openai.rs`：
+    - 新增 `strip_think_tags(input: &str) -> String`：剥除推理模型 `<think>...</think>` 思考片段
+    - 完整配对（greedy + 连续多段）全剥
+    - 未闭合保守原样保留（不破坏正常内容）
+    - 在 `parse_decision`（流式）和 `parse_decision_from_response`（非流式）两处都应用
+    - 同步剥 `decision.thought`（tool_call 路径的 thought 来自 raw text）
+  - 测试
+    - `tests/openai_parse.rs` 加 4 个 strip 测试：simple / multi-segment / no-tag-passthrough / unclosed-passthrough
+    - **总计 29 个测试全过（4 单元 + 5 + 4 + 4 + 11 + 1 真实 LLM）**
+
 ### TODO
 - 真实品牌图标（设计师出图后替换）
 - Apple Developer / Windows 代码签名证书

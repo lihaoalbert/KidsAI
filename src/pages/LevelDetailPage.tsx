@@ -1,5 +1,4 @@
 import { useMemo } from 'react';
-import { useParams } from 'react-router-dom';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { getLevel } from '../data/levels';
@@ -15,8 +14,7 @@ export default function LevelDetailPage({
   onBack,
   onStart,
 }: LevelDetailPageProps) {
-  const params = useParams<{ id: string }>();
-  const resolvedId = levelId ?? params.id ?? 'L1';
+  const resolvedId = levelId ?? 'L1';
   const level = useMemo(() => getLevel(resolvedId), [resolvedId]);
 
   if (!level) {

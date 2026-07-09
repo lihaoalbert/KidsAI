@@ -2,7 +2,6 @@
 // 步骤：填表 -> 调 agentStore.send() -> 实时显示事件流 -> 展示资产
 
 import { useEffect, useMemo, useRef, useState } from 'react';
-import { useParams } from 'react-router-dom';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { useAgentStore } from '../stores/agentStore';
@@ -15,8 +14,7 @@ interface AgentRunnerPageProps {
 }
 
 export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProps) {
-  const params = useParams<{ id: string }>();
-  const resolvedId = levelId ?? params.id ?? 'L1';
+  const resolvedId = levelId ?? 'L1';
   const { levels, submitLevel } = useLevelStore();
   const {
     messages,

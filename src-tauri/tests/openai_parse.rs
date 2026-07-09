@@ -11,8 +11,8 @@ use kidsai_studio_lib::test_helpers::run_agent_sync;
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
 
-#[test]
-fn mock_model_runs_l1_without_real_api() {
+#[tokio::test]
+async fn mock_model_runs_l1_without_real_api() {
     // 没设任何 API key，应该自动走 mock
     let result = run_agent_sync(
         "L1",
@@ -20,6 +20,7 @@ fn mock_model_runs_l1_without_real_api() {
         "你是小启",
         vec!["generate_image".to_string(), "image_to_video".to_string()],
     )
+    .await
     .expect("mock should run without API");
     assert_eq!(result.model, "mock-1");
     assert!(!result.assets.is_empty());

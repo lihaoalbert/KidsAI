@@ -21,7 +21,7 @@ pub use crate::types::LevelStatus;
 
 use tauri::Manager;
 
-use crate::agent::run_agent;
+use crate::agent::{cancel_agent, run_agent, SessionRegistry};
 use crate::creations::{list_creations, save_creation};
 use crate::levels::{
     completed_level_ids, get_level, list_levels, list_progress, start_level, submit_level,
@@ -50,6 +50,7 @@ fn check_safety(text: String) -> SafetyVerdict {
 /// 前端可以展示给用户："当前由 deepseek 提供"
 #[tauri::command]
 fn current_model_source() -> String {
+    let _ = dotenvy::dotenv();
     crate::model_factory::select_model().source
 }
 
@@ -72,6 +73,7 @@ pub fn run() {
             Ok(())
         })
         .manage(LevelStore::default())
+        .manage(SessionRegistry::default())
         .invoke_handler(tauri::generate_handler![
             get_app_version,
             greet,
@@ -84,6 +86,7 @@ pub fn run() {
             completed_level_ids,
             // Agent
             run_agent,
+            cancel_agent,
             // 作品
             save_creation,
             list_creations,

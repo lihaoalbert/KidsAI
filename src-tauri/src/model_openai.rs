@@ -1,13 +1,22 @@
-// OpenAI 兼容 provider（W3.1）
+// OpenAI 兼容 provider（W3.1 + W3.2 流式）
 // 支持：DeepSeek / OpenAI / Qwen (DashScope) / Moonshot / 任何 /v1/chat/completions 兼容的服务
 // ReAct 模式：Tool Calling（模型自己选 tool + args）
 //
+// W3.2: 支持 SSE 流式输出 + 取消（通过 Arc<AtomicBool> 在 chunk 间轮询）
+//
 // 参考：https://platform.deepseek.com/api-docs/
 
+use std::collections::HashMap;
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
+
+use async_trait::async_trait;
+use futures_util::StreamExt;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
-use super::model::{Model, ModelDecision, ModelRequest};
+use super::model::{Chunk, Model, ModelDecision, ModelRequest, ModelToolCall};
 
 /// OpenAI 兼容 chat completion 请求
 #[derive(Debug, Serialize)]
@@ -33,16 +42,16 @@ struct OaiMessage {
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
 pub struct OaiToolCall {
-    id: String,
+    pub id: String,
     #[serde(rename = "type")]
-    kind: String,
-    function: OaiFunction,
+    pub kind: String,
+    pub function: OaiFunction,
 }
 
 #[derive(Debug, Serialize, Deserialize, Clone)]
-struct OaiFunction {
-    name: String,
-    arguments: String,
+pub struct OaiFunction {
+    pub name: String,
+    pub arguments: String,
 }
 
 #[derive(Debug, Serialize)]
@@ -59,6 +68,7 @@ struct OaiFunctionDef {
     parameters: serde_json::Value,
 }
 
+/// 非流式响应（保留以便单步 final / 测试）
 #[derive(Debug, Deserialize)]
 pub struct ChatResponse {
     pub choices: Vec<Choice>,
@@ -87,6 +97,47 @@ pub struct Usage {
     pub total_tokens: u32,
 }
 
+/// 流式响应块
+#[derive(Debug, Deserialize)]
+struct StreamChunk {
+    #[serde(default)]
+    choices: Vec<StreamChoice>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StreamChoice {
+    #[serde(default)]
+    delta: StreamDelta,
+    #[allow(dead_code)]
+    #[serde(default)]
+    finish_reason: Option<String>,
+}
+
+#[derive(Debug, Deserialize, Default)]
+struct StreamDelta {
+    #[serde(default)]
+    content: Option<String>,
+    #[serde(default)]
+    tool_calls: Option<Vec<StreamToolCallDelta>>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StreamToolCallDelta {
+    index: usize,
+    #[serde(default)]
+    id: Option<String>,
+    #[serde(default)]
+    function: Option<StreamFunctionDelta>,
+}
+
+#[derive(Debug, Deserialize)]
+struct StreamFunctionDelta {
+    #[serde(default)]
+    name: Option<String>,
+    #[serde(default)]
+    arguments: Option<String>,
+}
+
 /// OpenAI 兼容 model
 pub struct OpenAiCompatible {
     pub name: String,
@@ -104,20 +155,15 @@ impl OpenAiCompatible {
             base_url: base_url.trim_end_matches('/').to_string(),
             api_key: api_key.to_string(),
             client: reqwest::Client::builder()
-                .timeout(std::time::Duration::from_secs(60))
+                .timeout(std::time::Duration::from_secs(180))
+                .connect_timeout(std::time::Duration::from_secs(30))
                 .build()
                 .expect("reqwest client"),
         }
     }
-}
 
-impl Model for OpenAiCompatible {
-    fn name(&self) -> String {
-        format!("{}:{}", self.name, self.model)
-    }
-
-    fn decide(&self, req: &ModelRequest) -> Result<ModelDecision, String> {
-        // 把 ModelRequest 翻译成 OpenAI 格式
+    /// 把 ModelRequest 翻译成 OpenAI 格式（流式 + 非流式共用）
+    fn build_messages(&self, req: &ModelRequest) -> Vec<OaiMessage> {
         let mut messages = vec![OaiMessage {
             role: "system".to_string(),
             content: Some(req.system_prompt.clone()),
@@ -134,18 +180,37 @@ impl Model for OpenAiCompatible {
                     tool_calls: None,
                 }),
                 "assistant" => {
+                    let oai_tool_calls = m.tool_calls.as_ref().map(|tcs| {
+                        tcs.iter()
+                            .map(|tc: &ModelToolCall| OaiToolCall {
+                                id: tc.id.clone(),
+                                kind: "function".to_string(),
+                                function: OaiFunction {
+                                    name: tc.name.clone(),
+                                    arguments: tc.args.clone(),
+                                },
+                            })
+                            .collect()
+                    });
                     messages.push(OaiMessage {
                         role: "assistant".to_string(),
-                        content: Some(m.content.clone()),
+                        content: if m.content.is_empty() {
+                            None
+                        } else {
+                            Some(m.content.clone())
+                        },
                         tool_call_id: None,
-                        tool_calls: None,
+                        tool_calls: oai_tool_calls,
                     });
                 }
                 "tool" => {
                     messages.push(OaiMessage {
                         role: "tool".to_string(),
                         content: Some(m.content.clone()),
-                        tool_call_id: m.name.clone().or(Some("call_0".to_string())),
+                        tool_call_id: m
+                            .tool_call_id
+                            .clone()
+                            .or_else(|| m.name.clone().or(Some("call_0".to_string()))),
                         tool_calls: None,
                     });
                 }
@@ -160,8 +225,11 @@ impl Model for OpenAiCompatible {
             }
         }
 
-        let tools: Vec<OaiTool> = req
-            .allowed_tools
+        messages
+    }
+
+    fn build_tools(&self, allowed: &[String]) -> Vec<OaiTool> {
+        allowed
             .iter()
             .map(|name| {
                 let (description, params) = tool_spec(name);
@@ -174,7 +242,23 @@ impl Model for OpenAiCompatible {
                     },
                 }
             })
-            .collect();
+            .collect()
+    }
+}
+
+#[async_trait]
+impl Model for OpenAiCompatible {
+    fn name(&self) -> String {
+        format!("{}:{}", self.name, self.model)
+    }
+
+    async fn decide_stream(
+        &self,
+        req: &ModelRequest,
+        cancel: Arc<AtomicBool>,
+    ) -> Result<(ModelDecision, Vec<Chunk>), String> {
+        let messages = self.build_messages(req);
+        let tools = self.build_tools(&req.allowed_tools);
 
         let body = ChatRequest {
             model: &self.model,
@@ -182,54 +266,189 @@ impl Model for OpenAiCompatible {
             tools,
             tool_choice: "auto",
             temperature: req.temperature,
-            stream: false,
+            stream: true,
         };
 
-        // 同步阻塞：尝试当前 runtime，否则起新 runtime
-        let url = format!("{}/v1/chat/completions", self.base_url);
-        let client = self.client.clone();
-        let api_key = self.api_key.clone();
+        // base_url 形如 "https://api.minimaxi.com/v1"，直接拼 path
+        let url = format!("{}/chat/completions", self.base_url);
 
-        let send_fut = async move {
-            let resp = client
-                .post(&url)
-                .bearer_auth(&api_key)
-                .json(&body)
-                .send()
-                .await
-                .map_err(|e| format!("http request failed: {e}"))?;
+        let resp = self
+            .client
+            .post(&url)
+            .bearer_auth(&self.api_key)
+            .json(&body)
+            .send()
+            .await
+            .map_err(|e| format!("http request failed: {e}"))?;
 
-            if !resp.status().is_success() {
-                let status = resp.status();
-                let txt = resp.text().await.unwrap_or_default();
-                return Err(format!("upstream {}: {}", status, txt));
+        if !resp.status().is_success() {
+            let status = resp.status();
+            let txt = resp.text().await.unwrap_or_default();
+            return Err(format!("upstream {}: {}", status, txt));
+        }
+
+        // 边读边解析 SSE
+        let mut stream = resp.bytes_stream();
+        let mut parser = SseParser::new();
+        let mut pending = String::new(); // SSE 一行可能被 TCP 拆成多块，缓存拼接
+        let tokens_used: u32 = 0;
+
+        loop {
+            tokio::select! {
+                // 50ms 轮询取消 — 取消响应延迟上限 50ms
+                _ = tokio::time::sleep(Duration::from_millis(50)) => {
+                    if cancel.load(Ordering::Relaxed) {
+                        return Err("cancelled".into());
+                    }
+                }
+                chunk = stream.next() => {
+                    match chunk {
+                        Some(Ok(bytes)) => {
+                            pending.push_str(&String::from_utf8_lossy(&bytes));
+                            // SSE 事件以 \n\n 分隔
+                            while let Some(idx) = pending.find("\n\n") {
+                                let evt: String = pending.drain(..idx + 2).collect();
+                                parser.feed_event(&evt);
+                            }
+                        }
+                        Some(Err(e)) => return Err(format!("stream read: {e}")),
+                        None => break, // EOF
+                    }
+                }
             }
+        }
 
-            let parsed: ChatResponse = resp
-                .json()
-                .await
-                .map_err(|e| format!("parse response: {e}"))?;
-            Ok(parsed)
-        };
+        // 处理最后残留（无 trailing \n\n）
+        if !pending.trim().is_empty() {
+            parser.feed_event(&pending);
+        }
 
-        let parsed: ChatResponse = if let Ok(handle) = tokio::runtime::Handle::try_current() {
-            handle.block_on(send_fut)?
-        } else {
-            tokio::runtime::Runtime::new()
-                .map_err(|e| format!("tokio runtime: {e}"))?
-                .block_on(send_fut)?
-        };
-
-        let choice = parsed
-            .choices
-            .first()
-            .ok_or_else(|| "no choices in response".to_string())?;
-
-        Ok(parse_decision_from_response(choice, parsed.usage.as_ref()))
+        let (text, tool_bufs) = parser.take_state();
+        let chunks = parser.into_chunks();
+        let decision = parse_decision(text, tool_bufs, tokens_used);
+        Ok((decision, chunks))
     }
 }
 
-/// 从 OpenAI 响应解析出 ModelDecision
+/// SSE 解析器：累积 content deltas + 按 index 缓存 tool_call 碎片
+struct SseParser {
+    content: String,
+    tool_bufs: HashMap<usize, ToolBuf>,
+    chunks: Vec<Chunk>,
+}
+
+#[derive(Default, Debug)]
+struct ToolBuf {
+    id: Option<String>,
+    name: Option<String>,
+    args: String,
+}
+
+impl SseParser {
+    fn new() -> Self {
+        Self {
+            content: String::new(),
+            tool_bufs: HashMap::new(),
+            chunks: Vec::new(),
+        }
+    }
+
+    /// 处理一个完整 SSE 事件（\n\n 之间的内容）
+    fn feed_event(&mut self, event: &str) {
+        for line in event.lines() {
+            let line = line.trim();
+            if line.is_empty() {
+                continue;
+            }
+            // OpenAI / DeepSeek / MiniMax 都用 "data: " 前缀；可能有 "data:" 无空格
+            let data = if let Some(rest) = line.strip_prefix("data:") {
+                rest.trim()
+            } else {
+                continue;
+            };
+            if data == "[DONE]" {
+                return; // 留给 finalize
+            }
+            let parsed: StreamChunk = match serde_json::from_str(data) {
+                Ok(p) => p,
+                Err(_) => continue, // 心跳 / 注释 / 不完整 — 忽略
+            };
+            for choice in parsed.choices {
+                if let Some(text) = choice.delta.content {
+                    if !text.is_empty() {
+                        self.content.push_str(&text);
+                        self.chunks.push(Chunk {
+                            text,
+                            step: 0, // agent.rs 后续会重写
+                        });
+                    }
+                }
+                if let Some(tcs) = choice.delta.tool_calls {
+                    for tc in tcs {
+                        let entry = self.tool_bufs.entry(tc.index).or_default();
+                        if let Some(id) = tc.id {
+                            entry.id = Some(id);
+                        }
+                        if let Some(f) = tc.function {
+                            if let Some(name) = f.name {
+                                entry.name = Some(name);
+                            }
+                            if let Some(args) = f.arguments {
+                                entry.args.push_str(&args);
+                            }
+                        }
+                    }
+                }
+            }
+        }
+    }
+
+    fn take_state(&mut self) -> (String, HashMap<usize, ToolBuf>) {
+        (std::mem::take(&mut self.content), std::mem::take(&mut self.tool_bufs))
+    }
+
+    fn into_chunks(self) -> Vec<Chunk> {
+        self.chunks
+    }
+}
+
+fn parse_decision(
+    text: String,
+    tool_bufs: HashMap<usize, ToolBuf>,
+    _tokens_used: u32,
+) -> ModelDecision {
+    // 流式响应通常不返回 usage（按调用计费；usage 在非流式响应里）。
+    // tokens 留给后续按字符估算或上游单独提供。
+    let tokens_used = if text.is_empty() { 0 } else { (text.len() as u32) / 4 + 1 };
+
+    if let Some((_, buf)) = tool_bufs.into_iter().max_by_key(|(idx, _)| *idx) {
+        if let (Some(id), Some(name)) = (buf.id, buf.name) {
+            return ModelDecision {
+                thought: if text.is_empty() {
+                    format!("调用 {}", name)
+                } else {
+                    text
+                },
+                tool: Some(name),
+                tool_args: Some(buf.args),
+                tool_call_id: Some(id),
+                final_answer: None,
+                tokens_used,
+            };
+        }
+    }
+
+    ModelDecision {
+        thought: "直接给出最终回答".to_string(),
+        tool: None,
+        tool_args: None,
+        tool_call_id: None,
+        final_answer: Some(text),
+        tokens_used,
+    }
+}
+
+/// 从非流式 OpenAI 响应解析出 ModelDecision
 /// 公开出来供测试验证 JSON 解析逻辑（不依赖网络）
 pub fn parse_decision_from_response(
     choice: &Choice,
@@ -243,11 +462,12 @@ pub fn parse_decision_from_response(
             let thought = msg
                 .content
                 .clone()
-                .unwrap_or_else(|| format!("调用 {}", tc.function.name));
+                .unwrap_or_else(|| format!("调用 {}", tc.function.name.clone()));
             return ModelDecision {
                 thought,
                 tool: Some(tc.function.name.clone()),
                 tool_args: Some(tc.function.arguments.clone()),
+                tool_call_id: Some(tc.id.clone()),
                 final_answer: None,
                 tokens_used,
             };
@@ -259,6 +479,7 @@ pub fn parse_decision_from_response(
         thought: "直接给出最终回答".to_string(),
         tool: None,
         tool_args: None,
+        tool_call_id: None,
         final_answer: Some(answer),
         tokens_used,
     }

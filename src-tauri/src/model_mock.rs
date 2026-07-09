@@ -1,48 +1,172 @@
-// Mock 模型（W2.5）
+// Mock 模型（W2.5 + W3.2 流式）
 // 按关卡 + 输入生成确定的 ReAct 轨迹
 // 当真实 LLM 接入时，这个实现会被替换
+//
+// W3.2: 改 async streaming；支持 MockConfig 注入 chunks / 取消行为
 
-use super::model::{Model, ModelDecision, ModelRequest};
+use std::sync::Arc;
+use std::sync::Mutex;
+use std::sync::atomic::{AtomicBool, Ordering};
+use std::time::Duration;
 
-pub struct MockModel;
+use async_trait::async_trait;
 
+use super::model::{Chunk, Model, ModelDecision, ModelRequest};
+use super::model_openai::OaiToolCall;
+
+/// Mock 模型行为配置
+/// 默认 = 老 W2.5 行为：按 level_id + turn 生成确定轨迹，无 chunks
+#[derive(Debug, Clone, Default)]
+pub struct MockConfig {
+    /// 流式 content deltas（按顺序发射）
+    /// 若非空，走"先发 chunks，再发 decision"路径
+    pub chunks: Vec<String>,
+    /// 直接 final_answer（与 plan_step 互斥，优先级最高）
+    pub final_answer: Option<String>,
+    /// 直接 tool call（与 plan_step 互斥）
+    pub tool_call: Option<OaiToolCall>,
+    /// 每个 chunk 间 sleep 时长
+    pub chunk_delay_ms: u64,
+    /// 测试用：注入取消 flag（与 registry 的 cancel 同时检查）
+    /// 设置后，外部 `flag.store(true)` 即可触发模型返回 Err("cancelled")
+    pub cancel_flag: Option<Arc<AtomicBool>>,
+}
+
+pub struct MockModel {
+    pub config: Mutex<MockConfig>,
+}
+
+impl MockModel {
+    pub fn with_config(config: MockConfig) -> Self {
+        Self {
+            config: Mutex::new(config),
+        }
+    }
+}
+
+impl Default for MockModel {
+    fn default() -> Self {
+        Self::with_config(MockConfig::default())
+    }
+}
+
+#[async_trait]
 impl Model for MockModel {
     fn name(&self) -> String {
         "mock-1".to_string()
     }
 
-    fn decide(&self, req: &ModelRequest) -> Result<ModelDecision, String> {
-        let user_input = req
-            .messages
-            .iter()
-            .rev()
-            .find(|m| m.role == "user")
-            .map(|m| m.content.clone())
-            .unwrap_or_default();
+    async fn decide_stream(
+        &self,
+        req: &ModelRequest,
+        cancel: Arc<AtomicBool>,
+    ) -> Result<(ModelDecision, Vec<Chunk>), String> {
+        // 1) 配置模式：发射 chunks + 返回固定 decision
+        let cfg = self.config.lock().unwrap().clone();
+        if !cfg.chunks.is_empty() || cfg.final_answer.is_some() || cfg.tool_call.is_some() {
+            return emit_configured(req, cfg, cancel).await;
+        }
 
-        // 决定本轮做什么：基于 system_prompt 中夹带的关卡 ID
-        // MVP：关卡 ID 在 system_prompt 末尾以 `LEVEL_ID: L1` 形式附带
-        let level_id = extract_level_id(&req.system_prompt);
-        let tools = &req.allowed_tools;
+        // 2) 兼容老 W2.5 行为：按 level_id + turn 生成轨迹
+        Ok((plan_based_decision(req), Vec::new()))
+    }
+}
 
-        // 第几轮：累计 assistant 数
-        let turn = req
-            .messages
-            .iter()
-            .filter(|m| m.role == "assistant")
-            .count();
+async fn emit_configured(
+    _req: &ModelRequest,
+    cfg: MockConfig,
+    cancel: Arc<AtomicBool>,
+) -> Result<(ModelDecision, Vec<Chunk>), String> {
+    let check_cancel = |flag: &Arc<AtomicBool>| flag.load(Ordering::Relaxed);
+    let mut chunks: Vec<Chunk> = Vec::with_capacity(cfg.chunks.len());
+    for text in &cfg.chunks {
+        if check_cancel(&cancel) {
+            return Err("cancelled".into());
+        }
+        if let Some(flag) = &cfg.cancel_flag {
+            if check_cancel(flag) {
+                return Err("cancelled".into());
+            }
+        }
+        if cfg.chunk_delay_ms > 0 {
+            tokio::time::sleep(Duration::from_millis(cfg.chunk_delay_ms)).await;
+        }
+        if check_cancel(&cancel) {
+            return Err("cancelled".into());
+        }
+        if let Some(flag) = &cfg.cancel_flag {
+            if check_cancel(flag) {
+                return Err("cancelled".into());
+            }
+        }
+        chunks.push(Chunk {
+            text: text.clone(),
+            step: 0,
+        });
+    }
 
-        // 根据关卡 + 工具白名单生成计划
-        let (thought, tool, tool_args, final_answer) =
-            plan_step(level_id.as_deref(), tools, &user_input, turn);
+    let decision = if let Some(tc) = cfg.tool_call {
+        ModelDecision {
+            thought: format!("调用 {}", tc.function.name),
+            tool: Some(tc.function.name),
+            tool_args: Some(tc.function.arguments),
+            tool_call_id: Some(tc.id),
+            final_answer: None,
+            tokens_used: 50,
+        }
+    } else if let Some(ans) = cfg.final_answer {
+        ModelDecision {
+            thought: "直接给出最终回答".to_string(),
+            tool: None,
+            tool_args: None,
+            tool_call_id: None,
+            final_answer: Some(ans),
+            tokens_used: 50,
+        }
+    } else {
+        // 仅 chunks，无 final / tool：当作 final answer
+        let full: String = cfg.chunks.iter().cloned().collect();
+        ModelDecision {
+            thought: "直接给出最终回答".to_string(),
+            tool: None,
+            tool_args: None,
+            tool_call_id: None,
+            final_answer: Some(full),
+            tokens_used: 50,
+        }
+    };
 
-        Ok(ModelDecision {
-            thought,
-            tool,
-            tool_args,
-            final_answer,
-            tokens_used: 50, // mock 不计真实 token
-        })
+    Ok((decision, chunks))
+}
+
+/// 老 W2.5 行为：按 level_id + tools + turn 决定
+fn plan_based_decision(req: &ModelRequest) -> ModelDecision {
+    let user_input = req
+        .messages
+        .iter()
+        .rev()
+        .find(|m| m.role == "user")
+        .map(|m| m.content.clone())
+        .unwrap_or_default();
+
+    let level_id = extract_level_id(&req.system_prompt);
+    let tools = &req.allowed_tools;
+    let turn = req
+        .messages
+        .iter()
+        .filter(|m| m.role == "assistant")
+        .count();
+
+    let (thought, tool, tool_args, final_answer) =
+        plan_step(level_id.as_deref(), tools, &user_input, turn);
+
+    ModelDecision {
+        thought,
+        tool,
+        tool_args,
+        tool_call_id: None,
+        final_answer,
+        tokens_used: 50,
     }
 }
 

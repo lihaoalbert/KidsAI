@@ -3,6 +3,9 @@
 //
 // 所有真实 LLM 走同一个 OpenAiCompatible 适配器
 // （MiniMax / DeepSeek / OpenAI / Qwen 都提供 OpenAI 兼容 chat completions）
+//
+// 注意：本模块不负责加载 .env。生产入口（main / run_agent Tauri command）启动时
+// 调一次 dotenvy::dotenv() 即可。tests 里如果想覆盖 env，必须自己负责加载。
 
 use crate::model::Model;
 use crate::model_mock::MockModel;
@@ -14,9 +17,6 @@ pub struct SelectedModel {
 }
 
 pub fn select_model() -> SelectedModel {
-    // 加载 .env（不强制存在）
-    let _ = dotenvy::dotenv();
-
     // 1. MiniMax（默认）
     if let Ok(key) = std::env::var("MINIMAX_API_KEY") {
         if !key.is_empty() {
@@ -81,7 +81,7 @@ pub fn select_model() -> SelectedModel {
 
     // 5. 兜底：mock
     SelectedModel {
-        model: Box::new(MockModel),
+        model: Box::new(MockModel::default()),
         source: "mock".to_string(),
     }
 }

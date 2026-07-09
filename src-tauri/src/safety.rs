@@ -33,7 +33,8 @@ impl KeywordFilter {
             warn: vec![
                 "怕", "讨厌", "恨", "生气",
             ],
-            max_len: 500,
+            // 真实 LLM 回答会带教学说明，500 字太短容易误伤
+            max_len: 5000,
         }
     }
 
@@ -93,7 +94,7 @@ mod tests {
     #[test]
     fn block_too_long() {
         let f = KeywordFilter::new();
-        let long = "啊".repeat(600);
+        let long = "啊".repeat(6000);
         assert!(matches!(f.check(&long), SafetyVerdict::Block { .. }));
     }
 }

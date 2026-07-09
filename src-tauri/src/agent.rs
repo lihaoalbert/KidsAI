@@ -1,13 +1,58 @@
-// Agent Loop（W2.4 + W2.5 + W2.6 合并实现）
+// Agent Loop（W2.4 + W2.5 + W2.6 + W3.1 + W3.2 流式 + 取消）
 // ReAct 循环：Model -> Tool -> Observation -> ... -> Final Answer
 // 事件流：每步通过 tauri::Emitter 发向前端
+// W3.2: 改 async + 串接 SSE chunks + 支持 session 级取消
+
+use std::sync::Arc;
+use std::sync::atomic::{AtomicBool, Ordering};
 
 use serde::{Deserialize, Serialize};
-use tauri::{AppHandle, Emitter};
+use tauri::{AppHandle, Emitter, Manager};
 
-use crate::model::{ModelMessage, ModelRequest, ModelRouter};
+use crate::model::{ModelMessage, ModelRequest, ModelRouter, ModelToolCall};
 use crate::safety::{KeywordFilter, SafetyVerdict};
-use crate::tools::{GeneratedAsset, ToolOutput, ToolRegistry};
+use crate::tools::{GeneratedAsset, ToolOutput};
+
+/// 取消会话的注册表（Tauri state）
+/// session_id -> 取消 flag (true 表示请求取消)
+#[derive(Default)]
+pub struct SessionRegistry {
+    map: std::sync::Mutex<std::collections::HashMap<String, Arc<AtomicBool>>>,
+}
+
+impl SessionRegistry {
+    pub fn insert(&self, id: String) -> Arc<AtomicBool> {
+        let flag = Arc::new(AtomicBool::new(false));
+        self.map.lock().unwrap().insert(id, flag.clone());
+        flag
+    }
+
+    /// 翻转取消 flag，返回是否找到该 session
+    pub fn cancel(&self, id: &str) -> bool {
+        if let Some(flag) = self.map.lock().unwrap().get(id) {
+            flag.store(true, Ordering::Relaxed);
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn remove(&self, id: &str) {
+        self.map.lock().unwrap().remove(id);
+    }
+}
+
+/// RAII guard：run_loop 结束（任何路径）时自动从 registry 移除 session
+struct RegistryGuard<'a> {
+    registry: &'a SessionRegistry,
+    id: String,
+}
+
+impl Drop for RegistryGuard<'_> {
+    fn drop(&mut self) {
+        self.registry.remove(&self.id);
+    }
+}
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct AgentRunRequest {
@@ -29,6 +74,10 @@ pub struct AgentRunResponse {
     pub duration_ms: u64,
     pub model: String,
     pub steps: u32,
+    #[serde(default)]
+    pub tokens_used: u32,
+    #[serde(default)]
+    pub cancelled: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -47,6 +96,12 @@ pub struct ToolCallRecord {
 pub enum AgentEvent {
     Started {
         session_id: String,
+    },
+    /// 流式 content delta（W3.2）
+    Chunk {
+        session_id: String,
+        step: u32,
+        delta: String,
     },
     Thought {
         session_id: String,
@@ -75,6 +130,10 @@ pub enum AgentEvent {
         steps: u32,
         duration_ms: u64,
     },
+    /// 取消生效（W3.2）
+    Cancelled {
+        session_id: String,
+    },
     Error {
         session_id: String,
         message: String,
@@ -84,20 +143,28 @@ pub enum AgentEvent {
 const EVENT_CHANNEL: &str = "agent://event";
 const MAX_STEPS: u32 = 6;
 
-/// 同步运行 Agent
-/// 模型来源：环境变量 DEEPSEEK_API_KEY / OPENAI_API_KEY / DASHSCOPE_API_KEY
-///           都没设时回落到 mock
+/// Tauri command：前端调用启动 agent
 #[tauri::command]
 pub async fn run_agent(
     app: AppHandle,
     request: AgentRunRequest,
 ) -> Result<AgentRunResponse, String> {
-    let registry = default_registry();
+    // 生产入口：进程启动时加载一次 .env
+    let _ = dotenvy::dotenv();
     let selected = crate::model_factory::select_model();
     eprintln!("[agent] using model source: {}", selected.source);
     let router = ModelRouter::new(selected.model);
     let sink = TauriEventSink { app: &app };
-    run_loop(&sink, &registry, &router, request)
+    // 通过 app.state 取注册表，避免在 async 命令签名里带 State ref
+    let registry = app.state::<SessionRegistry>();
+    run_loop(&sink, registry.inner(), &router, request).await
+}
+
+/// 取消 Tauri command
+#[tauri::command]
+pub async fn cancel_agent(app: AppHandle, session_id: String) -> Result<bool, String> {
+    let registry = app.state::<SessionRegistry>();
+    Ok(registry.cancel(&session_id))
 }
 
 fn emit(app: &AppHandle, event: &AgentEvent) {
@@ -107,7 +174,7 @@ fn emit(app: &AppHandle, event: &AgentEvent) {
 }
 
 /// 事件接收抽象：让测试不依赖 Tauri AppHandle
-pub trait EventSink {
+pub trait EventSink: Send + Sync {
     fn emit(&self, event: &AgentEvent);
 }
 
@@ -129,14 +196,21 @@ impl EventSink for NoopEventSink {
 
 /// 纯函数版 Agent Loop（事件 sink 可注入）
 /// 真实运行用 TauriEventSink；测试用 NoopEventSink
-pub fn run_loop(
+/// W3.2: async + 流式 + 取消
+pub async fn run_loop(
     sink: &dyn EventSink,
-    registry: &ToolRegistry,
+    registry: &SessionRegistry,
     router: &ModelRouter,
     request: AgentRunRequest,
 ) -> Result<AgentRunResponse, String> {
     let started = std::time::Instant::now();
     let session_id = format!("sess_{}", now_millis());
+    let cancel = registry.insert(session_id.clone());
+    let _guard = RegistryGuard {
+        registry,
+        id: session_id.clone(),
+    };
+
     let filter = KeywordFilter::new();
 
     // 入口审核
@@ -159,6 +233,8 @@ pub fn run_loop(
                 duration_ms: started.elapsed().as_millis() as u64,
                 model: router.primary_name().to_string(),
                 steps: 0,
+                tokens_used: 0,
+                cancelled: false,
             });
         }
         SafetyVerdict::Warn { reason } => {
@@ -171,7 +247,8 @@ pub fn run_loop(
         session_id: session_id.clone(),
     });
 
-    let tools_desc = registry.describe(&request.tools);
+    let tool_registry = default_registry();
+    let tools_desc = tool_registry.describe(&request.tools);
     let level_id_tag = format!("LEVEL_ID: {}", request.level_id);
     let system_prompt = format!(
         "{}\n\n[可用工具]\n{}\n[{}]\n",
@@ -182,6 +259,8 @@ pub fn run_loop(
         role: "user".to_string(),
         content: request.user_input.clone(),
         name: None,
+        tool_call_id: None,
+        tool_calls: None,
     }];
 
     let mut thoughts: Vec<String> = Vec::new();
@@ -190,8 +269,16 @@ pub fn run_loop(
     let mut final_answer = String::new();
     let mut step: u32 = 0;
     let mut last_error: Option<String> = None;
+    let mut tokens_used: u32 = 0;
+    let mut cancelled = false;
 
     while step < MAX_STEPS {
+        // step 间的取消检查
+        if cancel.load(Ordering::Relaxed) {
+            cancelled = true;
+            break;
+        }
+
         step += 1;
         let model_req = ModelRequest {
             system_prompt: system_prompt.clone(),
@@ -200,13 +287,27 @@ pub fn run_loop(
             temperature: 0.0,
         };
 
-        let decision = match router.decide(&model_req) {
-            Ok(d) => d,
+        let (decision, chunks) = match router.decide_stream(&model_req, cancel.clone()).await {
+            Ok(v) => v,
+            Err(e) if e == "cancelled" => {
+                cancelled = true;
+                break;
+            }
             Err(e) => {
                 last_error = Some(format!("model error: {e}"));
                 break;
             }
         };
+        tokens_used += decision.tokens_used;
+
+        // 发射流式 chunks
+        for chunk in chunks {
+            sink.emit(&AgentEvent::Chunk {
+                session_id: session_id.clone(),
+                step,
+                delta: chunk.text,
+            });
+        }
 
         thoughts.push(decision.thought.clone());
         sink.emit(&AgentEvent::Thought {
@@ -215,22 +316,45 @@ pub fn run_loop(
             thought: decision.thought.clone(),
         });
 
-        // 把 assistant 的决策 push 进 history，让 model 在下一步能"看到"自己上一步的决定
-        let assistant_msg = if let Some(t) = &decision.tool {
-            format!(
+        // 把 assistant 的决策 push 进 history
+        if let Some(t) = &decision.tool {
+            let tool_call_id = decision
+                .tool_call_id
+                .clone()
+                .unwrap_or_else(|| format!("call_{}", now_millis()));
+            let args_str = decision.tool_args.clone().unwrap_or_else(|| "{}".to_string());
+            let tool_calls_struct = vec![ModelToolCall {
+                id: tool_call_id,
+                name: t.clone(),
+                args: args_str.clone(),
+            }];
+            let assistant_msg = format!(
                 "[thought] {}\n[action] {}({})",
                 decision.thought,
                 t,
-                decision.tool_args.as_deref().unwrap_or("{}")
-            )
+                args_str
+            );
+            history.push(ModelMessage {
+                role: "assistant".to_string(),
+                content: assistant_msg,
+                name: None,
+                tool_call_id: None,
+                tool_calls: Some(tool_calls_struct),
+            });
         } else {
-            format!("[thought] {}\n[final] {}", decision.thought, decision.final_answer.as_deref().unwrap_or(""))
-        };
-        history.push(ModelMessage {
-            role: "assistant".to_string(),
-            content: assistant_msg,
-            name: None,
-        });
+            let assistant_msg = format!(
+                "[thought] {}\n[final] {}",
+                decision.thought,
+                decision.final_answer.as_deref().unwrap_or("")
+            );
+            history.push(ModelMessage {
+                role: "assistant".to_string(),
+                content: assistant_msg,
+                name: None,
+                tool_call_id: None,
+                tool_calls: None,
+            });
+        }
 
         if let Some(tool_name) = &decision.tool {
             let args_str = decision.tool_args.clone().unwrap_or_else(|| "{}".to_string());
@@ -254,7 +378,7 @@ pub fn run_loop(
                 args: args_val.clone(),
             });
 
-            let exec_result: Result<ToolOutput, String> = match registry.get(tool_name) {
+            let exec_result: Result<ToolOutput, String> = match tool_registry.get(tool_name) {
                 Some(t) => t.execute(&args_str, &session_id),
                 None => Err(format!("tool not found: {tool_name}")),
             };
@@ -296,6 +420,8 @@ pub fn run_loop(
                 role: "tool".to_string(),
                 content: result_text,
                 name: Some(tool_name.clone()),
+                tool_call_id: decision.tool_call_id.clone(),
+                tool_calls: None,
             });
         } else if let Some(ans) = &decision.final_answer {
             final_answer = ans.clone();
@@ -315,9 +441,14 @@ pub fn run_loop(
         }
     }
 
+    // 出口阶段 — 取消可能在 tool / final 后到达
+    if cancel.load(Ordering::Relaxed) && !cancelled {
+        cancelled = true;
+    }
+
     let duration_ms = started.elapsed().as_millis() as u64;
 
-    if !final_answer.is_empty() {
+    if !final_answer.is_empty() && !cancelled {
         match filter.check(&final_answer) {
             SafetyVerdict::Block { reason } => {
                 eprintln!("[agent] exit block: {}", reason);
@@ -340,6 +471,15 @@ pub fn run_loop(
         }
     }
 
+    if cancelled {
+        sink.emit(&AgentEvent::Cancelled {
+            session_id: session_id.clone(),
+        });
+        if final_answer.is_empty() {
+            final_answer = "（已被用户取消）".to_string();
+        }
+    }
+
     sink.emit(&AgentEvent::Done {
         session_id: session_id.clone(),
         steps: step,
@@ -356,6 +496,8 @@ pub fn run_loop(
         duration_ms,
         model: router.primary_name().to_string(),
         steps: step,
+        tokens_used,
+        cancelled,
     })
 }
 

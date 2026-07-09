@@ -6,7 +6,9 @@ pub mod creations;
 pub mod db;
 pub mod levels;
 pub mod model;
+pub mod model_factory;
 pub mod model_mock;
+pub mod model_openai;
 pub mod safety;
 pub mod tools;
 pub mod types;
@@ -42,6 +44,13 @@ fn greet(name: &str) -> String {
 #[tauri::command]
 fn check_safety(text: String) -> SafetyVerdict {
     KeywordFilter::new().check(&text)
+}
+
+/// 当前模型来源（W3.1）
+/// 前端可以展示给用户："当前由 deepseek 提供"
+#[tauri::command]
+fn current_model_source() -> String {
+    crate::model_factory::select_model().source
 }
 
 #[cfg_attr(mobile, tauri::mobile_entry_point)]
@@ -80,6 +89,8 @@ pub fn run() {
             list_creations,
             // 安全
             check_safety,
+            // 模型
+            current_model_source,
         ])
         .run(tauri::generate_context!())
         .expect("启动 KidsAI Studio 时出错");

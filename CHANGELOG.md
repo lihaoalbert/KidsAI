@@ -47,6 +47,17 @@
   - `src/api/tauri.ts`：新增 `saveCreation` / `listCreations` 类型
   - `src/pages/LibraryPage.tsx`：接入真实作品数据
   - `src-tauri/tests/db_smoke.rs`：4 个集成测试（open / upsert / mark_completed / creations+assets）全部通过
+- **W3.1 真实 LLM 集成（MiniMax-M3 + 备选 OpenAI 兼容 provider）**
+  - `Cargo.toml`：新增 `reqwest`（rustls-tls，无系统 OpenSSL 依赖）+ `tokio` + `dotenvy`
+  - `src-tauri/src/model_openai.rs`：`OpenAiCompatible` 适配器，调用 `/v1/chat/completions` + tool calling
+  - `src-tauri/src/model_factory.rs`：按环境变量选 provider
+    - 优先级：MINIMAX > DEEPSEEK > OPENAI > DASHSCOPE > mock
+    - 默认模型：MiniMax-M3
+  - `src-tauri/src/lib.rs`：新增 `current_model_source` 命令，前端可展示
+  - `.env.example`：4 个 provider 的配置模板
+  - 公开 `parse_decision_from_response` 供测试，不依赖网络
+  - 测试：`tests/openai_parse.rs` 7 个集成测试（mock fallback / minimax 选中 / DeepSeek 真实响应 JSON 解析 / final answer 解析 / 无 usage 兜底 / 构造校验 / 端到端 mock L1）
+  - **总计 20 个测试全过**
 - **W2.4 + W2.5 + W2.6 + W2.7 + W2.8 Agent Loop 核心 + 端到端 demo**
   - 后端 Agent Loop
     - `src-tauri/src/model.rs`：`Model` trait + `ModelRouter`（多模型路由接口，W3 接 LiteLLM）

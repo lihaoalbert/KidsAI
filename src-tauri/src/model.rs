@@ -41,7 +41,7 @@ pub struct ModelDecision {
 
 /// 模型 trait
 pub trait Model: Send + Sync {
-    fn name(&self) -> &'static str;
+    fn name(&self) -> String;
     fn decide(&self, req: &ModelRequest) -> Result<ModelDecision, String>;
 }
 
@@ -55,7 +55,7 @@ impl ModelRouter {
         Self { primary }
     }
 
-    pub fn primary_name(&self) -> &str {
+    pub fn primary_name(&self) -> String {
         self.primary.name()
     }
 

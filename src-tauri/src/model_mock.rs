@@ -7,8 +7,8 @@ use super::model::{Model, ModelDecision, ModelRequest};
 pub struct MockModel;
 
 impl Model for MockModel {
-    fn name(&self) -> &'static str {
-        "mock-1"
+    fn name(&self) -> String {
+        "mock-1".to_string()
     }
 
     fn decide(&self, req: &ModelRequest) -> Result<ModelDecision, String> {

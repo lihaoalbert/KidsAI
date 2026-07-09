@@ -84,14 +84,18 @@ pub enum AgentEvent {
 const EVENT_CHANNEL: &str = "agent://event";
 const MAX_STEPS: u32 = 6;
 
-/// 同步运行 Agent（mock 模型无 LLM 延迟）
+/// 同步运行 Agent
+/// 模型来源：环境变量 DEEPSEEK_API_KEY / OPENAI_API_KEY / DASHSCOPE_API_KEY
+///           都没设时回落到 mock
 #[tauri::command]
 pub async fn run_agent(
     app: AppHandle,
     request: AgentRunRequest,
 ) -> Result<AgentRunResponse, String> {
     let registry = default_registry();
-    let router = ModelRouter::new(Box::new(crate::model_mock::MockModel));
+    let selected = crate::model_factory::select_model();
+    eprintln!("[agent] using model source: {}", selected.source);
+    let router = ModelRouter::new(selected.model);
     let sink = TauriEventSink { app: &app };
     run_loop(&sink, &registry, &router, request)
 }

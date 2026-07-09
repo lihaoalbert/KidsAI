@@ -1,0 +1,38 @@
+# 产品文档（本地维护，不进 git）
+docs/
+
+# Node
+node_modules/
+dist/
+.vite/
+.cache/
+*.tsbuildinfo
+.npm/
+.eslintcache
+
+# Tauri / Rust
+src-tauri/target/
+src-tauri/Cargo.lock
+src-tauri/gen/
+
+# Storybook
+storybook-static/
+
+# 编辑器 / OS
+.DS_Store
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# 日志
+*.log
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+
+# 环境变量
+.env
+.env.local
+.env.*.local

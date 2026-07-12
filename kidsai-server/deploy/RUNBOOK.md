@@ -1,184 +1,188 @@
 # KidsAI Server 部署 Runbook (W4.5 B3)
 
-> 一份给 lihao 看的部署 + 日常操作手册. 全程手敲命令, 无外部依赖 (除 ssh 到 ECS).
+> 目标: 在 ECS (Aliyun Linux 4 / Anolis 12, RHEL 系) 上跑通 kidsai-server systemd 服务,
+> nginx 反代到 `https://kids.ibi.ren` 和 `https://api.kids.ibi.ren`, 桌面端走 `https://api.kids.ibi.ren` 作为 `KIDSAI_SERVER_URL`.
 
-## 0. 前置清单 (一次)
+**前提:**
+- ECS: 8.133.241.103 (root 权限, ssh key 在 `~/Downloads/intfocus-albert.pem`)
+- OS: `dnf` 包管理器 (Aliyun Linux 4 / Anolis 12 / RHEL 8+), **不是** apt/Ubuntu/Debian
+- nginx 路径: `/etc/nginx/conf.d/*.conf` (RedHat 风格), **没有** sites-available/sites-enabled
+- 域名: `kids.ibi.ren` + `api.kids.ibi.ren` (均已在阿里云解析到 ECS, DV 证书 2026-10 到期)
 
-| 项 | 说明 |
-|---|---|
-| ECS host | ibi.ren 项目里的同一台, Ubuntu 20.04+ / Debian 11+ |
-| SSH 接入 | 由 ibi.ren 项目管, 不在这里复述 |
-| 域名 | `kids.ibi.ren` 已 DNS 解析到 ECS 公网 IP |
-| 证书 | `~/Downloads/26041845_kids.ibi.ren_nginx.zip` → `kids.ibi.ren.pem` + `kids.ibi.ren.key` |
-| 密钥轮换 | W4.5 A1 暴露过的 MiniMax + 火山方舟 key **必须先轮换** 才能填进 `.env` |
-| Provider 硬 cap | 火山方舟 / MiniMax 控制台给新 key 设 QPS + 每日 $ 上限 (见 §6) |
+---
 
-## 1. 上传代码
+## §1 一键安装 (新 ECS / 重装)
 
 ```bash
-# 在 ibi.ren ECS 上 (假设 git 可用)
-sudo mkdir -p /opt && sudo chown $USER /opt
-cd /opt
-git clone https://github.com/lihaoalbert/KidsAI.git kidsai-studio
-cd kidsai-studio
-git checkout main
-# 只取 kidsai-server 子目录
-sudo rsync -av --delete kidsai-server/ /opt/kidsai-server/
-sudo chown -R root:root /opt/kidsai-server
-```
-
-## 2. 安装 Python 依赖
-
-```bash
-cd /opt/kidsai-server
-sudo apt-get update && sudo apt-get install -y python3 python3-venv python3-dev build-essential
-sudo python3 -m venv .venv
-sudo .venv/bin/pip install --upgrade pip
-sudo .venv/bin/pip install -e .
-```
-
-## 3. 准备 `.env` (root 700)
-
-```bash
-sudo mkdir -p /etc/kidsai-server
-sudo cp deploy/.env.production.example /etc/kidsai-server/.env
-sudo chmod 600 /etc/kidsai-server/.env
-
-# 生成密钥
-JWT_SECRET=$(openssl rand -hex 32)
-ADMIN_TOKEN=$(openssl rand -hex 16)
-
-# 编辑, 填 JWT_SECRET / ADMIN_TOKEN / LLM_API_KEY / SEEDANCE_API_KEY (4 个必填)
-sudo -e /etc/kidsai-server/.env
-```
-
-`.env` 关键 4 项:
-- `JWT_SECRET`: `openssl rand -hex 32`
-- `ADMIN_TOKEN`: `openssl rand -hex 16`, 记下备用 (admin CLI 需要)
-- `LLM_API_KEY`: 火山方舟 / MiniMax 控制台轮换后复制
-- `SEEDANCE_API_KEY`: 同上
-
-## 4. 安装 systemd unit
-
-```bash
+cd /opt/kidsai-server  # 已 git clone 到这
 sudo bash deploy/install.sh
 ```
 
-会自动:
-- 创建 `kidsai` 系统用户
-- 写 `/etc/systemd/system/kidsai-server.service`
-- `systemctl enable --now kidsai-server`
-- 启动后 `curl http://127.0.0.1:8080/healthz` 应返 `{"status":"ok"}`
+`install.sh` 做的事情:
+1. 校验 root + dnf
+2. 创建 `kidsai` 系统用户 (`useradd --system`)
+3. 准备 `/opt/kidsai-server/data`, `/var/log/kidsai-server`, `/etc/kidsai-server`
+4. 强制要求 `/etc/kidsai-server/.env` 已存在 (`deploy/.env.production.example` 模板)
+5. 装 `kidsai-server.service` + `systemctl enable --now`
+6. 校验 `curl http://127.0.0.1:8080/healthz`
 
-## 5. 配置 nginx + 上证书
+**重要: `.env` 不在 git 里**, 由 lihao 在本地编辑后用 `scp` 或如下命令传:
 
 ```bash
-# 上传证书 (本机先解压 zip, scp 上传)
-scp kids.ibi.ren.{pem,key} root@<ECS>:/tmp/
-ssh root@<ECS> 'sudo mkdir -p /etc/nginx/ssl && \
-  sudo mv /tmp/kids.ibi.ren.{pem,key} /etc/nginx/ssl/ && \
-  sudo chmod 600 /etc/nginx/ssl/kids.ibi.ren.key && \
-  sudo chown root:root /etc/nginx/ssl/kids.ibi.ren.*'
+# 在 Mac 上, scp .env 到 ECS
+scp -i ~/Downloads/intfocus-albert.pem /path/to/.env \
+    root@8.133.241.103:/etc/kidsai-server/.env
 
-# 上传 vhost
-scp deploy/nginx-kids.ibi.ren.conf root@<ECS>:/tmp/
-ssh root@<ECS> 'sudo mv /tmp/nginx-kids.ibi.ren.conf /etc/nginx/sites-available/kids.ibi.ren && \
-  sudo ln -sf /etc/nginx/sites-available/kids.ibi.ren /etc/nginx/sites-enabled/ && \
-  sudo nginx -t && sudo systemctl reload nginx'
+# 在 ECS 上
+sudo chmod 600 /etc/kidsai-server/.env
+sudo chown root:kidsai /etc/kidsai-server/.env
 ```
 
-⚠️ nginx 是**增量**配置: 不动现有其他 site. 只新增 `kids.ibi.ren` vhost.
+---
 
-验证:
+## §2 nginx vhost (HTTPS 反代)
+
+将以下两个文件复制到 `/etc/nginx/conf.d/`:
+
 ```bash
-curl -fsS https://kids.ibi.ren/healthz
-# 期望: {"status":"ok","version":"0.1.0"}
+sudo cp deploy/nginx-kids.ibi.ren.conf    /etc/nginx/conf.d/
+sudo cp deploy/nginx-api.kids.ibi.ren.conf /etc/nginx/conf.d/
 ```
 
-## 6. Provider 端硬 cap (lihao 控制台动作)
+### §2.1 证书上传
 
-即使后端 + 桌面都做了 license check, **provider 端硬 cap 仍是最后一道防线** (用户机被破解后能绕过 license 直连 provider).
-
-### 火山方舟 (Seedance) 控制台
-
-1. 进入 API Key 管理 → 选中刚轮换的 Seedance key
-2. 限流策略:
-   - **QPS ≤ 5** (单台 1 次视频 1-2s 排队, 5 足够; 用户机 1 台难触顶)
-   - **每日消费 ≤ ¥10** (单台 ≤ ¥5/天 = 留 100% 余量)
-3. IP 白名单: 暂不设 (种子机 IP 散落, 设了反而挡正常用户)
-
-### MiniMax 控制台 (LLM)
-
-1. API Key 管理 → 选中轮换的 MiniMax key
-2. 限流策略:
-   - **QPS ≤ 10** (Agent 单 session 峰值约 3-5 QPS)
-   - **每日消费 ≤ ¥5** (单台 ≤ ¥3/天 = 留 67% 余量)
-3. 模型: `claude-haiku-4-5` (成本低, 适合种子阶段)
-
-## 7. 日常操作
-
-### 查看状态
 ```bash
-sudo systemctl status kidsai-server
-sudo journalctl -u kidsai-server -n 100 --no-pager
+# 在 Mac 上, 两个 .zip 已下载:
+# 26041845_kids.ibi.ren_nginx.zip    → kids.ibi.ren
+# 26043757_api.kids.ibi.ren_nginx.zip → api.kids.ibi.ren
+unzip -p 26041845_kids.ibi.ren_nginx.zip '*' > /tmp/kids.tgz
+# 解出 _nginx_bundle.pem / .key 上传
+
+sudo mkdir -p /etc/nginx/ssl
+scp -i ~/Downloads/intfocus-albert.pem \
+    /path/to/kids.ibi.ren.pem   root@8.133.241.103:/etc/nginx/ssl/
+scp -i ~/Downloads/intfocus-albert.pem \
+    /path/to/api.kids.ibi.ren.pem root@8.133.241.103:/etc/nginx/ssl/
+# .key 同理
+sudo chmod 600 /etc/nginx/ssl/*.key
 ```
 
-### 重启
+### §2.2 校验 + reload
+
+```bash
+sudo nginx -t
+sudo systemctl reload nginx
+curl -fsS https://kids.ibi.ren/healthz   # {"status":"ok",...}
+curl -fsS https://api.kids.ibi.ren/healthz
+```
+
+---
+
+## §3 .env 密钥准备
+
+```bash
+# 1) 生成新 JWT_SECRET (32 字节随机)
+openssl rand -hex 32
+
+# 2) 生成 ADMIN_TOKEN (16 字节, 易记也可手填)
+openssl rand -hex 16
+
+# 3) 抄到 .env
+cp deploy/.env.production.example /etc/kidsai-server/.env
+$EDITOR /etc/kidsai-server/.env    # 填 JWT_SECRET / ADMIN_TOKEN / LLM_API_KEY / SEEDANCE_API_KEY
+chmod 600 /etc/kidsai-server/.env
+```
+
+**API key 安全提醒 (W4.5 A1):**
+- LLM_API_KEY = MiniMax 控制台, **不复用** `docs/00-账号信息/code.md` 旧 key (已 git rm)
+- SEEDANCE_API_KEY = 火山方舟控制台, 同上轮换
+- **不要把 key 写到 git/对话/截图**, 用 HTTPS 一次性传输
+
+---
+
+## §4 Provider 端硬 cap (防破产兜底)
+
+⚠️ 这是**最关键**的安全层 — 用户机被破解不会让我们烧穿钱包:
+
+### MiniMax 控制台
+- API Key 详情页 → "使用限制" → 设 QPS ≤ 10, 每日消费 ≤ ¥5
+
+### 火山方舟控制台
+- Seedance API Key 详情 → QPS ≤ 5, 每日消费 ≤ ¥10
+
+> 单台 ≤ ¥5/天 × 10 万台 = ¥50 万/天**上限可控**, 不会爆雷.
+
+---
+
+## §5 日常操作
+
+### 重启服务
 ```bash
 sudo systemctl restart kidsai-server
+sudo journalctl -u kidsai-server -f -n 100
 ```
 
-### Admin CLI (在 ECS 本机或装了 Python 的本机)
-
+### 发学币 (种子用户启动)
 ```bash
-# 装 admin CLI
-pip install --user kidsai-admin  # 暂无, 直接 python3 deploy/kidsai-admin.py
+# 在 Mac 上 (kidsai-admin.py 通过 HTTPS 调 admin API)
+export KIDSAI_SERVER_URL=https://api.kids.ibi.ren
+export KIDSAI_ADMIN_TOKEN=<填 .env 里的 ADMIN_TOKEN>
+python3 deploy/kidsai-admin.py grant <device_id> 50 --reason "种子启动"
+python3 deploy/kidsai-admin.py list --limit 10   # 查 device_id
+```
 
-# 配置 token
-export KIDSAI_SERVER_URL=https://kids.ibi.ren
-export KIDSAI_ADMIN_TOKEN=<第 3 步填的那个>
-
-# 查设备
-python3 deploy/kidsai-admin.py list --limit 20
-
-# 给设备发 50 学币
-python3 deploy/kidsai-admin.py grant <device_id> 50 --reason "种子用户启动"
-
-# 吊销
+### 吊销设备 (退款 / 异常)
+```bash
 python3 deploy/kidsai-admin.py revoke <device_id> --reason "退款"
+# revoke 后已签发的 license_token 立刻 401 (assert_device_active 查 devices.revoked_at)
 ```
 
-### 备份 SQLite
+### 查看学币流水
+```bash
+ssh root@8.133.241.103 'sqlite3 /opt/kidsai-server/data/kidsai.db \
+    "SELECT kind, amount, call_id, reason, datetime(created_at/1000,\"unixepoch\") \
+     FROM transactions WHERE device_id=\"<dev>\" ORDER BY created_at DESC LIMIT 20"'
+```
+
+---
+
+## §6 证书续签 (到期: 2026-10-09)
+
+两个 DigiCert DV 证书 (kids.ibi.ren + api.kids.ibi.ren) 均 2026-10-09 到期.
+
+**续签前置:** 在阿里云 SSL 证书控制台 **提前 30 天** 申请续签 → 下载新的 nginx 包 (`*_nginx.zip`) → 按 §2.1 替换文件.
 
 ```bash
-sudo cp /opt/kidsai-server/data/kidsai.db /backup/kidsai-$(date +%Y%m%d).db
+# 续签当天 (替换 + reload)
+scp -i ~/Downloads/intfocus-albert.pem new_kids.pem \
+    root@8.133.241.103:/etc/nginx/ssl/kids.ibi.ren.pem
+scp -i ~/Downloads/intfocus-albert.pem new_kids.key \
+    root@8.133.241.103:/etc/nginx/ssl/kids.ibi.ren.key
+ssh root@8.133.241.103 'sudo nginx -t && sudo systemctl reload nginx && \
+    echo | openssl s_client -connect kids.ibi.ren:443 -servername kids.ibi.ren 2>/dev/null | \
+    openssl x509 -noout -dates'
 ```
 
-### 升级
+> 阿里云 DV 证书免费, 一年一续, **不接 certbot 自动续签** (DV 已经够用, ACME 流程反而引入风险).
 
-```bash
-cd /opt/kidsai-studio && git pull
-sudo rsync -av --delete kidsai-server/ /opt/kidsai-server/
-cd /opt/kidsai-server && sudo .venv/bin/pip install -e . --quiet
-sudo systemctl restart kidsai-server
-```
+---
 
-## 8. 故障排查
+## §7 故障排查
 
-| 现象 | 排查 |
+| 症状 | 查 |
 |---|---|
-| `curl /healthz` 返 502 | `journalctl -u kidsai-server -n 50` 看启动错 (常见: `.env` 没读, JWT_SECRET 缺失) |
-| `curl /healthz` 返 502 + nginx 502 | nginx upstream 配错 — `cat /etc/nginx/sites-enabled/kids.ibi.ren` 确认 `proxy_pass http://127.0.0.1:8080;` |
-| `activate_device` 返 422 | `ADMIN_TOKEN` 没匹配; `journalctl -u kidsai-server` 看 startup 时 JWT_SECRET 长度 assert |
-| 学币余额没刷新 | 前端 BalanceWidget 拉 /me/balance 失败 — 检查 KIDSAI_SERVER_URL 是否能在桌面进程读到 (Tauri 桌面进程的 env 由 launchd / systemd 继承自用户 shell) |
-| Provider 返 429 / 配额耗尽 | 控制台检查硬 cap 是否触顶; 真触了说明有异常, 看 audit_log 找异常 device_id revoke |
+| `https://kids.ibi.ren/healthz` 502 | `systemctl status kidsai-server` / `journalctl -u kidsai-server -n 50` |
+| 401 invalid license | desktop `license.json` 时间戳过期 → `OnboardingPage` 重激活; 或查 server `.env` JWT_SECRET 是否变更 |
+| 学币扣错 | `sqlite3 /opt/kidsai-server/data/kidsai.db "SELECT * FROM transactions WHERE ..."` |
+| ECS 端 LLM/Seedance 调用慢 | `journalctl -u kidsai-server` (我们不代理, 只看 license 自身) |
+| nginx reload 失败 | `nginx -t` 看语法错; 大概率是 `.pem` 文件名错或权限 |
 
-## 9. 安全 checklist
+---
 
-- [ ] `.env` 是 `chmod 600`, owner `root:root`
-- [ ] JWT_SECRET **不是** `.env.example` 里的占位符
-- [ ] ADMIN_TOKEN **不是** `.env.example` 里的占位符
-- [ ] 火山方舟 / MiniMax 控制台硬 cap 已设
-- [ ] nginx 证书私钥 `chmod 600`
-- [ ] 日志不包含 API key (FastAPI 默认不带 query string, OK)
-- [ ] ECS SSH 只允许 key auth (无密码)
+## §8 不在范围 (后续 plan E)
+
+- E1 家长端小程序 (原型见 `docs/05-家长端/01-家长端小程序原型.md`)
+- E2 Apple/Win 代码签名 (种子用户接受 Gatekeeper 警告)
+- E3 Sentry/OpenTelemetry
+- E4 Postgres 替换 SQLite (设备 > 1 万时)
+- E5 per-device API key 拆池 (目前是单一共享 key)

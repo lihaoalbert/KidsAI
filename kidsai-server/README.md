@@ -34,13 +34,36 @@ cp .env.example .env   # 然后编辑 JWT_SECRET / ADMIN_TOKEN
 ## 测试
 
 ```bash
-.venv/bin/pytest         # 23 tests
+.venv/bin/pytest         # 28 tests (含 LLM cost + revoke 立即失效 + admin grant/revoke)
 ```
 
-## 部署 (B3)
+## 部署 (B3 — RHEL/AL4)
 
-生产环境由 systemd EnvironmentFile 注入密钥到 `/etc/kidsai-server/.env` (root 700),
-nginx `kids.ibi.ren` 反代 `http://127.0.0.1:8080`.
+生产 ECS: Aliyun Linux 4 / Anolis 12 (RHEL 系, `dnf` 而非 `apt-get`).
 
-完整步骤见 [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md) — 一键安装 (`deploy/install.sh`) + nginx vhost
-(`deploy/nginx-kids.ibi.ren.conf`) + 日常 admin CLI (`deploy/kidsai-admin.py`).
+**3 步上手:**
+
+```bash
+# 1) 安装依赖 + systemd 服务 + 健康检查
+sudo bash deploy/install.sh
+
+# 2) 装 nginx vhost (kids.ibi.ren 主站 + api.kids.ibi.ren 桌面端 API 域名)
+sudo cp deploy/nginx-kids.ibi.ren.conf    /etc/nginx/conf.d/
+sudo cp deploy/nginx-api.kids.ibi.ren.conf /etc/nginx/conf.d/
+sudo nginx -t && sudo systemctl reload nginx
+
+# 3) 上传证书到 /etc/nginx/ssl/{kids,api}.kids.ibi.ren.{pem,key}
+# (证书在本地 Downloads/26041845_kids.ibi.ren_nginx.zip 等)
+```
+
+完整步骤 + 故障排查 + 续签见 [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md).
+
+**日常运维 CLI** (`deploy/kidsai-admin.py`):
+
+```bash
+export KIDSAI_SERVER_URL=https://api.kids.ibi.ren
+export KIDSAI_ADMIN_TOKEN=<同 /etc/kidsai-server/.env>
+python3 deploy/kidsai-admin.py list          # 查 device_id
+python3 deploy/kidsai-admin.py grant <id> 50 # 发学币
+python3 deploy/kidsai-admin.py revoke <id>   # 吊销 (立即生效)
+```

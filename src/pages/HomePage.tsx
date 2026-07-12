@@ -130,8 +130,6 @@ export default function HomePage({ onOpenLevel, onOpenStudio }: HomePageProps) {
           })}
         </div>
       </div>
-
-      {/* 骨架提示 */}
-      <div className="mt-12 p-4 rounded-md bg-blue-50 border border-blue-200 text-sm text-blue-900">
-        ℹ️ Week 2 进行中：W2.1 数据 + 详情页 ✓ ｜ W2.2 Tauri 命令 + Zustand
-        stores ✓
+    </div>
+  );
+}

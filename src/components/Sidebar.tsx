@@ -1,4 +1,5 @@
 import type { PageKey } from '../App';
+import { useTokenStore } from '../stores/tokenStore';
 
 interface SidebarProps {
   currentPage: PageKey;
@@ -19,6 +20,7 @@ const navItems: NavItem[] = [
 ];
 
 export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
+  const balance = useTokenStore((s) => s.balance);
   return (
     <aside className="w-60 bg-white border-r border-gray-200 flex flex-col">
       {/* Logo */}
@@ -61,7 +63,7 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
         <div className="bg-gradient-to-br from-warm-50 to-brand-50 rounded-md px-3 py-2.5">
           <div className="text-xs text-gray-600">学币余额</div>
           <div className="text-lg font-bold text-brand-700 mt-0.5">
-            💎 500
+            💎 {balance}
           </div>
         </div>
       </div>

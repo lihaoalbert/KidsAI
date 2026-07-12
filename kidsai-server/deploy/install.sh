@@ -39,9 +39,11 @@ if ! id -u "${RUN_USER}" >/dev/null 2>&1; then
 fi
 
 echo "==> [4/7] 准备目录"
-mkdir -p "${APP_DIR}/data" /var/log/kidsai-server /etc/kidsai-server
+mkdir -p "${APP_DIR}/data" /var/log/kidsai-server /etc/kidsai-server /var/www/assets
 chown -R "${RUN_USER}:${RUN_USER}" "${APP_DIR}/data" /var/log/kidsai-server
 chmod 750 /etc/kidsai-server  # parent dir 让 kidsai user 可读 (它要读 .env)
+# W6 B2: 资产静态托管 root (nginx 读, 不需要 server user)
+chmod 755 /var/www/assets
 
 echo "==> [5/7] 检查 .env"
 if [[ ! -f "${ENV_FILE}" ]]; then
@@ -80,3 +82,6 @@ echo "==> 下一步"
 echo "  1) 配置 nginx (见 deploy/RUNBOOK.md §5) — 现成 ibiren 项目已 nginx, 增量加 conf.d"
 echo "  2) 验证 HTTPS:  curl https://kids.ibi.ren/healthz"
 echo "  3) 用 deploy/kidsai-admin.py 给设备 grant 学币"
+echo "  4) W6 B2: 上传证书到 /etc/nginx/ssl/assets.kids.ibi.ren.{pem,key}"
+echo "     然后 cp deploy/nginx-assets.kids.ibi.ren.conf /etc/nginx/conf.d/ && nginx -t && systemctl reload nginx"
+echo "  5) W6 B1: 用 tools/generate_assets.py 跑批, 产物 scp 到 /var/www/assets/"

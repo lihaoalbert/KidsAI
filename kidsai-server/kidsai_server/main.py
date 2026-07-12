@@ -27,7 +27,7 @@ from .config import Config, load_config
 from .db import open_db
 from .dependencies import get_cfg, get_conn
 from .models import HealthResponse
-from .routes import activate, admin, me
+from .routes import activate, admin, asset, me
 
 
 def _make_license_dep(secret: str):
@@ -90,6 +90,7 @@ def create_app(cfg: Config | None = None, db_path: str | None = None) -> FastAPI
     app.include_router(activate.router)
     app.include_router(me.router)
     app.include_router(admin.router)
+    app.include_router(asset.router)
 
     return app
 

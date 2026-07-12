@@ -1,6 +1,7 @@
 import { useState } from 'react';
 import { useDirectorStore } from '../../stores/directorStore';
 import { useStudioStore } from '../../stores/studioStore';
+import { useAssetStore } from '../../stores/assetStore';
 import CharacterEditor from './editors/CharacterEditor';
 import ShotFxEditor from './editors/ShotFxEditor';
 
@@ -13,9 +14,10 @@ export default function ResultPane() {
   const previewIndex = useStudioStore((s) => s.previewIndex);
   const [fullscreen, setFullscreen] = useState(false);
 
+  // W6 B3: 优先 manifest URL, 找不到走 picsum fallback (assetStore 统一处理)
   const charImg =
     character?.referenceImageUrl ??
-    (character ? `https://picsum.photos/seed/${character.id}-ref/512/512` : null);
+    (character ? useAssetStore.getState().getUrl(`${character.id}.stand`) : null);
 
   const body = (() => {
     if (cursor >= 6 && finalVideoUrl) {

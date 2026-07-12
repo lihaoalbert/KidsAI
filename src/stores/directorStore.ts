@@ -11,7 +11,7 @@ import { create } from 'zustand';
 import {
   CREDITS,
   DIRECTOR_PLAN_SYSTEM_PROMPT,
-  SEEDANCE_MODEL,
+  VIDEO_MODEL,
   listCharacters,
   listStyles,
   parseDirectorPlan,
@@ -21,6 +21,7 @@ import {
   type DirectorPlan,
   type StylePreset,
 } from '../api/tauri';
+import { useAssetStore } from './assetStore';
 import { useTokenStore } from './tokenStore';
 
 export type DirectorStage = 1 | 2 | 3 | 4 | 5 | 6;
@@ -481,9 +482,9 @@ ${shots
         : shot.motion;
       const systemPrompt = `你是 KidsAI 的视频工具。**只调用一次 image_to_video 工具**,参数:
 - motion: ${motionWithStyle}
-- image_url: ${character.referenceImageUrl ?? 'https://picsum.photos/seed/' + character.id + '-ref/512/512'}
+- image_url: ${character.referenceImageUrl ?? useAssetStore.getState().getUrl(`${character.id}.stand`)}
 - image_role: reference_image
-- model: ${SEEDANCE_MODEL.PREVIEW}
+- model: ${VIDEO_MODEL.SEEDANCE_PREVIEW}
 - seed: ${seed}
 - duration: 4
 然后立即返回工具的输出,不要做其他任何事。`;
@@ -553,9 +554,9 @@ ${shots
         : combinedMotion;
       const systemPrompt = `你是 KidsAI 的视频工具。**只调用一次 image_to_video 工具**,参数:
 - motion: ${motionWithStyle}
-- image_url: ${character.referenceImageUrl ?? 'https://picsum.photos/seed/' + character.id + '-ref/512/512'}
+- image_url: ${character.referenceImageUrl ?? useAssetStore.getState().getUrl(`${character.id}.stand`)}
 - image_role: first_frame
-- model: ${SEEDANCE_MODEL.FINALIZE}
+- model: ${VIDEO_MODEL.SEEDANCE_FINALIZE}
 - duration: 5
 然后立即返回工具的输出,不要做其他任何事。`;
 

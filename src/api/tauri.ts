@@ -226,17 +226,51 @@ export async function onAgentEvent(
 }
 
 // ============ 视频导演流程 (W1 v1) ============
-// 1 学分 = 0.1 元。Seedance 各档位计费参考 memory/reference_seedance_video_api.md。
+// 1 学分 = 0.1 元。各档位计费参考 memory/reference_seedance_video_api.md (Seedance)
+// + memory/reference_minimax_video_api.md (Hailuo).
 export const CREDITS = {
-  PREVIEW_PER_SHOT: 9,  // mini 试拍单条分镜 (480P/4s)
-  FINALIZE: 19,         // 2.0 定稿 1 条 (480P/默认时长)
+  PREVIEW_PER_SHOT: 9,  // Seedance mini 试拍单条分镜 (480P/4s)
+  FINALIZE: 19,         // Seedance 2.0 定稿 1 条 (480P/默认时长)
+  HAILUO_VIDEO: 12,     // W6 C4: MiniMax hailuo-02 备用 (套餐额度, 不默认给孩)
+  IMAGE_GEN: 5,         // W6 C1: image-01 单张立绘
+  VOICE_CLONE: 10,      // W6 C2: 声音复刻一次 (录 10s 训练)
+  MUSIC_GEN: 8,         // W6 C3: music-01 一段 BGM (默认 30s)
 } as const;
 
-// 端点 ID 写死后端:见 .env SEEDANCE_MODEL = mini 端点, 导演流程在 tool args 里用 model 字段覆盖
-export const SEEDANCE_MODEL = {
-  PREVIEW: 'doubao-seedance-2-0-mini-260615',   // mini 端点实际解析的 model
-  FINALIZE: 'doubao-seedance-2-0-260128',        // 2.0 端点实际解析的 model
+// W6 C4: 视频引擎选项. 端点 ID 写死桌面端 (provider 端硬 cap 防破产).
+// 导演流程在 tool args 里用 model 字段覆盖, 学币按 model 分发.
+export const VIDEO_MODEL = {
+  SEEDANCE_PREVIEW: 'doubao-seedance-2-0-mini-260615',
+  SEEDANCE_FINALIZE: 'doubao-seedance-2-0-260128',
+  HAILUO: 'MiniMax-hailuo-02',
 } as const;
+
+/// W6 B3: 拉取资产 manifest (server 静态托管的 200 张预生成图)
+export interface AssetManifest {
+  version: number;
+  generatedCount: number;
+  images: Record<string, string>; // key → full URL
+}
+
+export async function getAssetManifest(): Promise<AssetManifest> {
+  // 直连 server, 跟 license 流程走 KIDSAI_SERVER_URL — 暂时走 fetch 而非 invoke
+  // (asset endpoint 在 server, 不在 tauri command). 由调用方注入 base URL.
+  // 这里返 type, 实现放 utils/getManifest.ts 里 (避免循环依赖).
+  throw new Error('use fetchAssetManifest() instead — see utils/assetUrl.ts');
+}
+
+/// W6 B3: 拉取资产 manifest (HTTP, 直连 server 的 /api/v1/asset-manifest).
+export async function fetchAssetManifest(
+  serverUrl: string,
+): Promise<AssetManifest> {
+  const r = await fetch(`${serverUrl.replace(/\/$/, '')}/api/v1/asset-manifest`, {
+    method: 'GET',
+  });
+  if (!r.ok) {
+    throw new Error(`asset-manifest http ${r.status}`);
+  }
+  return r.json() as Promise<AssetManifest>;
+}
 
 /// DirectorPlan = ① 输入后 LLM 返回的全案 JSON, 用于填充 ②③④
 export interface DirectorPlanShot {

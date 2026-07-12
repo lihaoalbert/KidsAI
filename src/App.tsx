@@ -21,8 +21,8 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
     ];
     // @ts-expect-error 仅截图 dev 用
     window.__TAURI_INTERNALS__ = {
-      invoke: (cmd) => {
-        const stubs = {
+      invoke: (cmd: string) => {
+        const stubs: Record<string, unknown> = {
           get_license_info: { deviceId: 'dev-screenshot-1', nickname: '小明', ageTier: 1, isDemo: false, llmApiKey: 'sk-stub', videoApiKey: 'sk-stub', lastBalance: 100 },
           get_balance: { deviceId: 'dev-screenshot-1', balance: 100, dailyConsumed: 11, dailyQuota: 30, dailyRemaining: 19 },
           list_levels: LEVEL_STUBS,

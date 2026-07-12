@@ -20,6 +20,8 @@
 3. 第一次打开 SmartScreen 弹窗："Windows 已保护你的电脑" → 点「更多信息」→「仍要运行」
 
 > ⚠️ **没有 Apple Developer / EV 代码签名**, 种子阶段先这样, 接受 Gatekeeper / SmartScreen 警告就好。
+>
+> ⚠️ **种子阶段暂只发 macOS .dmg** (3.0 MB). Windows .msi 需要在 Windows 机器上跑 `npm run tauri:build -- --target x86_64-pc-windows-msvc` 才能产; 想要 .msi 的朋友先微信群吼一声, lihao 在 Windows VM 上补.
 
 ---
 

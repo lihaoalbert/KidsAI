@@ -1,0 +1,693 @@
+# W6 B1: Asset manifest spec (~200 entries)
+#
+# 每个 entry = 一张 MiniMax image-01 生成任务. 跑批脚本读这个 yaml,
+# 串行调 https://api.minimaxi.com/v1/image_generation, 下载到
+# assets/<kind>/<key>.<ext>, 写 assets/asset_manifest.json.
+#
+# 字段:
+#   key:       manifest 里用的字符串 key (前端按这个索引)
+#   kind:      子目录 (character / style / bg / storyboard / icon /
+#              home / face_action / bgm_thumb / reserved)
+#   prompt:    MiniMax prompt (英文, 不用中文 — image-01 对英文更稳)
+#   aspect:    "1:1" | "16:9" | "9:16" | "4:3"
+#   negative:  反向词, 默认含 "blurry, low quality, deformed hands, watermark"
+#
+# 关键设计:
+# - 所有 prompt 都用 "kids illustration, child-friendly, ..." 关键词加保险
+# - 同一角色 (xiaoqi / xiaoyue / xiaoxing) prompt 加固定锚点 (round head,
+#   soft eyes) 保持身份一致
+# - 风格预设 (anime / cartoon / clay / ink / line-drawing / photo / pixel)
+#   用统一词表让 image-01 输出风格一致
+
+defaults:
+  negative: "blurry, low quality, deformed hands, deformed face, watermark, text, signature, scary, violent"
+  aspect_default: "1:1"
+
+# ─────────────── 角色立绘 (15 张) ───────────────
+# 3 角色 × 5 姿势 (stand / sit / run / fly / smile)
+character:
+  - key: xiaoqi.stand
+    prompt: "cute robot child character Xiaoqi, round head, large glowing teal eyes, soft teal-and-white armor, friendly pose, kids illustration style, full body, white background"
+    aspect: "1:1"
+  - key: xiaoqi.sit
+    prompt: "cute robot child character Xiaoqi, round head, large glowing teal eyes, soft teal-and-white armor, sitting cross-legged, kids illustration style, full body, white background"
+    aspect: "1:1"
+  - key: xiaoqi.run
+    prompt: "cute robot child character Xiaoqi, round head, large glowing teal eyes, soft teal-and-white armor, running with joy, kids illustration style, dynamic pose, white background"
+    aspect: "1:1"
+  - key: xiaoqi.fly
+    prompt: "cute robot child character Xiaoqi, round head, large glowing teal eyes, soft teal-and-white armor, flying with small jet, kids illustration style, dynamic pose, white background"
+    aspect: "1:1"
+  - key: xiaoqi.smile
+    prompt: "cute robot child character Xiaoqi, round head, large glowing teal eyes, soft teal-and-white armor, big warm smile, kids illustration style, close-up portrait, white background"
+    aspect: "1:1"
+
+  - key: xiaoyue.stand
+    prompt: "cute fox child character Xiaoyue, fluffy orange tail, big amber eyes, soft white-and-orange fur, friendly pose, kids illustration style, full body, white background"
+    aspect: "1:1"
+  - key: xiaoyue.sit
+    prompt: "cute fox child character Xiaoyue, fluffy orange tail, big amber eyes, soft white-and-orange fur, sitting with tail wrapped around, kids illustration style, full body, white background"
+    aspect: "1:1"
+  - key: xiaoyue.run
+    prompt: "cute fox child character Xiaoyue, fluffy orange tail, big amber eyes, soft white-and-orange fur, leaping forward, kids illustration style, dynamic pose, white background"
+    aspect: "1:1"
+  - key: xiaoyue.fly
+    prompt: "cute fox child character Xiaoyue, fluffy orange tail, big amber eyes, soft white-and-orange fur, soaring with leaf kite, kids illustration style, dynamic pose, white background"
+    aspect: "1:1"
+  - key: xiaoyue.smile
+    prompt: "cute fox child character Xiaoyue, fluffy orange tail, big amber eyes, soft white-and-orange fur, mischievous smile, kids illustration style, close-up portrait, white background"
+    aspect: "1:1"
+
+  - key: xiaoxing.stand
+    prompt: "cute star child character Xiaoxing, glowing yellow star body, big sparkling eyes, soft yellow light halo, friendly pose, kids illustration style, full body, white background"
+    aspect: "1:1"
+  - key: xiaoxing.sit
+    prompt: "cute star child character Xiaoxing, glowing yellow star body, big sparkling eyes, soft yellow light halo, sitting on a small cloud, kids illustration style, full body, white background"
+    aspect: "1:1"
+  - key: xiaoxing.run
+    prompt: "cute star child character Xiaoxing, glowing yellow star body, big sparkling eyes, soft yellow light halo, zooming like a comet, kids illustration style, dynamic pose, white background"
+    aspect: "1:1"
+  - key: xiaoxing.fly
+    prompt: "cute star child character Xiaoxing, glowing yellow star body, big sparkling eyes, soft yellow light halo, flying across a sky, kids illustration style, dynamic pose, white background"
+    aspect: "1:1"
+  - key: xiaoxing.smile
+    prompt: "cute star child character Xiaoxing, glowing yellow star body, big sparkling eyes, soft yellow light halo, beaming smile, kids illustration style, close-up portrait, white background"
+    aspect: "1:1"
+
+# ─────────────── 风格样例 (28 张) ───────────────
+# 7 风格 × 4 张 (full / half / expression / still life)
+style:
+  - key: anime.full
+    prompt: "anime style illustration, child playing with a kite in a sunny field, vibrant pastel colors, detailed line art, full scene, no characters focus"
+    aspect: "16:9"
+  - key: anime.half
+    prompt: "anime style portrait, child reading a book, soft light, pastel palette, half body, expressive eyes"
+    aspect: "4:3"
+  - key: anime.expression
+    prompt: "anime style close-up of a smiling face, cheerful eyes, soft shading, expressive, no background"
+    aspect: "1:1"
+  - key: anime.still
+    prompt: "anime style still life of a wooden toy car on a desk, soft light, pastel palette, cozy room background"
+    aspect: "4:3"
+
+  - key: cartoon.full
+    prompt: "cartoon style illustration, two kids building a sandcastle on the beach, bold outlines, flat bright colors, full scene"
+    aspect: "16:9"
+  - key: cartoon.half
+    prompt: "cartoon style portrait of a kid holding a flower, bold outlines, flat colors, half body"
+    aspect: "4:3"
+  - key: cartoon.expression
+    prompt: "cartoon style close-up of surprised face, big eyes, bold outlines, flat colors, white background"
+    aspect: "1:1"
+  - key: cartoon.still
+    prompt: "cartoon style still life of a tea cup with steam, bold outlines, flat colors, kitchen background"
+    aspect: "4:3"
+
+  - key: clay.full
+    prompt: "claymation style scene, a small clay kitten playing with yarn, soft plasticine textures, miniature set, warm light"
+    aspect: "16:9"
+  - key: clay.half
+    prompt: "claymation style portrait of a clay bunny, soft plasticine textures, shallow depth of field"
+    aspect: "4:3"
+  - key: clay.expression
+    prompt: "claymation style close-up of a clay child's happy face, plasticine texture, white background"
+    aspect: "1:1"
+  - key: clay.still
+    prompt: "claymation style still life of a clay teapot, plasticine texture, warm light"
+    aspect: "4:3"
+
+  - key: ink.full
+    prompt: "Chinese ink wash painting, a small wooden bridge over a creek with mountains, soft brushstrokes, monochrome, traditional style"
+    aspect: "16:9"
+  - key: ink.half
+    prompt: "Chinese ink wash painting portrait of a scholar, soft brushstrokes, monochrome, half body"
+    aspect: "4:3"
+  - key: ink.expression
+    prompt: "Chinese ink wash close-up of a wise old cat face, soft brushstrokes, monochrome"
+    aspect: "1:1"
+  - key: ink.still
+    prompt: "Chinese ink wash still life of a bamboo and ink stone, soft brushstrokes, monochrome"
+    aspect: "4:3"
+
+  - key: line-drawing.full
+    prompt: "minimal line drawing, kids exploring a forest, single weight black lines on white, no fills, full scene"
+    aspect: "16:9"
+  - key: line-drawing.half
+    prompt: "minimal line drawing, a kid with a backpack, single weight black lines on white, no fills, half body"
+    aspect: "4:3"
+  - key: line-drawing.expression
+    prompt: "minimal line drawing close-up of a kid's face smiling, single weight black lines on white"
+    aspect: "1:1"
+  - key: line-drawing.still
+    prompt: "minimal line drawing still life of an apple and a pencil, single weight black lines on white"
+    aspect: "4:3"
+
+  - key: photo.full
+    prompt: "warm photograph of two kids playing in golden hour sunlight at a meadow, shallow depth of field, natural skin tones, candid moment"
+    aspect: "16:9"
+  - key: photo.half
+    prompt: "warm portrait photograph of a kid with messy hair laughing, shallow depth of field, natural light"
+    aspect: "4:3"
+  - key: photo.expression
+    prompt: "close-up photograph of a kid's eye reflecting a sunset, sharp focus, natural skin"
+    aspect: "1:1"
+  - key: photo.still
+    prompt: "warm still life photograph of an open book and a cup of tea on a wooden table, soft window light"
+    aspect: "4:3"
+
+  - key: pixel.full
+    prompt: "16-bit pixel art scene, a tiny hero in a forest with mushrooms, retro game aesthetic, vibrant palette, full scene"
+    aspect: "16:9"
+  - key: pixel.half
+    prompt: "16-bit pixel art portrait of a tiny hero, retro game aesthetic, vibrant palette"
+    aspect: "4:3"
+  - key: pixel.expression
+    prompt: "16-bit pixel art close-up of a hero's determined face, retro game aesthetic"
+    aspect: "1:1"
+  - key: pixel.still
+    prompt: "16-bit pixel art still life of a treasure chest, retro game aesthetic, vibrant palette"
+    aspect: "4:3"
+
+# ─────────────── 关卡背景 (7 张, L1-L7) ───────────────
+bg:
+  - key: l1.my_ai_companion
+    prompt: "soft pastel bedroom at sunrise, a small robot friend glowing on the nightstand, warm light through curtains, dreamy, kids illustration"
+    aspect: "16:9"
+  - key: l2.storybook
+    prompt: "magical library with floating storybooks, ladders reaching tall shelves, soft golden light, kids illustration, dreamy"
+    aspect: "16:9"
+  - key: l3.adventure
+    prompt: "lush green forest path with sunlight filtering through leaves, a small fox running ahead, kids illustration, adventurous mood"
+    aspect: "16:9"
+  - key: l4.science
+    prompt: "cozy science lab for kids, colorful test tubes, glowing atoms, soft light, kids illustration, friendly"
+    aspect: "16:9"
+  - key: l5.music
+    prompt: "vibrant music stage with floating notes and instruments, soft spotlight, kids illustration, joyful"
+    aspect: "16:9"
+  - key: l6.friendship
+    prompt: "warm park at sunset with kids holding hands in a circle, balloons rising, kids illustration, heartwarming"
+    aspect: "16:9"
+  - key: l7.dream
+    prompt: "starry dream sky with floating islands and a small moon palace, kids illustration, gentle and surreal"
+    aspect: "16:9"
+
+# ─────────────── 分镜模板 (30 张) ───────────────
+# 6 分镜类型 × 5 风格组合 (anime / cartoon / clay / line-drawing / pixel)
+storyboard:
+  - key: wide.anime
+    prompt: "anime style establishing wide shot of a mountain village at dawn, soft pastel sky, atmospheric perspective, cinematic composition"
+    aspect: "16:9"
+  - key: wide.cartoon
+    prompt: "cartoon style wide shot of a school playground, bold outlines, flat bright colors, dynamic composition"
+    aspect: "16:9"
+  - key: wide.clay
+    prompt: "claymation style wide shot of a miniature village with rolling hills, plasticine textures, warm light"
+    aspect: "16:9"
+  - key: wide.line
+    prompt: "minimal line drawing wide shot of a coastline with seagulls, single weight black lines on white"
+    aspect: "16:9"
+  - key: wide.pixel
+    prompt: "16-bit pixel art wide shot of a fantasy castle on a hill, retro game aesthetic, vibrant palette"
+    aspect: "16:9"
+
+  - key: medium.anime
+    prompt: "anime style medium shot of two kids walking on a forest path, expressive posture, pastel palette"
+    aspect: "16:9"
+  - key: medium.cartoon
+    prompt: "cartoon style medium shot of a kid chasing a butterfly, bold outlines, flat colors"
+    aspect: "16:9"
+  - key: medium.clay
+    prompt: "claymation style medium shot of a clay child holding a paper boat, plasticine textures, soft light"
+    aspect: "16:9"
+  - key: medium.line
+    prompt: "minimal line drawing medium shot of a child holding a flower, single weight black lines on white"
+    aspect: "16:9"
+  - key: medium.pixel
+    prompt: "16-bit pixel art medium shot of a hero facing a tiny slime, retro game aesthetic"
+    aspect: "16:9"
+
+  - key: closeup.anime
+    prompt: "anime style close-up of a child's eye reflecting wonder, detailed iris, soft light"
+    aspect: "1:1"
+  - key: closeup.cartoon
+    prompt: "cartoon style close-up of a kid's excited face, big eyes, bold outlines, flat colors"
+    aspect: "1:1"
+  - key: closeup.clay
+    prompt: "claymation style close-up of a clay fox face, plasticine texture, warm light"
+    aspect: "1:1"
+  - key: closeup.line
+    prompt: "minimal line drawing close-up of a kid's curious face, single weight black lines on white"
+    aspect: "1:1"
+  - key: closeup.pixel
+    prompt: "16-bit pixel art close-up of a hero's determined face, retro game aesthetic"
+    aspect: "1:1"
+
+  - key: dialogue.anime
+    prompt: "anime style over-the-shoulder dialogue shot, two kids facing each other, soft pastel palette, expressive"
+    aspect: "16:9"
+  - key: dialogue.cartoon
+    prompt: "cartoon style dialogue shot, two kids talking under a tree, bold outlines, flat colors"
+    aspect: "16:9"
+  - key: dialogue.clay
+    prompt: "claymation style dialogue shot, two clay figures facing each other, plasticine textures, soft light"
+    aspect: "16:9"
+  - key: dialogue.line
+    prompt: "minimal line drawing dialogue shot, two kids talking, single weight black lines on white"
+    aspect: "16:9"
+  - key: dialogue.pixel
+    prompt: "16-bit pixel art dialogue scene, two heroes facing each other, retro game aesthetic"
+    aspect: "16:9"
+
+  - key: chase.anime
+    prompt: "anime style dynamic chase shot, a kid running with a dog through a windy field, motion blur"
+    aspect: "16:9"
+  - key: chase.cartoon
+    prompt: "cartoon style chase shot, a kid on a scooter zooming past houses, bold outlines, flat colors"
+    aspect: "16:9"
+  - key: chase.clay
+    prompt: "claymation style chase shot, a clay mouse running across a desk, plasticine textures, dynamic"
+    aspect: "16:9"
+  - key: chase.line
+    prompt: "minimal line drawing chase shot, a kid chasing a runaway balloon, single weight black lines on white"
+    aspect: "16:9"
+  - key: chase.pixel
+    prompt: "16-bit pixel art chase scene, a hero running through a forest, retro game aesthetic, dynamic pose"
+    aspect: "16:9"
+
+  - key: success.anime
+    prompt: "anime style triumphant success shot, a kid raising a glowing trophy, soft sunset light, pastel palette"
+    aspect: "16:9"
+  - key: success.cartoon
+    prompt: "cartoon style success shot, a kid jumping with arms raised, confetti, bold outlines, flat colors"
+    aspect: "16:9"
+  - key: success.clay
+    prompt: "claymation style success shot, a clay figure standing on a tiny podium, plasticine textures, warm light"
+    aspect: "16:9"
+  - key: success.line
+    prompt: "minimal line drawing success shot, a kid holding a star trophy, single weight black lines on white"
+    aspect: "16:9"
+  - key: success.pixel
+    prompt: "16-bit pixel art victory scene, a hero with sword raised on a hill, retro game aesthetic"
+    aspect: "16:9"
+
+# ─────────────── App icon 套件 (8 张) ───────────────
+# 1024/512/256/128/64/32/16 + 1 暗色版
+icon:
+  - key: app.1024
+    prompt: "KidsAI app icon, a friendly round robot child face with glowing eyes inside a soft teal circle, minimal flat design, centered"
+    aspect: "1:1"
+  - key: app.512
+    prompt: "KidsAI app icon at 512px, simplified version, a friendly round robot child face with glowing eyes inside a soft teal circle"
+    aspect: "1:1"
+  - key: app.256
+    prompt: "KidsAI app icon at 256px, ultra-simplified, a glowing teal circle with a cute robot face silhouette"
+    aspect: "1:1"
+  - key: app.128
+    prompt: "KidsAI app icon at 128px, minimal, teal circle with tiny robot face dot"
+    aspect: "1:1"
+  - key: app.64
+    prompt: "KidsAI favicon style 64px, simple teal circle with white robot face"
+    aspect: "1:1"
+  - key: app.32
+    prompt: "KidsAI favicon style 32px, very simple teal dot with two white pixel eyes"
+    aspect: "1:1"
+  - key: app.16
+    prompt: "KidsAI favicon style 16px, abstract teal glyph"
+    aspect: "1:1"
+  - key: app.dark
+    prompt: "KidsAI app icon dark mode variant, a friendly round robot child face on dark navy background, glowing teal eyes, flat design"
+    aspect: "1:1"
+
+# ─────────────── 首页装饰 (12 张) ───────────────
+# 关卡封面 × 7 + 工作室背景 × 3 + 启动页 × 2
+home:
+  - key: cover.l1
+    prompt: "KidsAI level 1 cover, a kid meeting a small robot friend in a cozy bedroom, warm light, magical first-meeting moment"
+    aspect: "16:9"
+  - key: cover.l2
+    prompt: "KidsAI level 2 cover, a kid opening a glowing storybook that emits stars and characters, magical"
+    aspect: "16:9"
+  - key: cover.l3
+    prompt: "KidsAI level 3 cover, a kid and a fox walking into a glowing forest adventure, bright mood"
+    aspect: "16:9"
+  - key: cover.l4
+    prompt: "KidsAI level 4 cover, a kid in safety goggles doing a colorful science experiment, friendly lab"
+    aspect: "16:9"
+  - key: cover.l5
+    prompt: "KidsAI level 5 cover, a kid on stage with floating music notes and instruments, joyful"
+    aspect: "16:9"
+  - key: cover.l6
+    prompt: "KidsAI level 6 cover, a group of diverse kids in a circle holding hands, balloons, heartwarming"
+    aspect: "16:9"
+  - key: cover.l7
+    prompt: "KidsAI level 7 cover, a kid floating among stars in a dream sky, peaceful and wondrous"
+    aspect: "16:9"
+
+  - key: studio.bg.warm
+    prompt: "KidsAI Studio background, warm soft gradient from peach to lavender, with subtle floating shapes and sparkles"
+    aspect: "16:9"
+  - key: studio.bg.cool
+    prompt: "KidsAI Studio background, cool soft gradient from sky blue to mint, with subtle floating bubbles"
+    aspect: "16:9"
+  - key: studio.bg.dream
+    prompt: "KidsAI Studio background, dreamy gradient from teal to lavender with tiny stars and moons"
+    aspect: "16:9"
+
+  - key: splash.1
+    prompt: "KidsAI splash screen 1, a robot child waving hello against a soft pastel sky with floating clouds and sparkles"
+    aspect: "16:9"
+  - key: splash.2
+    prompt: "KidsAI splash screen 2, a glowing book opening with magical characters and animals emerging, soft light"
+    aspect: "16:9"
+
+# ─────────────── 表情/动作部件库 (50 张) ───────────────
+# 5 表情 × 10 角色变体 — 给导演流程的"画一画"用
+# 角色变体 (不是内置 xiaoqi/xiaoyue/xiaoxing, 而是画风骨架):
+# A: round-headed child (人类小孩通用)
+# B: round-headed robot
+# C: round-headed fox
+# D: round-headed star
+# E: round-headed bunny
+# F: round-headed cat
+# G: round-headed bear
+# H: round-headed dragon
+# I: round-headed bird
+# J: round-headed alien
+face_action:
+  # 笑 × 10
+  - key: smile.A
+    prompt: "round-headed child character, laughing with mouth wide open, eyes closed in joy, simple flat illustration"
+    aspect: "1:1"
+  - key: smile.B
+    prompt: "round-headed robot character, smiling with LED mouth, soft teal accents, simple flat illustration"
+    aspect: "1:1"
+  - key: smile.C
+    prompt: "round-headed fox character, smiling showing tiny fangs, fluffy ears perked, simple flat illustration"
+    aspect: "1:1"
+  - key: smile.D
+    prompt: "round-headed star character, smiling warmly with sparkles around, simple flat illustration"
+    aspect: "1:1"
+  - key: smile.E
+    prompt: "round-headed bunny character, smiling softly with long ears slightly back, simple flat illustration"
+    aspect: "1:1"
+  - key: smile.F
+    prompt: "round-headed cat character, smiling with eyes squinting, simple flat illustration"
+    aspect: "1:1"
+  - key: smile.G
+    prompt: "round-headed bear character, smiling gently, simple flat illustration"
+    aspect: "1:1"
+  - key: smile.H
+    prompt: "round-headed dragon character, smiling with tiny flames from nostrils, simple flat illustration"
+    aspect: "1:1"
+  - key: smile.I
+    prompt: "round-headed bird character, smiling with beak open, simple flat illustration"
+    aspect: "1:1"
+  - key: smile.J
+    prompt: "round-headed alien character, smiling with three eyes, simple flat illustration"
+    aspect: "1:1"
+
+  # 哭 × 10
+  - key: cry.A
+    prompt: "round-headed child character, crying with tears streaming, simple flat illustration"
+    aspect: "1:1"
+  - key: cry.B
+    prompt: "round-headed robot character, sad with a single blue LED tear, simple flat illustration"
+    aspect: "1:1"
+  - key: cry.C
+    prompt: "round-headed fox character, sad with ears down and a single tear, simple flat illustration"
+    aspect: "1:1"
+  - key: cry.D
+    prompt: "round-headed star character, dimming slightly with a tear, simple flat illustration"
+    aspect: "1:1"
+  - key: cry.E
+    prompt: "round-headed bunny character, sad with droopy ears and a tear, simple flat illustration"
+    aspect: "1:1"
+  - key: cry.F
+    prompt: "round-headed cat character, sad with ears sideways and tears, simple flat illustration"
+    aspect: "1:1"
+  - key: cry.G
+    prompt: "round-headed bear character, sad with a tear, simple flat illustration"
+    aspect: "1:1"
+  - key: cry.H
+    prompt: "round-headed dragon character, sad with droopy horns and a tear, simple flat illustration"
+    aspect: "1:1"
+  - key: cry.I
+    prompt: "round-headed bird character, sad with droopy wings and a tear, simple flat illustration"
+    aspect: "1:1"
+  - key: cry.J
+    prompt: "round-headed alien character, sad with all three eyes tearing, simple flat illustration"
+    aspect: "1:1"
+
+  # 怒 × 10
+  - key: angry.A
+    prompt: "round-headed child character, angry with puffed cheeks, simple flat illustration"
+    aspect: "1:1"
+  - key: angry.B
+    prompt: "round-headed robot character, angry with red LED eyes, simple flat illustration"
+    aspect: "1:1"
+  - key: angry.C
+    prompt: "round-headed fox character, angry with bristled tail and bared fangs, simple flat illustration"
+    aspect: "1:1"
+  - key: angry.D
+    prompt: "round-headed star character, angry with red flicker, simple flat illustration"
+    aspect: "1:1"
+  - key: angry.E
+    prompt: "round-headed bunny character, angry with thumping back foot, simple flat illustration"
+    aspect: "1:1"
+  - key: angry.F
+    prompt: "round-headed cat character, angry with arched back and hissing, simple flat illustration"
+    aspect: "1:1"
+  - key: angry.G
+    prompt: "round-headed bear character, angry with crossed arms, simple flat illustration"
+    aspect: "1:1"
+  - key: angry.H
+    prompt: "round-headed dragon character, angry with smoke from nostrils, simple flat illustration"
+    aspect: "1:1"
+  - key: angry.I
+    prompt: "round-headed bird character, angry with fluffed feathers, simple flat illustration"
+    aspect: "1:1"
+  - key: angry.J
+    prompt: "round-headed alien character, angry with all three eyes narrowed, simple flat illustration"
+    aspect: "1:1"
+
+  # 惊 × 10
+  - key: surprise.A
+    prompt: "round-headed child character, surprised with mouth open and hands up, simple flat illustration"
+    aspect: "1:1"
+  - key: surprise.B
+    prompt: "round-headed robot character, surprised with rapidly blinking LEDs, simple flat illustration"
+    aspect: "1:1"
+  - key: surprise.C
+    prompt: "round-headed fox character, surprised with ears straight up, simple flat illustration"
+    aspect: "1:1"
+  - key: surprise.D
+    prompt: "round-headed star character, surprised with burst of sparkles, simple flat illustration"
+    aspect: "1:1"
+  - key: surprise.E
+    prompt: "round-headed bunny character, surprised with ears straight up, simple flat illustration"
+    aspect: "1:1"
+  - key: surprise.F
+    prompt: "round-headed cat character, surprised with arched back and wide eyes, simple flat illustration"
+    aspect: "1:1"
+  - key: surprise.G
+    prompt: "round-headed bear character, surprised with raised paws, simple flat illustration"
+    aspect: "1:1"
+  - key: surprise.H
+    prompt: "round-headed dragon character, surprised with flame puff, simple flat illustration"
+    aspect: "1:1"
+  - key: surprise.I
+    prompt: "round-headed bird character, surprised with feathers puffed, simple flat illustration"
+    aspect: "1:1"
+  - key: surprise.J
+    prompt: "round-headed alien character, surprised with all three eyes wide, simple flat illustration"
+    aspect: "1:1"
+
+  # 思考 × 10
+  - key: think.A
+    prompt: "round-headed child character, thinking with hand on chin, eyes looking up, simple flat illustration"
+    aspect: "1:1"
+  - key: think.B
+    prompt: "round-headed robot character, thinking with rotating gear icon above head, simple flat illustration"
+    aspect: "1:1"
+  - key: think.C
+    prompt: "round-headed fox character, thinking with paw on chin and tilted head, simple flat illustration"
+    aspect: "1:1"
+  - key: think.D
+    prompt: "round-headed star character, thinking with slow pulsing light, simple flat illustration"
+    aspect: "1:1"
+  - key: think.E
+    prompt: "round-headed bunny character, thinking with one ear up one down, simple flat illustration"
+    aspect: "1:1"
+  - key: think.F
+    prompt: "round-headed cat character, thinking with tail curled around, simple flat illustration"
+    aspect: "1:1"
+  - key: think.G
+    prompt: "round-headed bear character, thinking with paw on chin, simple flat illustration"
+    aspect: "1:1"
+  - key: think.H
+    prompt: "round-headed dragon character, thinking with smoke rings, simple flat illustration"
+    aspect: "1:1"
+  - key: think.I
+    prompt: "round-headed bird character, thinking with head tilted, simple flat illustration"
+    aspect: "1:1"
+  - key: think.J
+    prompt: "round-headed alien character, thinking with three eyes blinking in sequence, simple flat illustration"
+    aspect: "1:1"
+
+# ─────────────── BGM 缩略图 (10 张) ───────────────
+# 音乐生成器 UI 缩略图 — 不同风格封面
+bgm_thumb:
+  - key: playful
+    prompt: "playful cartoon BGM cover, bright ukulele on a sunlit meadow, joyful colors"
+    aspect: "1:1"
+  - key: epic
+    prompt: "epic orchestral BGM cover, dramatic mountain landscape with golden light, bold colors"
+    aspect: "1:1"
+  - key: calm
+    prompt: "calm ambient BGM cover, soft pastel sky with floating clouds and a single tree"
+    aspect: "1:1"
+  - key: dreamy
+    prompt: "dreamy lofi BGM cover, a cozy window at night with rain and warm light, soft"
+    aspect: "1:1"
+  - key: adventure
+    prompt: "adventure BGM cover, a treasure map and a compass on a wooden table, warm tones"
+    aspect: "1:1"
+  - key: mystery
+    prompt: "mystery BGM cover, foggy forest with a single lantern glow, cool colors"
+    aspect: "1:1"
+  - key: happy
+    prompt: "happy BGM cover, balloons and confetti on a bright pastel sky"
+    aspect: "1:1"
+  - key: sad
+    prompt: "sad BGM cover, a single wilted flower in a soft grey light"
+    aspect: "1:1"
+  - key: heroic
+    prompt: "heroic BGM cover, a shining sword on a hilltop at dawn"
+    aspect: "1:1"
+  - key: cozy
+    prompt: "cozy BGM cover, a warm fireplace with a cat and a cup of tea"
+    aspect: "1:1"
+
+# ─────────────── 预留 (40 张, 给后续 L8-L20 / 关卡扩展) ───────────────
+reserved:
+  - key: l8.science2
+    prompt: "KidsAI level 8 cover placeholder, a kid with a telescope looking at stars, science theme"
+    aspect: "16:9"
+  - key: l9.history
+    prompt: "KidsAI level 9 cover placeholder, a kid with an ancient scroll in a museum"
+    aspect: "16:9"
+  - key: l10.geography
+    prompt: "KidsAI level 10 cover placeholder, a kid with a globe and a paper plane"
+    aspect: "16:9"
+  - key: l11.coding
+    prompt: "KidsAI level 11 cover placeholder, a kid coding with friendly robots around"
+    aspect: "16:9"
+  - key: l12.art
+    prompt: "KidsAI level 12 cover placeholder, a kid painting a giant colorful mural"
+    aspect: "16:9"
+  - key: l13.cooking
+    prompt: "KidsAI level 13 cover placeholder, a kid in chef hat decorating cupcakes"
+    aspect: "16:9"
+  - key: l14.garden
+    prompt: "KidsAI level 14 cover placeholder, a kid watering a magical glowing plant"
+    aspect: "16:9"
+  - key: l15.sports
+    prompt: "KidsAI level 15 cover placeholder, a kid playing soccer with friends"
+    aspect: "16:9"
+  - key: l16.weather
+    prompt: "KidsAI level 16 cover placeholder, a kid flying a kite on a windy hill"
+    aspect: "16:9"
+  - key: l17.dance
+    prompt: "KidsAI level 17 cover placeholder, a kid dancing with floating ribbons"
+    aspect: "16:9"
+  - key: l18.pets
+    prompt: "KidsAI level 18 cover placeholder, a kid with a puppy and a kitten"
+    aspect: "16:9"
+  - key: l19.travel
+    prompt: "KidsAI level 19 cover placeholder, a kid with a backpack on a mountain peak"
+    aspect: "16:9"
+  - key: l20.final
+    prompt: "KidsAI level 20 cover placeholder, a kid surrounded by all their AI friends"
+    aspect: "16:9"
+  - key: char.custom.placeholder
+    prompt: "blank character silhouette with soft glow, placeholder for user-uploaded characters"
+    aspect: "1:1"
+  - key: char.custom.frame
+    prompt: "empty character frame with circular dotted border, placeholder"
+    aspect: "1:1"
+  - key: studio.toolbar.bg
+    prompt: "soft texture for studio toolbar background, subtle pattern, neutral"
+    aspect: "16:9"
+  - key: studio.timeline.bg
+    prompt: "soft texture for studio timeline background, very subtle pattern, dark"
+    aspect: "16:9"
+  - key: onboarding.step1
+    prompt: "onboarding illustration, a kid meeting a small AI friend for the first time, warm"
+    aspect: "16:9"
+  - key: onboarding.step2
+    prompt: "onboarding illustration, choosing a story theme with floating icons"
+    aspect: "16:9"
+  - key: onboarding.step3
+    prompt: "onboarding illustration, recording your first voice for the AI friend"
+    aspect: "16:9"
+  - key: onboarding.step4
+    prompt: "onboarding illustration, watching the AI friend create a video, excited"
+    aspect: "16:9"
+  - key: badge.first_video
+    prompt: "KidsAI achievement badge, golden star with film reel icon, first video"
+    aspect: "1:1"
+  - key: badge.first_voice
+    prompt: "KidsAI achievement badge, silver star with microphone icon, first voice clone"
+    aspect: "1:1"
+  - key: badge.first_music
+    prompt: "KidsAI achievement badge, bronze star with music note icon, first BGM"
+    aspect: "1:1"
+  - key: badge.first_publish
+    prompt: "KidsAI achievement badge, diamond star with rocket icon, first publish"
+    aspect: "1:1"
+  - key: badge.ten_videos
+    prompt: "KidsAI achievement badge, glowing crescent with ten stars, ten videos"
+    aspect: "1:1"
+  - key: badge.master_director
+    prompt: "KidsAI achievement badge, golden director's chair, master director"
+    aspect: "1:1"
+  - key: prop.sword
+    prompt: "magical glowing sword for adventure scenes, kids illustration, white background"
+    aspect: "1:1"
+  - key: prop.wand
+    prompt: "magical wand with sparkles for magic scenes, kids illustration, white background"
+    aspect: "1:1"
+  - key: prop.map
+    prompt: "treasure map with X marks the spot, kids illustration, white background"
+    aspect: "1:1"
+  - key: prop.key
+    prompt: "ornate golden key for adventure scenes, kids illustration, white background"
+    aspect: "1:1"
+  - key: prop.book
+    prompt: "glowing storybook with floating characters, kids illustration, white background"
+    aspect: "1:1"
+  - key: prop.crown
+    prompt: "shiny golden crown with tiny stars, kids illustration, white background"
+    aspect: "1:1"
+  - key: ui.button.play
+    prompt: "play button icon, soft teal circle with white triangle, flat design"
+    aspect: "1:1"
+  - key: ui.button.pause
+    prompt: "pause button icon, soft teal circle with white bars, flat design"
+    aspect: "1:1"
+  - key: ui.button.record
+    prompt: "record button icon, soft red circle with white dot, flat design"
+    aspect: "1:1"
+  - key: ui.loading.spinner
+    prompt: "loading spinner icon, soft teal spinning arc, flat design"
+    aspect: "1:1"
+  - key: ui.error.icon
+    prompt: "error icon, soft red triangle with exclamation, flat design"
+    aspect: "1:1"
+  - key: ui.success.icon
+    prompt: "success icon, soft green circle with white check, flat design"
+    aspect: "1:1"
+  - key: ui.warning.icon
+    prompt: "warning icon, soft amber triangle with exclamation, flat design"
+    aspect: "1:1"

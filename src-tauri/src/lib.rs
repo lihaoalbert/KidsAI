@@ -5,6 +5,7 @@ pub mod character;
 pub mod content;
 pub mod creations;
 pub mod db;
+pub mod image_adapter;   // W6 C1
 pub mod levels;
 pub mod license_client;
 pub mod license_store;
@@ -12,11 +13,13 @@ pub mod model;
 pub mod model_factory;
 pub mod model_mock;
 pub mod model_openai;
+pub mod music_adapter;   // W6 C3
 pub mod safety;
 pub mod style;
 pub mod tools;
 pub mod types;
 pub mod video_adapter;
+pub mod voice_adapter;   // W6 C2
 
 pub mod test_helpers;
 

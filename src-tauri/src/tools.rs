@@ -1,9 +1,14 @@
-// Mock MCP 工具（W2.6）
+// Mock MCP 工具（W2.6 → W6 C: 接入 image/voice/music/hailuo adapter）
 // 每个工具模拟一次"AI 服务调用"，返回生成的资产信息
-// 真实实现会替换为：HTTP 请求到智谱 / 阿里 DashScope / 自建模型服务
-// W?: image_to_video 工具接入 video_adapter（Volcano ARK Seedance / Mock）
+// 真实实现走 video_adapter / image_adapter / voice_adapter / music_adapter
+// （按 env key 自动选 real 或 mock）
 
+use crate::image_adapter::{select_image_adapter, ImageGenArgs};
 use crate::video_adapter::{select_video_adapter, VideoGenArgs};
+use crate::voice_adapter::{
+    select_tts_adapter, select_voice_clone_adapter, TtsArgs, VoiceCloneArgs,
+};
+use crate::music_adapter::{select_music_adapter, MusicGenArgs};
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -96,32 +101,53 @@ impl Tool for GenerateImageTool {
         "generate_image"
     }
     fn description(&self) -> &'static str {
-        "文生图：根据 prompt 生成一张图片"
+        "文生图：根据 prompt 生成一张图片（W6: MiniMax image-01 / Mock）"
     }
     fn schema(&self) -> &'static str {
-        r#"{"prompt": "string", "style": "string?", "width": "int?", "height": "int?"}"#
+        r#"{
+            "prompt": "string",
+            "aspect_ratio": "string? — 1:1|16:9|9:16|4:3|3:4, 默认 1:1",
+            "style_hint": "string? — 主题/风格关键词, 注入 prompt"
+        }"#
     }
     fn execute(&self, args_json: &str, _session_id: &str) -> Result<ToolOutput, String> {
         let args: serde_json::Value =
             serde_json::from_str(args_json).map_err(|e| format!("invalid args: {e}"))?;
-        let prompt = args
+        let mut prompt = args
             .get("prompt")
             .and_then(|v| v.as_str())
             .ok_or("missing prompt")?
             .to_string();
-        // mock：用 picsum 风格的稳定占位图
-        let seed = simple_hash(&prompt);
-        let url = format!("https://picsum.photos/seed/{seed}/1024/576");
+        if let Some(hint) = args.get("style_hint").and_then(|v| v.as_str()) {
+            prompt = format!("{}, {}", hint, prompt);
+        }
+        let aspect_ratio = args
+            .get("aspect_ratio")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        // W6 C1: 走 image_adapter (MINIMAX_API_KEY 命中走 MiniMax image-01, 否则 mock)
+        let selected = select_image_adapter();
+        let asset = selected.adapter.generate(&ImageGenArgs {
+            prompt: prompt.clone(),
+            aspect_ratio: aspect_ratio.clone(),
+        })?;
+
         Ok(ToolOutput {
-            result_text: format!("已生成图片，prompt={}", prompt),
+            result_text: format!(
+                "已生成图片（provider={}, task_id={}, model={}）",
+                asset.provider,
+                asset.provider_task_id,
+                asset.model.as_deref().unwrap_or("(mock)")
+            ),
             assets: vec![GeneratedAsset {
                 kind: "image".to_string(),
-                url,
+                url: asset.url,
                 thumbnail_url: None,
                 prompt: prompt.clone(),
                 tool: "generate_image".to_string(),
-                tokens_cost: 10,
-                model: None,
+                tokens_cost: 5,  // W6 计费: image_gen 5 学币
+                model: asset.model,
             }],
         })
     }
@@ -274,10 +300,14 @@ impl Tool for SynthesizeSpeechTool {
         "synthesize_speech"
     }
     fn description(&self) -> &'static str {
-        "TTS 配音：把文字转成语音"
+        "TTS 配音：把文字转成语音（W6: MiniMax T2A / Mock；可指定 voice_id 用克隆声音）"
     }
     fn schema(&self) -> &'static str {
-        r#"{"text": "string", "voice": "string?", "emotion": "string?"}"#
+        r#"{
+            "text": "string",
+            "voice_id": "string? — MiniMax voice_id; 之前 voice_clone 训练得到",
+            "emotion": "string? — neutral|happy|sad|angry|fearful|disgusted|surprised|calm"
+        }"#
     }
     fn execute(&self, args_json: &str, _session_id: &str) -> Result<ToolOutput, String> {
         let args: serde_json::Value =
@@ -287,17 +317,139 @@ impl Tool for SynthesizeSpeechTool {
             .and_then(|v| v.as_str())
             .ok_or("missing text")?
             .to_string();
-        let url = format!("https://example.com/tts/{}.mp3", simple_hash(&text));
+        let voice_id = args.get("voice_id").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let emotion = args.get("emotion").and_then(|v| v.as_str()).map(|s| s.to_string());
+
+        // W6 C2: 走 TTS adapter (MiniMax T2A 或 Mock)
+        let adapter = select_tts_adapter();
+        let asset = adapter.synthesize(&TtsArgs {
+            text: text.clone(),
+            voice_id: voice_id.clone(),
+            emotion,
+            model: None,
+        })?;
+
         Ok(ToolOutput {
-            result_text: format!("已生成配音：{}", text),
+            result_text: format!(
+                "已生成配音：voice={}, emotion={}",
+                voice_id.as_deref().unwrap_or("default"),
+                "auto"
+            ),
             assets: vec![GeneratedAsset {
                 kind: "audio".to_string(),
-                url,
+                url: asset.url,
                 thumbnail_url: None,
                 prompt: text,
                 tool: "synthesize_speech".to_string(),
-                tokens_cost: 5,
+                tokens_cost: 3,
                 model: None,
+            }],
+        })
+    }
+}
+
+/// W6 C2: 声音复刻 — 上传 10s 音频, 训练一个 voice_id 用于后续 TTS.
+pub struct VoiceCloneTool;
+
+impl Tool for VoiceCloneTool {
+    fn name(&self) -> &'static str {
+        "voice_clone"
+    }
+    fn description(&self) -> &'static str {
+        "声音复刻：上传一段 10 秒的清晰人声, 训练一个可复用的 MiniMax voice_id (10 学币/次)"
+    }
+    fn schema(&self) -> &'static str {
+        r#"{
+            "audio_path": "string — 音频文件绝对路径 (wav/mp3, 推荐 10s)",
+            "voice_id_hint": "string? — 用户起的名字, 服务端可能改写"
+        }"#
+    }
+    fn execute(&self, args_json: &str, _session_id: &str) -> Result<ToolOutput, String> {
+        let args: serde_json::Value =
+            serde_json::from_str(args_json).map_err(|e| format!("invalid args: {e}"))?;
+        let audio_path = args
+            .get("audio_path")
+            .and_then(|v| v.as_str())
+            .ok_or("missing audio_path")?
+            .to_string();
+        let hint = args
+            .get("voice_id_hint")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+
+        let adapter = select_voice_clone_adapter();
+        let result = adapter.clone_voice(&VoiceCloneArgs {
+            audio_path: audio_path.clone(),
+            voice_id_hint: hint.clone(),
+        })?;
+
+        Ok(ToolOutput {
+            result_text: format!(
+                "已训练声音：voice_id={} (provider={})",
+                result.voice_id, result.provider
+            ),
+            assets: vec![],  // voice_clone 不直接产资产, voice_id 由前端存
+        })
+    }
+}
+
+/// W6 C3: 音乐生成 — 给视频配 BGM.
+pub struct MusicGenTool;
+
+impl Tool for MusicGenTool {
+    fn name(&self) -> &'static str {
+        "music_gen"
+    }
+    fn description(&self) -> &'static str {
+        "音乐生成：根据情绪/风格 prompt 生成一段 BGM (MiniMax music-01 / Mock, 8 学币/首)"
+    }
+    fn schema(&self) -> &'static str {
+        r#"{
+            "prompt": "string — 风格/情绪描述, 例 'cheerful ukulele, cartoon'",
+            "duration_seconds": "int? — 默认 30",
+            "instrumental": "bool? — 默认 true (纯器乐, 适合视频 BGM)"
+        }"#
+    }
+    fn execute(&self, args_json: &str, _session_id: &str) -> Result<ToolOutput, String> {
+        let args: serde_json::Value =
+            serde_json::from_str(args_json).map_err(|e| format!("invalid args: {e}"))?;
+        let prompt = args
+            .get("prompt")
+            .and_then(|v| v.as_str())
+            .ok_or("missing prompt")?
+            .to_string();
+        let duration_seconds = args
+            .get("duration_seconds")
+            .and_then(|v| v.as_u64())
+            .map(|v| v as u32)
+            .unwrap_or(30);
+        let instrumental = args
+            .get("instrumental")
+            .and_then(|v| v.as_bool())
+            .unwrap_or(true);
+
+        let selected = select_music_adapter();
+        let asset = selected.adapter.generate(&MusicGenArgs {
+            prompt: prompt.clone(),
+            duration_seconds,
+            instrumental,
+        })?;
+
+        Ok(ToolOutput {
+            result_text: format!(
+                "已生成 BGM（provider={}, task_id={}, {}秒）",
+                asset.provider,
+                asset.provider_task_id,
+                asset.duration_seconds
+            ),
+            assets: vec![GeneratedAsset {
+                kind: "audio".to_string(),
+                url: asset.url,
+                thumbnail_url: None,
+                prompt: prompt.clone(),
+                tool: "music_gen".to_string(),
+                tokens_cost: 8,  // music_gen 8 学币/首
+                model: asset.model,
             }],
         })
     }
@@ -370,6 +522,8 @@ pub fn default_registry() -> ToolRegistry {
     reg.register(Box::new(EditImageTool));
     reg.register(Box::new(ImageToVideoTool));
     reg.register(Box::new(SynthesizeSpeechTool));
+    reg.register(Box::new(VoiceCloneTool));    // W6 C2
+    reg.register(Box::new(MusicGenTool));      // W6 C3
     reg.register(Box::new(AddSubtitleTool));
     reg.register(Box::new(AddBgmTool));
     reg.register(Box::new(TextChatTool));
@@ -477,6 +631,53 @@ mod tests {
         // 已有工具不受影响
         assert!(reg.get("generate_image").is_some());
         assert!(reg.get("image_to_video").is_some());
+        // W6: 新工具也已注册
+        assert!(reg.get("voice_clone").is_some(), "voice_clone 应注册");
+        assert!(reg.get("music_gen").is_some(), "music_gen 应注册");
+        assert!(reg.get("synthesize_speech").is_some());
+    }
+
+    /// W6 C1: GenerateImageTool 默认走 mock (无 MINIMAX_API_KEY) 返回 picsum 占位 (向后兼容)
+    #[test]
+    fn generate_image_default_mock_returns_picsum() {
+        std::env::remove_var("MINIMAX_API_KEY");
+        let tool = GenerateImageTool;
+        let out = tool.execute(r#"{"prompt":"测试图"}"#, "sess").expect("ok");
+        assert_eq!(out.assets.len(), 1);
+        assert!(out.assets[0].url.contains("picsum.photos"), "mock 仍返 picsum");
+        assert_eq!(out.assets[0].tool, "generate_image");
+        assert_eq!(out.assets[0].tokens_cost, 5, "W6 计费: image_gen 5 学币");
+    }
+
+    /// W6 C2: SynthesizeSpeechTool 默认走 mock 返回 example.com 占位
+    #[test]
+    fn synthesize_speech_default_mock_returns_example() {
+        std::env::remove_var("MINIMAX_API_KEY");
+        let tool = SynthesizeSpeechTool;
+        let out = tool.execute(r#"{"text":"你好"}"#, "sess").expect("ok");
+        assert_eq!(out.assets[0].kind, "audio");
+        assert!(out.assets[0].url.contains("example.com/tts/"));
+    }
+
+    /// W6 C3: MusicGenTool 默认走 mock 返回 example.com/bgm/ 占位
+    #[test]
+    fn music_gen_default_mock_returns_placeholder() {
+        std::env::remove_var("MINIMAX_API_KEY");
+        let tool = MusicGenTool;
+        let out = tool.execute(r#"{"prompt":"happy","duration_seconds":30,"instrumental":true}"#, "sess").expect("ok");
+        assert_eq!(out.assets[0].kind, "audio");
+        assert!(out.assets[0].url.contains("example.com/bgm/"));
+        assert_eq!(out.assets[0].tokens_cost, 8, "W6 计费: music_gen 8 学币");
+    }
+
+    /// W6 C2: VoiceCloneTool 默认走 mock (audio_path 不被实际读)
+    #[test]
+    fn voice_clone_default_mock_returns_mock_id() {
+        std::env::remove_var("MINIMAX_API_KEY");
+        let tool = VoiceCloneTool;
+        // mock 模式不检查 audio_path 是否存在 — 避免"audio_path not found" 错误阻断测试
+        let out = tool.execute(r#"{"audio_path":"/any/path.wav","voice_id_hint":"kiki"}"#, "sess").expect("ok");
+        assert_eq!(out.result_text.contains("mock"), true, "mock 模式 result_text 应提示 mock");
     }
 
     /// image_role=reference_image 透传到 VideoGenArgs → POST body 中 image_url 段出现 role

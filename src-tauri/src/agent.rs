@@ -221,19 +221,33 @@ fn spawn_spend_report(
                 eprintln!("[agent] llm spend report failed: {e}");
             }
         }
-        // video spend: 每个 video 资产按 model 区分 draft/final
+        // W6: 资产按 kind + tool 分发到对应 server 端 kind
         for a in &assets {
-            if a.kind != "video" {
-                continue;
-            }
-            let kind = if a.model.as_deref().unwrap_or("").contains("mini") {
-                "video_draft"
-            } else {
-                "video_final"
+            let spend_kind = match (a.kind.as_str(), a.tool.as_str()) {
+                ("video", "image_to_video") => {
+                    // video 按 model 区分 draft/final/hailuo
+                    let m = a.model.as_deref().unwrap_or("");
+                    if m.contains("mini") { "video_draft" }
+                    else if m.contains("hailuo") { "hailuo_video" }
+                    else { "video_final" }
+                }
+                ("image", "generate_image") => "image_gen",
+                ("image", "edit_image") => "image_gen",
+                ("audio", "synthesize_speech") => "tts",  // 暂归 llm cost, 留 tts 单独 kind 后续
+                ("audio", "music_gen") => "music_gen",
+                _ => continue,  // 其他资产不计费 (subtitle / bgm placeholder)
             };
-            let call_id = format!("vid-{}-{}", now_millis(), short_hash(&a.url));
-            if let Err(e) = client.record_spend(&license_token, &call_id, kind, 1).await {
-                eprintln!("[agent] video spend report failed: {e}");
+            let call_id = format!(
+                "{}-{}-{}",
+                spend_kind,
+                now_millis(),
+                short_hash(&a.url)
+            );
+            if let Err(e) = client
+                .record_spend(&license_token, &call_id, spend_kind, 1)
+                .await
+            {
+                eprintln!("[agent] {spend_kind} spend report failed: {e}");
             }
         }
     });

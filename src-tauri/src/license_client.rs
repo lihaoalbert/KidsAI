@@ -28,6 +28,11 @@ pub struct LicenseClient {
 pub struct ApiKeys {
     pub llm: String,
     pub video: String,
+    /// W6 A3: MiniMax key — 服务端从 key pool 粘性分配 1 个.
+    /// 老桌面忽略此字段; 新桌面用此调 image/voice/music/hailuo.
+    /// None = 服务端 demo 模式或空池, 桌面走 mock fallback.
+    #[serde(default)]
+    pub minimax: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -102,6 +107,7 @@ impl LicenseClient {
                     api_keys: ApiKeys {
                         llm: std::env::var("LLM_API_KEY").unwrap_or_default(),
                         video: std::env::var("SEEDANCE_API_KEY").unwrap_or_default(),
+                        minimax: std::env::var("MINIMAX_API_KEY").ok().filter(|s| !s.is_empty()),
                     },
                     balance: 100,
                     daily_quota: 30,
@@ -211,6 +217,7 @@ impl LicenseClient {
                 api_keys: ApiKeys {
                     llm: "demo".into(),
                     video: "demo".into(),
+                    minimax: std::env::var("MINIMAX_API_KEY").ok().filter(|s| !s.is_empty()),
                 },
             }),
             LicenseMode::Server { base_url } => {

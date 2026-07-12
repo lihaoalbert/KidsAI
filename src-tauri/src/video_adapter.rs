@@ -1,11 +1,13 @@
 // Video adapter abstraction（W? — Seedance 接入）
 // 模型 → 图生视频的 provider 抽象。当前实现：
 //   - VolcanoArkVideoAdapter：火山方舟 Seedance（doubao-seedance-2-0-* / fast / mini）
+//   - HailuoVideoAdapter（W6 C4）：MiniMax hailuo-02（备用，套餐里包含的视频额度）
 //   - MockVideoAdapter：保留原 w3schools 示例视频，用于无 key 环境
 //
 // 选择顺序（看 env）：
-//   SEEDANCE_API_KEY（Bearer）→ VolcanoArk
-//   否则                            → Mock
+//   SEEDANCE_API_KEY（Bearer）               → VolcanoArk（主）
+//   HAILUO_VIDEO_ENABLED=1 + MINIMAX_API_KEY → Hailuo（备用）
+//   否则                                    → Mock
 //
 // 用户持有多套 Seedance 端点（2.0 / 2.0-fast / 2.0-mini），通过 SEEDANCE_MODEL 切换。
 // 三套端点的 API surface 一致，所以三个 variant 共用同一个 adapter，只换 model 名。
@@ -354,19 +356,155 @@ impl VolcanoArkVideoAdapter {
     }
 }
 
+// ============ Hailuo (W6 C4) ============
+
+const DEFAULT_MINIMAX_BASE_URL: &str = "https://api.minimaxi.com/v1";
+const DEFAULT_HAILUO_MODEL: &str = "MiniMax-hailuo-02";
+const HAILUO_POLL_INTERVAL_MS: u64 = 2000;
+const HAILUO_POLL_MAX_ATTEMPTS: u32 = 90;  // ~3 分钟上限
+const HAILUO_TIMEOUT_SECS: u64 = 30;
+
+pub struct HailuoVideoAdapter {
+    base_url: String,
+    api_key: String,
+    model: String,
+    client: reqwest::blocking::Client,
+}
+
+impl HailuoVideoAdapter {
+    pub fn new(base_url: String, api_key: String, model: String) -> Self {
+        let client = reqwest::blocking::Client::builder()
+            .timeout(Duration::from_secs(HAILUO_TIMEOUT_SECS))
+            .build()
+            .expect("reqwest client");
+        Self { base_url, api_key, model, client }
+    }
+
+    fn build_request_body(&self, args: &VideoGenArgs) -> serde_json::Value {
+        // MiniMax /v1/video_generation body shape (官方 docs):
+        // { model, prompt, image_url (可空, 不传则文生视频), duration_秒, ratio }
+        let mut body = serde_json::json!({
+            "model": args.model.as_deref().unwrap_or(&self.model),
+            "prompt": args.prompt,
+            "duration": args.duration_seconds.unwrap_or(6),
+            "ratio": args.ratio.clone().unwrap_or_else(|| "16:9".to_string()),
+        });
+        if let Some(url) = &args.image_url {
+            body["image_url"] = serde_json::Value::String(url.clone());
+        }
+        body
+    }
+}
+
+impl VideoAdapter for HailuoVideoAdapter {
+    fn provider_name(&self) -> &'static str {
+        "hailuo"
+    }
+    fn generate(&self, args: &VideoGenArgs) -> Result<VideoAsset, String> {
+        let url = format!("{}/video_generation", self.base_url);
+        let body = self.build_request_body(args);
+        let resp = self
+            .client
+            .post(&url)
+            .header("Authorization", format!("Bearer {}", self.api_key))
+            .header("Content-Type", "application/json")
+            .json(&body)
+            .send()
+            .map_err(|e| format!("hailuo create failed: {e}"))?;
+        let status = resp.status();
+        let body_text = resp.text().unwrap_or_default();
+        if !status.is_success() {
+            return Err(format!(
+                "hailuo HTTP {}: {}",
+                status,
+                truncate(&body_text, 240)
+            ));
+        }
+        let parsed: serde_json::Value = serde_json::from_str(&body_text)
+            .map_err(|e| format!("hailuo invalid JSON: {e}"))?;
+        let task_id = parsed
+            .get("task_id")
+            .and_then(|v| v.as_str())
+            .ok_or_else(|| "hailuo create: missing task_id".to_string())?
+            .to_string();
+        self.poll_until_done(&task_id, args.image_url.clone())
+    }
+}
+
+impl HailuoVideoAdapter {
+    fn poll_until_done(&self, task_id: &str, _image_url: Option<String>) -> Result<VideoAsset, String> {
+        let poll_url = format!("{}/query/video_generation?task_id={}", self.base_url, task_id);
+        for attempt in 0..HAILUO_POLL_MAX_ATTEMPTS {
+            std::thread::sleep(Duration::from_millis(HAILUO_POLL_INTERVAL_MS));
+            let resp = self
+                .client
+                .get(&poll_url)
+                .header("Authorization", format!("Bearer {}", self.api_key))
+                .send()
+                .map_err(|e| format!("hailuo poll failed: {e}"))?;
+            let status = resp.status();
+            let body_text = resp.text().unwrap_or_default();
+            if !status.is_success() {
+                return Err(format!("hailuo poll HTTP {}: {}", status, truncate(&body_text, 240)));
+            }
+            let parsed: serde_json::Value = serde_json::from_str(&body_text)
+                .map_err(|e| format!("hailuo poll invalid JSON: {e}"))?;
+            let task_status = parsed.get("status").and_then(|v| v.as_str()).unwrap_or("");
+            match task_status {
+                "Success" | "Succeeded" | "succeeded" => {
+                    let url = parsed
+                        .pointer("/file/download_url")
+                        .or_else(|| parsed.pointer("/data/video_url"))
+                        .or_else(|| parsed.pointer("/data/url"))
+                        .and_then(|v| v.as_str())
+                        .ok_or_else(|| format!("hailuo succeeded but missing download_url: {}", truncate(&body_text, 200)))?;
+                    return Ok(VideoAsset {
+                        url: url.to_string(),
+                        thumbnail_url: None,
+                        provider_task_id: task_id.to_string(),
+                        provider: "hailuo".to_string(),
+                        model: Some(self.model.clone()),
+                    });
+                }
+                "Fail" | "Failed" | "failed" => {
+                    let msg = parsed
+                        .pointer("/error/message")
+                        .or_else(|| parsed.pointer("/data.message"))
+                        .and_then(|v| v.as_str())
+                        .unwrap_or("(no message)");
+                    return Err(format!("hailuo task failed: {}", msg));
+                }
+                "Queueing" | "Processing" | "Running" | "queued" | "running" => {
+                    if attempt == HAILUO_POLL_MAX_ATTEMPTS - 1 {
+                        return Err(format!("hailuo still {} after {} polls", task_status, HAILUO_POLL_MAX_ATTEMPTS));
+                    }
+                }
+                _ => {
+                    if attempt == HAILUO_POLL_MAX_ATTEMPTS - 1 {
+                        return Err(format!("hailuo unknown status '{}' after {} polls", task_status, HAILUO_POLL_MAX_ATTEMPTS));
+                    }
+                }
+            }
+        }
+        Err(format!("hailuo did not complete in {} polls", HAILUO_POLL_MAX_ATTEMPTS))
+    }
+}
+
 // ============ Factory ============
 
 pub struct SelectedVideoAdapter {
     pub adapter: Box<dyn VideoAdapter>,
-    pub source: String, // "ark" / "mock"
+    pub source: String, // "ark" / "hailuo" / "mock"
 }
 
-/// 按 env 选择一个 video adapter
+/// 按 env 选择一个 video adapter.
+/// W6 C4: 加入 MiniMax hailuo-02 备用选项 (套餐里包含的视频额度利用).
+/// 优先级: SEEDANCE_API_KEY → ark; MINIMAX_API_KEY + hailuo opt-in → hailuo; 否则 mock.
 ///
-/// SEEDANCE_API_KEY 命中 → VolcanoArkVideoAdapter；
-/// 否则 → MockVideoAdapter
+/// Hailuo 是"套餐里附带的视频额度", 默认不启用 (设 HAILUO_VIDEO_ENABLED=1 开启),
+/// 避免种子用户默认走 MiniMax 视频丢了 Seedance 2.0 的稳定性.
 pub fn select_video_adapter() -> SelectedVideoAdapter {
-    // 生产入口负责 dotenv()；测试可以在外部覆盖 env 后再调本函数。
+    // Primary: Seedance (主视频) — 1) 用 SEEDANCE_API_KEY 试
     if let Ok(key) = std::env::var("SEEDANCE_API_KEY") {
         if !key.is_empty() {
             let base_url = std::env::var("SEEDANCE_BASE_URL")
@@ -379,7 +517,21 @@ pub fn select_video_adapter() -> SelectedVideoAdapter {
             };
         }
     }
-
+    // Backup: Hailuo (备用) — 必须显式 opt-in + 有 MINIMAX_API_KEY
+    if std::env::var("HAILUO_VIDEO_ENABLED").as_deref() == Ok("1") {
+        if let Ok(key) = std::env::var("MINIMAX_API_KEY") {
+            if !key.is_empty() {
+                let base_url = std::env::var("MINIMAX_BASE_URL")
+                    .unwrap_or_else(|_| DEFAULT_MINIMAX_BASE_URL.to_string());
+                let model = std::env::var("HAILUO_MODEL")
+                    .unwrap_or_else(|_| DEFAULT_HAILUO_MODEL.to_string());
+                return SelectedVideoAdapter {
+                    adapter: Box::new(HailuoVideoAdapter::new(base_url, key, model)),
+                    source: "hailuo".to_string(),
+                };
+            }
+        }
+    }
     SelectedVideoAdapter {
         adapter: Box::new(MockVideoAdapter),
         source: "mock".to_string(),
@@ -977,5 +1129,137 @@ mod tests {
             seed: None,
         });
         assert!(body.get("seed").is_none(), "seed should be absent when None");
+    }
+
+    // ---- Hailuo adapter tests ----
+
+    #[test]
+    fn hailuo_request_body_shape() {
+        let a = HailuoVideoAdapter::new("http://unused".into(), "k".into(), "MiniMax-hailuo-02".into());
+        let body = a.build_request_body(&VideoGenArgs {
+            prompt: "小猫跳跃".into(),
+            image_url: Some("https://e/i.jpg".into()),
+            image_role: None,
+            duration_seconds: Some(6),
+            ratio: Some("16:9".into()),
+            resolution: None,
+            generate_audio: None,
+            model: None,
+            seed: None,
+        });
+        assert_eq!(body["model"], "MiniMax-hailuo-02");
+        assert_eq!(body["prompt"], "小猫跳跃");
+        assert_eq!(body["duration"], 6);
+        assert_eq!(body["ratio"], "16:9");
+        assert_eq!(body["image_url"], "https://e/i.jpg");
+    }
+
+    #[test]
+    fn hailuo_default_duration_is_6() {
+        let a = HailuoVideoAdapter::new("http://unused".into(), "k".into(), "m".into());
+        let body = a.build_request_body(&VideoGenArgs {
+            prompt: "x".into(),
+            image_url: None,
+            image_role: None,
+            duration_seconds: None,
+            ratio: None,
+            resolution: None,
+            generate_audio: None,
+            model: None,
+            seed: None,
+        });
+        assert_eq!(body["duration"], 6);
+        assert_eq!(body["ratio"], "16:9");
+        assert!(body.get("image_url").is_none(), "image_url absent when None");
+    }
+
+    #[test]
+    fn hailuo_polls_then_succeeds() {
+        let mut server = mockito::Server::new();
+        server
+            .mock("POST", "/video_generation")
+            .with_status(200)
+            .with_body(r#"{"task_id":"h1"}"#)
+            .create();
+        // 第一次 running
+        let m1 = server
+            .mock("GET", "/query/video_generation")
+            .match_query(mockito::Matcher::Any)
+            .with_status(200)
+            .with_body(r#"{"status":"Processing"}"#)
+            .expect(1)
+            .create();
+        let m2 = server
+            .mock("GET", "/query/video_generation")
+            .match_query(mockito::Matcher::Any)
+            .with_status(200)
+            .with_body(r#"{"status":"Success","file":{"download_url":"https://cdn/hailuo.mp4"}}"#)
+            .expect(1)
+            .create();
+        let adapter = HailuoVideoAdapter::new(server.url(), "k".into(), "m".into());
+        let out = adapter.generate(&VideoGenArgs {
+            prompt: "x".into(),
+            image_url: None,
+            image_role: None,
+            duration_seconds: Some(6),
+            ratio: None,
+            resolution: None,
+            generate_audio: None,
+            model: None,
+            seed: None,
+        }).expect("ok");
+        m1.assert();
+        m2.assert();
+        assert_eq!(out.provider, "hailuo");
+        assert_eq!(out.url, "https://cdn/hailuo.mp4");
+    }
+
+    #[test]
+    fn hailuo_401_does_not_leak_key() {
+        let mut server = mockito::Server::new();
+        server
+            .mock("POST", "/video_generation")
+            .with_status(401)
+            .with_body(r#"{"error":{"message":"bad key"}}"#)
+            .create();
+        let adapter = HailuoVideoAdapter::new(
+            server.url(),
+            "super-secret-hailuo-key".into(),
+            "m".into(),
+        );
+        let err = adapter.generate(&VideoGenArgs {
+            prompt: "x".into(),
+            image_url: None,
+            image_role: None,
+            duration_seconds: Some(6),
+            ratio: None,
+            resolution: None,
+            generate_audio: None,
+            model: None,
+            seed: None,
+        }).unwrap_err();
+        assert!(err.contains("HTTP 401"));
+        assert!(!err.contains("super-secret-hailuo-key"), "key leaked: {err}");
+    }
+
+    #[test]
+    fn select_video_adapter_picks_hailuo_when_seedance_missing_and_opt_in() {
+        std::env::remove_var("SEEDANCE_API_KEY");
+        std::env::set_var("MINIMAX_API_KEY", "k");
+        std::env::set_var("HAILUO_VIDEO_ENABLED", "1");
+        let s = select_video_adapter();
+        assert_eq!(s.source, "hailuo");
+        std::env::remove_var("MINIMAX_API_KEY");
+        std::env::remove_var("HAILUO_VIDEO_ENABLED");
+    }
+
+    #[test]
+    fn select_video_adapter_does_not_pick_hailuo_without_opt_in() {
+        std::env::remove_var("SEEDANCE_API_KEY");
+        std::env::set_var("MINIMAX_API_KEY", "k");
+        std::env::remove_var("HAILUO_VIDEO_ENABLED");
+        let s = select_video_adapter();
+        assert_eq!(s.source, "mock", "缺 HAILUO_VIDEO_ENABLED 时不应选 hailuo");
+        std::env::remove_var("MINIMAX_API_KEY");
     }
 }

@@ -4,9 +4,10 @@ import { useLevelStore } from '../stores/levelStore';
 
 interface HomePageProps {
   onOpenLevel?: (levelId: string) => void;
+  onOpenStudio?: () => void;
 }
 
-export default function HomePage({ onOpenLevel }: HomePageProps) {
+export default function HomePage({ onOpenLevel, onOpenStudio }: HomePageProps) {
   const { levels, isUnlocked, refresh, isLoading, error } = useLevelStore();
 
   useEffect(() => {
@@ -38,7 +39,11 @@ export default function HomePage({ onOpenLevel }: HomePageProps) {
             <div className="text-xs text-gray-500 mt-1">用 AI 制作小游戏</div>
           </div>
         </Card>
-        <Card variant="elevated">
+        <Card
+          variant="elevated"
+          className={onOpenStudio ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}
+          onClick={onOpenStudio}
+        >
           <div className="text-center py-4">
             <div className="text-4xl mb-2">🎬</div>
             <div className="font-semibold text-gray-900">视频创作</div>

@@ -19,13 +19,17 @@ pub struct LevelStep {
     pub title: String,
     pub instruction: String,
     #[serde(rename = "type")]
-    pub step_type: String, // "input" | "choice" | "action" | "free"
+    pub step_type: String, // "input" | "choice" | "action" | "free" | "reference_setup" | "reference_recreate"
     #[serde(skip_serializing_if = "Option::is_none")]
     pub placeholder: Option<String>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub options: Option<Vec<String>>,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub hint: Option<String>,
+    /// W3.7+ 当 step_type="reference_recreate" 时告诉前端用哪种模式
+    /// "single" = 拉一帧复刻；"batch" = 整段分镜复刻
+    #[serde(skip_serializing_if = "Option::is_none")]
+    pub mode: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

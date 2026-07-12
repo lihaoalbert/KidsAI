@@ -9,8 +9,16 @@ use std::sync::atomic::{AtomicBool, Ordering};
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
 
+use crate::character::{
+    build_system_prompt_with_character, inject_character_into_image_args,
+    inject_character_into_video_args, Character,
+};
 use crate::model::{ModelMessage, ModelRequest, ModelRouter, ModelToolCall};
 use crate::safety::{KeywordFilter, SafetyVerdict};
+use crate::style::{
+    build_system_prompt_with_style, inject_style_into_image_args, inject_style_into_video_args,
+    StylePreset,
+};
 use crate::tools::{GeneratedAsset, ToolOutput};
 
 /// 取消会话的注册表（Tauri state）
@@ -61,6 +69,12 @@ pub struct AgentRunRequest {
     pub system_prompt: String,
     #[serde(default)]
     pub tools: Vec<String>,
+    /// W3.4: 当前 session 绑定的角色 ID（可选）
+    #[serde(default)]
+    pub character_id: Option<String>,
+    /// W3.6: 当前 session 绑定的视觉风格 ID（可选）
+    #[serde(default)]
+    pub style_id: Option<String>,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -157,7 +171,17 @@ pub async fn run_agent(
     let sink = TauriEventSink { app: &app };
     // 通过 app.state 取注册表，避免在 async 命令签名里带 State ref
     let registry = app.state::<SessionRegistry>();
-    run_loop(&sink, registry.inner(), &router, request).await
+    // W3.4: 解析角色（按 character_id 查 CharacterRegistry）
+    let character = request
+        .character_id
+        .as_ref()
+        .and_then(|cid| app.state::<crate::character::CharacterRegistry>().get(cid));
+    // W3.6: 解析风格（按 style_id 查 StyleRegistry）
+    let style = request
+        .style_id
+        .as_ref()
+        .and_then(|sid| app.state::<crate::style::StyleRegistry>().get(sid));
+    run_loop(&sink, registry.inner(), &router, request, character, style).await
 }
 
 /// 取消 Tauri command
@@ -197,11 +221,15 @@ impl EventSink for NoopEventSink {
 /// 纯函数版 Agent Loop（事件 sink 可注入）
 /// 真实运行用 TauriEventSink；测试用 NoopEventSink
 /// W3.2: async + 流式 + 取消
+/// W3.4: character 可选，绑定后 system_prompt 会追加角色段，generate_image 工具的 prompt 也会注入角色描述
+/// W3.6: style 可选，与 character 并行叠加 — system_prompt 加风格段，generate_image prompt 加风格描述
 pub async fn run_loop(
     sink: &dyn EventSink,
     registry: &SessionRegistry,
     router: &ModelRouter,
     request: AgentRunRequest,
+    character: Option<Character>,
+    style: Option<StylePreset>,
 ) -> Result<AgentRunResponse, String> {
     let started = std::time::Instant::now();
     let session_id = format!("sess_{}", now_millis());
@@ -250,9 +278,12 @@ pub async fn run_loop(
     let tool_registry = default_registry();
     let tools_desc = tool_registry.describe(&request.tools);
     let level_id_tag = format!("LEVEL_ID: {}", request.level_id);
+    // W3.4: 角色 + W3.6: 风格 — 两个独立维度叠加，模型能稳定看到
+    let with_character = build_system_prompt_with_character(&request.system_prompt, character.as_ref());
+    let base_prompt = build_system_prompt_with_style(&with_character, style.as_ref());
     let system_prompt = format!(
         "{}\n\n[可用工具]\n{}\n[{}]\n",
-        request.system_prompt, tools_desc, level_id_tag
+        base_prompt, tools_desc, level_id_tag
     );
 
     let mut history: Vec<ModelMessage> = vec![ModelMessage {
@@ -358,6 +389,31 @@ pub async fn run_loop(
 
         if let Some(tool_name) = &decision.tool {
             let args_str = decision.tool_args.clone().unwrap_or_else(|| "{}".to_string());
+            // W3.4 + W3.6: 角色 + 风格 可独立叠加 — 4 种组合都覆盖到
+            // v1 导演流程:同样扩到 image_to_video(自动填 image_url + image_role, 追加 motion 描述)
+            let args_str = match (character.as_ref(), style.as_ref(), tool_name.as_str()) {
+                (Some(c), Some(s), "generate_image") => {
+                    let with_char = inject_character_into_image_args(&args_str, c);
+                    inject_style_into_image_args(&with_char, s)
+                }
+                (Some(c), None, "generate_image") => {
+                    inject_character_into_image_args(&args_str, c)
+                }
+                (None, Some(s), "generate_image") => {
+                    inject_style_into_image_args(&args_str, s)
+                }
+                (Some(c), Some(s), "image_to_video") => {
+                    let with_char = inject_character_into_video_args(&args_str, c);
+                    inject_style_into_video_args(&with_char, s)
+                }
+                (Some(c), None, "image_to_video") => {
+                    inject_character_into_video_args(&args_str, c)
+                }
+                (None, Some(s), "image_to_video") => {
+                    inject_style_into_video_args(&args_str, s)
+                }
+                _ => args_str,
+            };
             let args_val: serde_json::Value =
                 serde_json::from_str(&args_str).unwrap_or(serde_json::Value::Null);
 
@@ -511,3 +567,148 @@ fn now_millis() -> i64 {
 
 // 让 default_registry 可以从 tools 模块导入
 use crate::tools::default_registry;
+
+#[cfg(test)]
+mod registry_tests {
+    use super::*;
+
+    #[test]
+    fn insert_returns_independent_flags() {
+        let reg = SessionRegistry::default();
+        let f1 = reg.insert("s1".into());
+        let f2 = reg.insert("s2".into());
+        // 各自独立：翻转 f1 不影响 f2
+        f1.store(true, std::sync::atomic::Ordering::Relaxed);
+        assert!(f1.load(std::sync::atomic::Ordering::Relaxed));
+        assert!(!f2.load(std::sync::atomic::Ordering::Relaxed));
+    }
+
+    #[test]
+    fn cancel_existing_session_returns_true() {
+        let reg = SessionRegistry::default();
+        let flag = reg.insert("s1".into());
+        assert!(reg.cancel("s1"));
+        assert!(flag.load(std::sync::atomic::Ordering::Relaxed));
+    }
+
+    #[test]
+    fn cancel_missing_session_returns_false() {
+        let reg = SessionRegistry::default();
+        assert!(!reg.cancel("never_inserted"));
+    }
+
+    #[test]
+    fn cancel_is_idempotent() {
+        let reg = SessionRegistry::default();
+        reg.insert("s1".into());
+        assert!(reg.cancel("s1"));
+        assert!(reg.cancel("s1"), "second cancel should also return true");
+    }
+
+    #[test]
+    fn remove_clears_session() {
+        let reg = SessionRegistry::default();
+        reg.insert("s1".into());
+        reg.remove("s1");
+        // remove 后 cancel 返回 false
+        assert!(!reg.cancel("s1"));
+    }
+
+    #[test]
+    fn insert_overwrites_previous_flag() {
+        let reg = SessionRegistry::default();
+        let f1 = reg.insert("s1".into());
+        f1.store(true, std::sync::atomic::Ordering::Relaxed);
+        // 重新 insert 同 id：返回新 flag，f1 被孤儿化但不再可访问
+        let f2 = reg.insert("s1".into());
+        assert!(!f2.load(std::sync::atomic::Ordering::Relaxed));
+        // cancel 翻转新 flag
+        reg.cancel("s1");
+        assert!(f2.load(std::sync::atomic::Ordering::Relaxed));
+    }
+
+    #[test]
+    fn registry_guard_removes_session_on_drop() {
+        use std::sync::Arc;
+        let reg = SessionRegistry::default();
+        let flag: Arc<std::sync::atomic::AtomicBool> = reg.insert("guarded".into());
+        {
+            let _guard = RegistryGuard {
+                registry: &reg,
+                id: "guarded".into(),
+            };
+            assert!(reg.cancel("guarded"));
+            assert!(flag.load(std::sync::atomic::Ordering::Relaxed));
+        }
+        // guard 离开作用域 → 自动 remove
+        assert!(!reg.cancel("guarded"), "guard should have removed the session");
+    }
+
+    #[test]
+    fn concurrent_inserts_and_cancels_do_not_panic() {
+        use std::sync::Arc;
+        use std::thread;
+        let reg = Arc::new(SessionRegistry::default());
+        let mut handles = vec![];
+        for i in 0..10 {
+            let r = reg.clone();
+            handles.push(thread::spawn(move || {
+                let id = format!("session_{i}");
+                let _flag = r.insert(id.clone());
+                r.cancel(&id);
+                r.remove(&id);
+            }));
+        }
+        for h in handles {
+            h.join().expect("thread should not panic");
+        }
+        // 所有 session 都被清理
+        for i in 0..10 {
+            assert!(!reg.cancel(&format!("session_{i}")));
+        }
+    }
+
+    /// v1 导演流程:agent.rs 路由 image_to_video 到 inject_character_into_video_args +
+    /// inject_style_into_video_args。本测试模拟"LLM 决策 image_to_video + 有 character/style"路径
+    /// 的最终 args_str(避开 run_loop 端到端测试,只验 dispatch 后的结果形状)。
+    #[test]
+    fn image_to_video_injection_dispatch_path() {
+        use crate::character::inject_character_into_video_args;
+        use crate::style::inject_style_into_video_args;
+
+        // 模拟一个内置角色 + 风格
+        let c = Character {
+            id: "xiaoqi".into(),
+            name: "小启".into(),
+            description: "黄发女孩".into(),
+            style_tags: vec!["cartoon".into()],
+            reference_image_url: Some("https://picsum.photos/seed/xiaoqi-ref/512/512".into()),
+        };
+        let s = StylePreset {
+            id: "cartoon".into(),
+            name: "卡通".into(),
+            description: "明亮卡通风格".into(),
+            style_tags: vec!["cartoon".into()],
+        };
+
+        // LLM 决策出的 image_to_video args(只有 motion)
+        let llm_args = r#"{"motion":"跳跃","duration":4}"#;
+        // 模拟 agent.rs match 块 (Some(c), Some(s), "image_to_video") 分支
+        let with_char = inject_character_into_video_args(llm_args, &c);
+        let final_args = inject_style_into_video_args(&with_char, &s);
+
+        let v: serde_json::Value = serde_json::from_str(&final_args).unwrap();
+        // 1) 自动填了 image_url
+        assert_eq!(v["image_url"], "https://picsum.photos/seed/xiaoqi-ref/512/512");
+        // 2) 自动设了 image_role
+        assert_eq!(v["image_role"], "reference_image");
+        // 3) motion 包含 motion 原文 + 角色描述 + 风格描述
+        let motion = v["motion"].as_str().unwrap();
+        assert!(motion.contains("跳跃"), "原 motion 保留");
+        assert!(motion.contains("小启"), "角色名注入");
+        assert!(motion.contains("黄发女孩"), "角色描述注入");
+        assert!(motion.contains("明亮卡通风格"), "风格描述注入");
+        // 4) duration 透传
+        assert_eq!(v["duration"], 4);
+    }
+}

@@ -6,8 +6,9 @@ import LibraryPage from './pages/LibraryPage';
 import MyAgentPage from './pages/MyAgentPage';
 import LevelDetailPage from './pages/LevelDetailPage';
 import AgentRunnerPage from './pages/AgentRunnerPage';
+import StudioPage from './pages/StudioPage';
 
-export type PageKey = 'home' | 'workshop' | 'library' | 'agent' | 'level' | 'runner';
+export type PageKey = 'home' | 'workshop' | 'library' | 'agent' | 'level' | 'runner' | 'studio';
 
 function App() {
   const [currentPage, setCurrentPage] = useState<PageKey>('home');
@@ -30,11 +31,13 @@ function App() {
   const renderPage = () => {
     switch (currentPage) {
       case 'home':
-        return <HomePage onOpenLevel={handleOpenLevel} />;
+        return <HomePage onOpenLevel={handleOpenLevel} onOpenStudio={() => setCurrentPage('studio')} />;
       case 'workshop':
-        return <WorkshopPage />;
+        return <WorkshopPage onOpenStudio={() => setCurrentPage('studio')} />;
       case 'library':
         return <LibraryPage />;
+      case 'studio':
+        return <StudioPage />;
       case 'agent':
         return <MyAgentPage />;
       case 'level':

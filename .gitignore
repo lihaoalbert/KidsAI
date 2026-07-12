@@ -36,3 +36,8 @@ yarn-error.log*
 .env
 .env.local
 .env.*.local
+
+# 抓取 / 浏览器调试输出（本地）
+.firecrawl/
+.playwright-mcp/
+kidsai-home.png

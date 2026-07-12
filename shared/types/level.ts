@@ -1,7 +1,14 @@
 // 关卡数据模型
 
 export type AgeTier = 1 | 2 | 3;
-export type StepType = 'input' | 'choice' | 'action' | 'free';
+export type StepType =
+  | 'input'
+  | 'choice'
+  | 'action'
+  | 'free'
+  // W3.7+ 拉片复刻
+  | 'reference_setup'
+  | 'reference_recreate';
 export type ToolName =
   | 'generate_image'
   | 'generate_image_hd'
@@ -12,6 +19,11 @@ export type ToolName =
   | 'add_bgm'
   | 'text_chat';
 
+/// W3.7+ reference_recreate 步骤专属 — UI 用哪种模式：
+///   - 'single'：单选 1 帧精修（L6 拉一帧复刻）
+///   - 'batch'：整段抽帧后统一复刻（L7 整段分镜复刻）
+export type ReferenceRecreateMode = 'single' | 'batch';
+
 export interface LevelStep {
   id: string;
   orderNum: number;
@@ -21,6 +33,8 @@ export interface LevelStep {
   placeholder?: string;
   options?: string[];
   hint?: string;
+  /// W3.7+ 当 type='reference_recreate' 时告诉 UI 用哪种模式
+  mode?: ReferenceRecreateMode;
 }
 
 export interface ScoringCriteria {

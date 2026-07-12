@@ -587,3 +587,126 @@ fn tool_spec(name: &str) -> (&'static str, serde_json::Value) {
         ),
     }
 }
+
+#[cfg(test)]
+mod sse_parser_tests {
+    use super::*;
+
+    /// 单 chunk：content delta 直接累积
+    #[test]
+    fn sse_single_chunk_accumulates_content() {
+        let mut p = SseParser::new();
+        p.feed_event(
+            r#"data: {"choices":[{"delta":{"content":"hello"}}]}
+
+"#,
+        );
+        let (text, tool_bufs) = p.take_state();
+        assert_eq!(text, "hello");
+        assert!(tool_bufs.is_empty());
+        let chunks = p.into_chunks();
+        assert_eq!(chunks.len(), 1);
+        assert_eq!(chunks[0].text, "hello");
+    }
+
+    /// 多 chunk：跨事件累积 content
+    #[test]
+    fn sse_multi_chunks_accumulate() {
+        let mut p = SseParser::new();
+        p.feed_event(r#"data: {"choices":[{"delta":{"content":"你"}}]}
+
+"#);
+        p.feed_event(r#"data: {"choices":[{"delta":{"content":"好"}}]}
+
+"#);
+        p.feed_event(r#"data: {"choices":[{"delta":{"content":"！"}}]}
+
+"#);
+        let (text, _bufs) = p.take_state();
+        assert_eq!(text, "你好！");
+        let chunks = p.into_chunks();
+        assert_eq!(chunks.len(), 3);
+    }
+
+    /// 跨 chunk 拼接 tool_call arguments
+    #[test]
+    fn sse_tool_call_args_stitched_across_chunks() {
+        let mut p = SseParser::new();
+        // chunk 1: id + name + args 开头 `{"prompt":"`
+        p.feed_event(
+            r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_1","function":{"name":"generate_image","arguments":"{\"prompt\":\""}}]}}]}
+
+"#,
+        );
+        // chunk 2: args 中间 `小猫`
+        p.feed_event(
+            r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"小猫"}}]}}]}
+
+"#,
+        );
+        // chunk 3: args 结尾 `"}`
+        p.feed_event(
+            r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"function":{"arguments":"\"}"}}]}}]}
+
+"#,
+        );
+        let (_text, bufs) = p.take_state();
+        let buf = bufs.get(&0).expect("index 0 should be buffered");
+        assert_eq!(buf.id.as_deref(), Some("call_1"));
+        assert_eq!(buf.name.as_deref(), Some("generate_image"));
+        // arguments 应为完整 JSON 字符串
+        let parsed: serde_json::Value =
+            serde_json::from_str(&buf.args).expect("args should be valid JSON");
+        assert_eq!(parsed["prompt"], "小猫");
+    }
+
+    /// 多个并行 tool_call（index 0 和 1 同时累积）
+    #[test]
+    fn sse_multiple_parallel_tool_calls_buffered_separately() {
+        let mut p = SseParser::new();
+        p.feed_event(
+            r#"data: {"choices":[{"delta":{"tool_calls":[{"index":0,"id":"call_a","function":{"name":"generate_image","arguments":"{}"}}]}}]}
+
+"#,
+        );
+        p.feed_event(
+            r#"data: {"choices":[{"delta":{"tool_calls":[{"index":1,"id":"call_b","function":{"name":"text_chat","arguments":"{}"}}]}}]}
+
+"#,
+        );
+        let (_text, bufs) = p.take_state();
+        assert_eq!(bufs.len(), 2, "should buffer both tool calls separately");
+        let buf0 = bufs.get(&0).unwrap();
+        let buf1 = bufs.get(&1).unwrap();
+        assert_eq!(buf0.id.as_deref(), Some("call_a"));
+        assert_eq!(buf0.name.as_deref(), Some("generate_image"));
+        assert_eq!(buf1.id.as_deref(), Some("call_b"));
+        assert_eq!(buf1.name.as_deref(), Some("text_chat"));
+    }
+
+    /// [DONE] 终止符不报错且不破坏状态
+    #[test]
+    fn sse_done_terminator_is_ignored() {
+        let mut p = SseParser::new();
+        p.feed_event(r#"data: {"choices":[{"delta":{"content":"hi"}}]}
+
+"#);
+        p.feed_event("data: [DONE]\n\n");
+        let (text, _) = p.take_state();
+        assert_eq!(text, "hi");
+    }
+
+    /// 心跳 / 注释 / 非法 JSON 不崩溃
+    #[test]
+    fn sse_ignores_heartbeat_and_invalid_lines() {
+        let mut p = SseParser::new();
+        p.feed_event(": heartbeat\n\n");
+        p.feed_event("data: not-json\n\n");
+        p.feed_event("event: ping\n\n");
+        p.feed_event(r#"data: {"choices":[{"delta":{"content":"ok"}}]}
+
+"#);
+        let (text, _) = p.take_state();
+        assert_eq!(text, "ok");
+    }
+}

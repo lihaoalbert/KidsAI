@@ -11,6 +11,8 @@
     "tauri:dev": "tauri dev",
     "tauri:build": "tauri build",
     "lint": "eslint . --ext ts,tsx --report-unused-disable-directives --max-warnings 0",
+    "test": "vitest run",
+    "test:watch": "vitest",
     "storybook": "storybook dev -p 6006",
     "build-storybook": "storybook build"
   },
@@ -28,19 +30,25 @@
     "@storybook/react": "^8.3.0",
     "@storybook/react-vite": "^8.3.0",
     "@tauri-apps/cli": "^2.0.0",
+    "@testing-library/dom": "^10.4.1",
+    "@testing-library/jest-dom": "^6.9.1",
+    "@testing-library/react": "^16.3.2",
     "@types/react": "^18.3.0",
     "@types/react-dom": "^18.3.0",
     "@typescript-eslint/eslint-plugin": "^8.0.0",
     "@typescript-eslint/parser": "^8.0.0",
     "@vitejs/plugin-react": "^4.3.0",
+    "@vitest/ui": "^4.1.10",
     "autoprefixer": "^10.4.0",
     "eslint": "^9.0.0",
     "eslint-plugin-react-hooks": "^5.0.0",
     "eslint-plugin-react-refresh": "^0.4.0",
+    "jsdom": "^29.1.1",
     "postcss": "^8.4.0",
     "storybook": "^8.3.0",
     "tailwindcss": "^3.4.0",
     "typescript": "^5.6.0",
-    "vite": "^5.4.0"
+    "vite": "^5.4.0",
+    "vitest": "^4.1.10"
   }
 }

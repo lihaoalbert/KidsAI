@@ -27,11 +27,9 @@ async fn real_minimax_l1_full_loop() {
     assert_eq!(selected.source, "minimax", "should pick minimax provider");
     eprintln!("[INFO] using model: {}", selected.model.name());
 
-    // 用 content.rs 里 L1 的真实 system_prompt + 注入一个"演示模式"指令，
-    // 让模型不要反问、直接执行流程（生产里 L1 真正的 system_prompt 是交互式老师，
-    // 适合有真实孩子回答的场景；测试是一锤子买卖，没有追问）
+    // 让模型不要反问、直接调用 generate_image 即可。真实视频链路由 Seedance 适配器测试覆盖。
     let l1_prompt = format!(
-        "{}\n\n[演示模式] 这是一键演示，不要向用户提问，直接按 generate_image → image_to_video 顺序调用工具即可。",
+        "{}\n\n[演示模式] 这是一键演示，不要向用户提问，直接调用 generate_image 工具生成一张图，然后总结即可。",
         kidsai_studio_lib::content::builtin_levels()
             .into_iter()
             .find(|l| l.id == "L1")
@@ -44,7 +42,7 @@ async fn real_minimax_l1_full_loop() {
         "L1",
         "一只小猫在月光下追蝴蝶",
         &l1_prompt,
-        vec!["generate_image".to_string(), "image_to_video".to_string()],
+        vec!["generate_image".to_string()],
     )
     .await
     .expect("L1 should complete");

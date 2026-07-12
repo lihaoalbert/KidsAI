@@ -249,6 +249,112 @@ export const LEVELS: Level[] = [
       compliance: 10,
     },
   },
+
+  // ---------- W3.7+ 拉片复刻 ----------
+  {
+    id: 'L6',
+    orderNum: 6,
+    title: '🎞️ 拉一帧复刻',
+    description: '上传一段视频,选一个最心动的镜头,用你的角色+风格复刻出来',
+    coverEmoji: '🎞️',
+    estimatedMinutes: 8,
+    rewardTokens: 25,
+    difficulty: 3,
+    prerequisites: ['L5'],
+
+    steps: [
+      {
+        id: 'L6-s1',
+        orderNum: 1,
+        title: '上传参考视频',
+        instruction: '上传一段本地 mp4 / webm 视频(≤120s, ≤100MB)。',
+        type: 'reference_setup',
+        hint: '选一段你印象深刻的镜头',
+      },
+      {
+        id: 'L6-s2',
+        orderNum: 2,
+        title: '选 1 帧复刻',
+        instruction: '从抽出的 5 帧里挑你最心动的 1 帧,选定你的角色+风格,点击「复刻这一帧」。',
+        type: 'reference_recreate',
+        hint: '保持原始构图,迁移风格',
+        mode: 'single',
+      },
+    ],
+
+    aiName: '创创',
+    aiAvatar: '🎬',
+    systemPrompt: `你是"创创"🎬,一位会拉片的分镜师。
+当前任务:孩子会上传一段参考视频,系统会从中抽出 5 帧,孩子选其中一帧让你按其角色+风格复刻。
+
+工作要点:
+- 用户消息末尾的 [Reference context] 段里有 source_image_url(被选中的那一帧)和 user_intent
+- 用 [Reference context] 段里的 source_image_url 当参考构图
+- 必须保留原始构图、主体动作、镜头景别
+- 把风格迁移到用户当前选定的角色+风格上
+- 输出时简短描述 1-2 句"复刻的要点",再调用 generate_image 工具生成`,
+
+    tools: ['generate_image'],
+    scoringCriteria: {
+      creativity: 30,
+      technical: 30,
+      narrative: 10,
+      aesthetic: 20,
+      compliance: 10,
+    },
+  },
+  {
+    id: 'L7',
+    orderNum: 7,
+    title: '📽️ 整段分镜复刻',
+    description: '把一段视频里的 N 帧用同一个角色+风格统一复刻,做出属于你的故事板',
+    coverEmoji: '📽️',
+    estimatedMinutes: 15,
+    rewardTokens: 40,
+    difficulty: 4,
+    prerequisites: ['L6'],
+
+    steps: [
+      {
+        id: 'L7-s1',
+        orderNum: 1,
+        title: '上传参考视频',
+        instruction: '上传一段本地 mp4 / webm 视频(≤120s, ≤100MB)。',
+        type: 'reference_setup',
+        hint: '一段有起承转合的视频效果更好',
+      },
+      {
+        id: 'L7-s2',
+        orderNum: 2,
+        title: '整段复刻',
+        instruction: '系统会从视频抽 N 帧,按用户选定的角色+风格一次性复刻全部帧,输出一致的故事板。',
+        type: 'reference_recreate',
+        hint: '确保所有帧的视觉一致 — 同一个世界',
+        mode: 'batch',
+      },
+    ],
+
+    aiName: '创创',
+    aiAvatar: '🎬',
+    systemPrompt: `你是"创创"🎬,一位会拉片的分镜师。
+当前任务:孩子会一次性要求你复刻视频里的全部 N 帧,产生一致的故事板。
+
+工作要点:
+- 用户会按顺序多次调你,每次消息末尾的 [Reference context] 段里有 source_image_url + timestamp
+- 务必保证 N 张图视觉一致 — 用同一个角色、同一种色彩基调、同一种笔触
+- 在第一张之前先简单描述"故事板主题",然后开始生图
+- 后续每张都要呼应"保持上一张的角色+风格"
+- 整体应像同一个世界里的连续镜头`,
+
+    tools: ['generate_image'],
+    scoringCriteria: {
+      creativity: 25,
+      technical: 25,
+      narrative: 20,
+      aesthetic: 20,
+      compliance: 10,
+    },
+  },
 ];
 
 export function getLevel(id: string): Level | undefined {

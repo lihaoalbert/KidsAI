@@ -34,8 +34,10 @@ async fn mock_emits_five_chunks_then_final_answer() {
         user_input: "test".to_string(),
         system_prompt: "test".to_string(),
         tools: vec!["generate_image".to_string()],
+        character_id: None,
+        style_id: None,
     };
-    let result = kidsai_studio_lib::agent::run_loop(&sink, &registry, &router, request)
+    let result = kidsai_studio_lib::agent::run_loop(&sink, &registry, &router, request, None, None)
         .await
         .expect("run should succeed");
 
@@ -86,6 +88,8 @@ async fn cancel_mid_stream_emits_cancelled_event() {
         user_input: "test".to_string(),
         system_prompt: "test".to_string(),
         tools: vec!["generate_image".to_string()],
+        character_id: None,
+        style_id: None,
     };
 
     // 50ms 后翻转 cancel_flag
@@ -94,7 +98,7 @@ async fn cancel_mid_stream_emits_cancelled_event() {
         cancel_for_spawn.store(true, std::sync::atomic::Ordering::Relaxed);
     });
 
-    let result = kidsai_studio_lib::agent::run_loop(&sink, &registry, &router, request)
+    let result = kidsai_studio_lib::agent::run_loop(&sink, &registry, &router, request, None, None)
         .await
         .expect("run should return Ok with cancelled=true");
 
@@ -149,6 +153,8 @@ async fn cancel_between_steps_emits_cancelled_event() {
         user_input: "test".to_string(),
         system_prompt: "test".to_string(),
         tools: vec!["generate_image".to_string(), "image_to_video".to_string()],
+        character_id: None,
+        style_id: None,
     };
 
     // 300ms 后 cancel（在第一轮 tool 执行完之后、第二次 model 调用 chunk 期间）
@@ -157,7 +163,7 @@ async fn cancel_between_steps_emits_cancelled_event() {
         cancel_for_spawn.store(true, std::sync::atomic::Ordering::Relaxed);
     });
 
-    let result = kidsai_studio_lib::agent::run_loop(&sink, &registry, &router, request)
+    let result = kidsai_studio_lib::agent::run_loop(&sink, &registry, &router, request, None, None)
         .await
         .expect("run should return");
 
@@ -195,8 +201,10 @@ async fn tool_call_produces_no_chunks() {
         user_input: "test".to_string(),
         system_prompt: "test".to_string(),
         tools: vec!["generate_image".to_string()],
+        character_id: None,
+        style_id: None,
     };
-    let result = kidsai_studio_lib::agent::run_loop(&sink, &registry, &router, request)
+    let result = kidsai_studio_lib::agent::run_loop(&sink, &registry, &router, request, None, None)
         .await
         .expect("run should succeed");
 

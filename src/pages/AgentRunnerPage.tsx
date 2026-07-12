@@ -1,12 +1,21 @@
 // 关卡运行页（W2.8 - L1 全流程）
 // 步骤：填表 -> 调 agentStore.send() -> 实时显示事件流 -> 展示资产
+// W3.4: 增加角色选择 — 左侧加 "🎭 选一个角色" 卡片，选中的角色会随 send() 传给 backend
+// W3.5: 指哪打哪 — 生成的图片可点击 → 右侧抽屉 → 输入修改意图 → 触发新一轮生成
+// W3.6: 增加风格选择 — 左侧加 "🎨 选一种风格" 卡片，与角色独立可叠加
+// W3.7+: 拉片复刻 — 按 step.type 分支渲染（reference_setup / reference_recreate）
+//         抽帧 + 顺序复刻全部由 store 内的 recreateFrames 处理
 
 import { useEffect, useMemo, useRef, useState } from 'react';
 import Button from '../components/Button';
 import Card from '../components/Card';
+import EditPanel from '../components/EditPanel';
+import ReferenceVideoPicker from '../components/ReferenceVideoPicker';
+import FrameSelector from '../components/FrameSelector';
 import { useAgentStore } from '../stores/agentStore';
 import { useLevelStore } from '../stores/levelStore';
-import { checkSafety, saveCreation } from '../api/tauri';
+import { checkSafety, saveCreation, type AgentAsset } from '../api/tauri';
+import type { Character, StylePreset } from '../api/tauri';
 
 interface AgentRunnerPageProps {
   levelId?: string;
@@ -25,6 +34,24 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
     send,
     cancel,
     reset,
+    loadCharacters,
+    setCharacter,
+    characters,
+    character,
+    loadStyles,
+    setStyle,
+    styles,
+    style,
+    // W3.5: 编辑抽屉状态 + actions
+    editing,
+    setEditing,
+    clearEditing,
+    editImageAsset,
+    // W3.7+: 抽好的帧 + 整段复刻进度 + actions
+    extractedFrames,
+    setExtractedFrames,
+    recreateProgress,
+    recreateFrames,
   } = useAgentStore();
 
   const level = useMemo(
@@ -39,6 +66,12 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
   useEffect(() => {
     reset();
   }, [resolvedId, reset]);
+
+  // W3.4 + W3.6: 进入页面时拉一次角色 + 风格清单（内部有缓存）
+  useEffect(() => {
+    loadCharacters();
+    loadStyles();
+  }, [loadCharacters, loadStyles]);
 
   useEffect(() => {
     messagesEndRef.current?.scrollIntoView({ behavior: 'smooth' });
@@ -62,6 +95,10 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
   }
 
   const inputStep = level.steps.find((s) => s.type === 'input');
+  // W3.7+: 拉片复刻两种 step type
+  const setupStep = level.steps.find((s) => s.type === 'reference_setup');
+  const recreateStep = level.steps.find((s) => s.type === 'reference_recreate');
+  const isReferenceLevel = !!setupStep && !!recreateStep;
 
   const handleSubmit = async () => {
     if (!userInput.trim() || !inputStep) return;
@@ -119,7 +156,8 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
   };
 
   return (
-    <div className="p-6 max-w-5xl mx-auto h-full flex flex-col">
+    // W3.7+: key={level.id} 强制在跨关时卸载整个子树,picker 状态、extractedFrames 全部清空
+    <div key={level.id} className="p-6 max-w-5xl mx-auto h-full flex flex-col">
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
         <div className="flex items-center gap-3 text-sm text-gray-500">
@@ -134,7 +172,7 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
       </div>
 
       <div className="grid grid-cols-3 gap-4 flex-1 min-h-0">
-        {/* 左：关卡指令 */}
+        {/* 左：关卡指令 + 角色选择 + 评分维度 */}
         <div className="col-span-1 space-y-3 overflow-auto">
           <Card variant="bordered">
             <h3 className="font-semibold text-gray-900 mb-2">📋 任务</h3>
@@ -144,6 +182,111 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                 💡 {inputStep.hint ?? inputStep.instruction}
               </div>
             )}
+          </Card>
+
+          {/* W3.4: 角色一致性 — 让小朋友选一个角色，同一会话生图会保持形象一致 */}
+          <Card variant="bordered">
+            <h3 className="font-semibold text-gray-900 mb-2">🎭 选一个角色</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              选好后，本关多次生成的图片都会是这位主角～
+            </p>
+            <div className="space-y-1.5">
+              {/* "不绑定" 选项 — 兼容旧行为 */}
+              <button
+                type="button"
+                onClick={() => setCharacter(null)}
+                disabled={isRunning}
+                className={[
+                  'w-full text-left text-xs px-2.5 py-2 rounded-md border transition-colors',
+                  character === null
+                    ? 'bg-brand-50 border-brand-400 text-brand-900 font-medium'
+                    : 'border-gray-200 hover:border-gray-300 text-gray-700',
+                  isRunning ? 'opacity-50 cursor-not-allowed' : '',
+                ].join(' ')}
+              >
+                🚫 不绑定角色
+              </button>
+              {characters.map((c: Character) => {
+                const selected = character?.id === c.id;
+                return (
+                  <button
+                    key={c.id}
+                    type="button"
+                    onClick={() => setCharacter(c)}
+                    disabled={isRunning}
+                    className={[
+                      'w-full text-left text-xs px-2.5 py-2 rounded-md border transition-colors',
+                      selected
+                        ? 'bg-brand-50 border-brand-400 text-brand-900 font-medium'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700',
+                      isRunning ? 'opacity-50 cursor-not-allowed' : '',
+                    ].join(' ')}
+                  >
+                    <div className="font-semibold">{c.name}</div>
+                    <div className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">
+                      {c.description}
+                    </div>
+                  </button>
+                );
+              })}
+              {characters.length === 0 && (
+                <div className="text-[11px] text-gray-400 italic px-1 py-1">
+                  （暂无角色，模型默认按关卡指令生成）
+                </div>
+              )}
+            </div>
+          </Card>
+
+          {/* W3.6: 风格模板切换 — 选一种视觉风格，与角色独立可叠加 */}
+          <Card variant="bordered">
+            <h3 className="font-semibold text-gray-900 mb-2">🎨 选一种风格</h3>
+            <p className="text-xs text-gray-500 mb-3">
+              比如把「水墨」加到「小启」上，会得到水墨风的小启～
+            </p>
+            <div className="space-y-1.5">
+              <button
+                type="button"
+                onClick={() => setStyle(null)}
+                disabled={isRunning}
+                className={[
+                  'w-full text-left text-xs px-2.5 py-2 rounded-md border transition-colors',
+                  style === null
+                    ? 'bg-brand-50 border-brand-400 text-brand-900 font-medium'
+                    : 'border-gray-200 hover:border-gray-300 text-gray-700',
+                  isRunning ? 'opacity-50 cursor-not-allowed' : '',
+                ].join(' ')}
+              >
+                🚫 不绑定风格
+              </button>
+              {styles.map((s: StylePreset) => {
+                const selected = style?.id === s.id;
+                return (
+                  <button
+                    key={s.id}
+                    type="button"
+                    onClick={() => setStyle(s)}
+                    disabled={isRunning}
+                    className={[
+                      'w-full text-left text-xs px-2.5 py-2 rounded-md border transition-colors',
+                      selected
+                        ? 'bg-brand-50 border-brand-400 text-brand-900 font-medium'
+                        : 'border-gray-200 hover:border-gray-300 text-gray-700',
+                      isRunning ? 'opacity-50 cursor-not-allowed' : '',
+                    ].join(' ')}
+                  >
+                    <div className="font-semibold">{s.name}</div>
+                    <div className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">
+                      {s.description}
+                    </div>
+                  </button>
+                );
+              })}
+              {styles.length === 0 && (
+                <div className="text-[11px] text-gray-400 italic px-1 py-1">
+                  （暂无风格，模型默认按关卡指令生成）
+                </div>
+              )}
+            </div>
           </Card>
 
           <Card>
@@ -167,6 +310,54 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
         {/* 中：对话流 */}
         <div className="col-span-2 flex flex-col min-h-0">
           <Card className="flex-1 flex flex-col min-h-0">
+            {/* W3.4 + W3.6: 当前角色 + 风格 banner — 一眼能看到是不是自己选的那个 */}
+            {(character || style) && (
+              <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-100 gap-3 flex-wrap">
+                <div className="flex items-center gap-4 text-xs text-gray-600 flex-wrap">
+                  {character && (
+                    <span>
+                      🎭 当前角色：
+                      <span className="font-semibold text-brand-700 ml-1">
+                        {character.name}
+                      </span>
+                    </span>
+                  )}
+                  {style && (
+                    <span>
+                      🎨 当前风格：
+                      <span className="font-semibold text-brand-700 ml-1">
+                        {style.name}
+                      </span>
+                    </span>
+                  )}
+                  <span className="text-gray-400 text-[11px]">
+                    （本次生成的图片都会保持这个形象 + 风格）
+                  </span>
+                </div>
+                <div className="flex gap-2">
+                  {character && (
+                    <button
+                      type="button"
+                      onClick={() => setCharacter(null)}
+                      disabled={isRunning}
+                      className="text-[11px] text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                    >
+                      清除角色
+                    </button>
+                  )}
+                  {style && (
+                    <button
+                      type="button"
+                      onClick={() => setStyle(null)}
+                      disabled={isRunning}
+                      className="text-[11px] text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                    >
+                      清除风格
+                    </button>
+                  )}
+                </div>
+              </div>
+            )}
             <div className="flex-1 overflow-auto space-y-3 pr-1">
               {messages.length === 0 && (
                 <div className="text-sm text-gray-400 text-center py-8">
@@ -211,27 +402,65 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
               <div ref={messagesEndRef} />
             </div>
 
-            {/* 输入区 */}
+            {/* 输入区 — 按 step type 分支(L1-L5 文本输入,L6/L7 抽帧 + 复刻) */}
             <div className="mt-3 pt-3 border-t border-gray-100">
               {safetyWarning && (
                 <div className="mb-2 text-xs px-2 py-1 rounded bg-amber-50 text-amber-900 border border-amber-200">
                   {safetyWarning}
                 </div>
               )}
-              <textarea
-                value={userInput}
-                onChange={(e) => setUserInput(e.target.value)}
-                placeholder={inputStep?.placeholder ?? '在这里输入你的想法…'}
-                className="w-full text-sm border border-gray-300 rounded-md p-2 resize-none focus:outline-none focus:border-brand-500"
-                rows={3}
-                disabled={isRunning}
-              />
+
+              {setupStep ? (
+                // ---------- W3.7+ 拉片复刻 ----------
+                <ReferenceVideoPicker
+                  onChange={setExtractedFrames}
+                  onError={(msg) => alert(msg)}
+                />
+              ) : (
+                // ---------- L1-L5 文本输入 ----------
+                <textarea
+                  value={userInput}
+                  onChange={(e) => setUserInput(e.target.value)}
+                  placeholder={inputStep?.placeholder ?? '在这里输入你的想法…'}
+                  className="w-full text-sm border border-gray-300 rounded-md p-2 resize-none focus:outline-none focus:border-brand-500"
+                  rows={3}
+                  disabled={isRunning}
+                />
+              )}
+
+              {/* L6/L7 第二步:选帧复刻 — 仅在 extractedFrames 准备好之后渲染 */}
+              {recreateStep && extractedFrames.length > 0 && (
+                <div className="mt-3 pt-3 border-t border-gray-100">
+                  <FrameSelector
+                    levelId={level.id}
+                    frames={extractedFrames}
+                    mode={recreateStep.mode ?? 'single'}
+                    progress={recreateProgress ?? undefined}
+                    isRunning={isRunning}
+                    systemPrompt={level.systemPrompt}
+                    tools={level.tools ?? []}
+                    characterId={character?.id}
+                    styleId={style?.id}
+                    onRun={(params) =>
+                      void recreateFrames({
+                        levelId: params.systemPrompt ? level.id : level.id,
+                        systemPrompt: params.systemPrompt,
+                        frames: params.frames,
+                        characterId: params.characterId,
+                        styleId: params.styleId,
+                        tools: params.tools,
+                      })
+                    }
+                  />
+                </div>
+              )}
+
               <div className="mt-2 flex items-center justify-between">
                 <div className="text-xs text-gray-500">
                   {error && <span className="text-red-600">⚠️ {error}</span>}
                 </div>
                 <div className="flex gap-2">
-                  {lastResponse && !isRunning && (
+                  {!isReferenceLevel && lastResponse && !isRunning && (
                     <Button
                       variant="secondary"
                       size="sm"
@@ -240,23 +469,26 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                       提交并查看评分
                     </Button>
                   )}
-                  {isRunning ? (
-                    <Button
-                      variant="secondary"
-                      size="sm"
-                      onClick={handleCancel}
-                    >
-                      取消
-                    </Button>
-                  ) : (
-                    <Button
-                      variant="primary"
-                      size="sm"
-                      onClick={handleSubmit}
-                      disabled={!userInput.trim()}
-                    >
-                      🚀 开始生成
-                    </Button>
+                  {/* L1-L5 文本输入 + 取消;L6/L7 复刻由 FrameSelector 自己管按钮 */}
+                  {!isReferenceLevel && (
+                    isRunning ? (
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={handleCancel}
+                      >
+                        取消
+                      </Button>
+                    ) : (
+                      <Button
+                        variant="primary"
+                        size="sm"
+                        onClick={handleSubmit}
+                        disabled={!userInput.trim()}
+                      >
+                        🚀 开始生成
+                      </Button>
+                    )
                   )}
                 </div>
               </div>
@@ -267,39 +499,130 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
           {assets.length > 0 && (
             <Card className="mt-3">
               <h3 className="font-semibold text-gray-900 mb-2 text-sm">🎁 生成的资产</h3>
+              <p className="text-[11px] text-gray-500 mb-2">
+                ✏️ 点击图片任意位置可"指哪打哪"精修
+              </p>
               <div className="grid grid-cols-2 gap-2">
                 {assets.map((a, i) => (
-                  <div key={i} className="border border-gray-200 rounded-md overflow-hidden">
-                    {a.type === 'image' && (
-                      <img
-                        src={a.url}
-                        alt={a.prompt}
-                        className="w-full aspect-video object-cover bg-gray-100"
-                        loading="lazy"
-                      />
-                    )}
-                    {a.type === 'video' && (
-                      <video
-                        src={a.url}
-                        poster={a.thumbnailUrl}
-                        controls
-                        className="w-full aspect-video bg-black"
-                      />
-                    )}
-                    {a.type === 'audio' && (
-                      <div className="p-3 bg-gray-50">
-                        <audio src={a.url} controls className="w-full" />
-                      </div>
-                    )}
-                    <div className="p-2 text-xs text-gray-600 truncate">
-                      {a.tool} · {a.prompt}
-                    </div>
-                  </div>
+                  <AssetTile
+                    key={i}
+                    asset={a}
+                    isRunning={isRunning}
+                    onClick={(clickX, clickY) => setEditing(a, clickX, clickY)}
+                  />
                 ))}
               </div>
             </Card>
           )}
         </div>
+      </div>
+
+      {/* W3.5: 编辑抽屉（独立组件） */}
+      {editing && (
+        <EditPanel
+          asset={editing.asset}
+          clickX={editing.clickX}
+          clickY={editing.clickY}
+          disabled={isRunning}
+          onCancel={clearEditing}
+          onSubmit={(prompt) => {
+            if (!level) return;
+            // 把关卡允许的工具都带上，edit_image 会被 store 自动追加
+            const tools = level.tools ?? [];
+            void editImageAsset({
+              levelId: level.id,
+              systemPrompt: level.systemPrompt,
+              prompt,
+              tools,
+            });
+          }}
+        />
+      )}
+    </div>
+  );
+}
+
+/// 资产单格 — 单独抽出便于测试 + 点击坐标捕获
+function AssetTile({
+  asset,
+  isRunning,
+  onClick,
+}: {
+  asset: AgentAsset;
+  isRunning: boolean;
+  onClick: (clickX: number, clickY: number) => void;
+}) {
+  const handleImgClick = (e: React.MouseEvent<HTMLImageElement>) => {
+    if (isRunning) return;
+    if (asset.type !== 'image') return; // 视频 / 音频暂不支持指哪打哪
+    const rect = e.currentTarget.getBoundingClientRect();
+    const x = (e.clientX - rect.left) / rect.width;
+    const y = (e.clientY - rect.top) / rect.height;
+    onClick(x, y);
+  };
+
+  // 编辑过的资产有 sourceAssetUrl → 加蓝色边框 + 底部缩略
+  const hasSource = !!asset.sourceAssetUrl;
+
+  return (
+    <div
+      className={[
+        'border rounded-md overflow-hidden transition-colors',
+        hasSource
+          ? 'border-brand-400 ring-1 ring-brand-200'
+          : 'border-gray-200 hover:border-brand-300',
+      ].join(' ')}
+    >
+      {/* Main image (clickable for image type) */}
+      <div className="relative">
+        {asset.type === 'image' && (
+          <img
+            src={asset.url}
+            alt={asset.prompt}
+            className={[
+              'w-full aspect-video object-cover bg-gray-100',
+              !isRunning ? 'cursor-crosshair' : 'cursor-not-allowed',
+            ].join(' ')}
+            loading="lazy"
+            onClick={handleImgClick}
+          />
+        )}
+        {asset.type === 'video' && (
+          <video
+            src={asset.url}
+            poster={asset.thumbnailUrl}
+            controls
+            className="w-full aspect-video bg-black"
+          />
+        )}
+        {asset.type === 'audio' && (
+          <div className="p-3 bg-gray-50">
+            <audio src={asset.url} controls className="w-full" />
+          </div>
+        )}
+        {/* 编辑产物角标 */}
+        {hasSource && (
+          <div className="absolute top-1 right-1 bg-brand-600 text-white text-[10px] px-1.5 py-0.5 rounded">
+            ✏️ 精修
+          </div>
+        )}
+      </div>
+
+      {/* 编辑历史缩略（仅 edit 后的图） */}
+      {hasSource && asset.sourceAssetUrl && (
+        <div className="px-2 py-1.5 bg-brand-50 flex items-center gap-2">
+          {/* eslint-disable-next-line @next/next/no-img-element */}
+          <img
+            src={asset.sourceAssetUrl}
+            alt="原图"
+            className="w-10 h-6 object-cover rounded border border-gray-200"
+          />
+          <span className="text-[10px] text-brand-700">← 原图</span>
+        </div>
+      )}
+
+      <div className="p-2 text-xs text-gray-600 truncate" title={asset.prompt}>
+        {asset.tool} · {asset.prompt}
       </div>
     </div>
   );

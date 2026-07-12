@@ -24,6 +24,10 @@ pub struct GeneratedAsset {
     pub prompt: String,
     pub tool: String,
     pub tokens_cost: u32,
+    /// W4.5 B2: 实际使用的模型 (如 doubao-seedance-2-0-mini-260615),
+    /// 用于 license 学币计费时区分 draft / final
+    #[serde(default, skip_serializing_if = "Option::is_none")]
+    pub model: Option<String>,
 }
 
 /// 工具 trait
@@ -117,6 +121,7 @@ impl Tool for GenerateImageTool {
                 prompt: prompt.clone(),
                 tool: "generate_image".to_string(),
                 tokens_cost: 10,
+                model: None,
             }],
         })
     }
@@ -202,6 +207,7 @@ impl Tool for ImageToVideoTool {
                 ),
                 tool: "image_to_video".to_string(),
                 tokens_cost: 50,
+                model: asset.model.clone(),
             }],
         })
     }
@@ -255,6 +261,7 @@ impl Tool for EditImageTool {
                 prompt,
                 tool: "edit_image".to_string(),
                 tokens_cost: 12,
+                model: None,
             }],
         })
     }
@@ -290,6 +297,7 @@ impl Tool for SynthesizeSpeechTool {
                 prompt: text,
                 tool: "synthesize_speech".to_string(),
                 tokens_cost: 5,
+                model: None,
             }],
         })
     }

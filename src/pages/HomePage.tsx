@@ -1,5 +1,9 @@
+// Home (W4.5 B2: 学币栏 + 反馈入口)
+
 import { useEffect, useMemo } from 'react';
 import Card from '../components/Card';
+import BalanceWidget from '../components/BalanceWidget';
+import FeedbackButton from '../components/FeedbackButton';
 import { useLevelStore } from '../stores/levelStore';
 
 interface HomePageProps {
@@ -22,10 +26,16 @@ export default function HomePage({ onOpenLevel, onOpenStudio }: HomePageProps) {
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
+      {/* 顶部: 学币栏 + 反馈按钮 */}
+      <div className="flex items-center justify-between mb-6">
+        <BalanceWidget />
+        <FeedbackButton />
+      </div>
+
       {/* 欢迎区 */}
       <div className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">👋 你好，小创作者！</h1>
-        <p className="text-sm text-gray-600 mt-1">
+        <p className="text-base text-gray-600 mt-1">
           欢迎来到 AI 创作世界。今天想做点什么？
         </p>
       </div>
@@ -59,15 +69,13 @@ export default function HomePage({ onOpenLevel, onOpenStudio }: HomePageProps) {
         </Card>
       </div>
 
-      {/* 推荐关卡 - 来自真实关卡数据 + Tauri store */}
+      {/* 推荐关卡 */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
           <h2 className="text-lg font-semibold text-gray-900">
             推荐关卡（已解锁 {stats.unlocked} / 共 {stats.total}）
           </h2>
-          {isLoading && (
-            <span className="text-xs text-gray-500">加载中…</span>
-          )}
+          {isLoading && <span className="text-xs text-gray-500">加载中…</span>}
         </div>
 
         {error && (
@@ -127,7 +135,3 @@ export default function HomePage({ onOpenLevel, onOpenStudio }: HomePageProps) {
       <div className="mt-12 p-4 rounded-md bg-blue-50 border border-blue-200 text-sm text-blue-900">
         ℹ️ Week 2 进行中：W2.1 数据 + 详情页 ✓ ｜ W2.2 Tauri 命令 + Zustand
         stores ✓
-      </div>
-    </div>
-  );
-}

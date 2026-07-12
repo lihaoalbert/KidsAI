@@ -1,7 +1,9 @@
-// Agent Loop（W2.4 + W2.5 + W2.6 + W3.1 + W3.2 流式 + 取消）
+// Agent Loop（W2.4 + W2.5 + W2.6 + W3.1 + W3.2 流式 + 取消 + W4.5 license 上报）
 // ReAct 循环：Model -> Tool -> Observation -> ... -> Final Answer
 // 事件流：每步通过 tauri::Emitter 发向前端
 // W3.2: 改 async + 串接 SSE chunks + 支持 session 级取消
+// W4.5 B2: 完成后向 server 上报学币 spend (llm 按 token, video 按次)
+//         demo 模式 (KIDSAI_SERVER_URL 未设) → 不上报, 不影响现有测试
 
 use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
@@ -13,6 +15,7 @@ use crate::character::{
     build_system_prompt_with_character, inject_character_into_image_args,
     inject_character_into_video_args, Character,
 };
+use crate::license_client::LicenseClient;
 use crate::model::{ModelMessage, ModelRequest, ModelRouter, ModelToolCall};
 use crate::safety::{KeywordFilter, SafetyVerdict};
 use crate::style::{
@@ -181,7 +184,59 @@ pub async fn run_agent(
         .style_id
         .as_ref()
         .and_then(|sid| app.state::<crate::style::StyleRegistry>().get(sid));
-    run_loop(&sink, registry.inner(), &router, request, character, style).await
+    let response = run_loop(&sink, registry.inner(), &router, request, character, style).await?;
+
+    // W4.5 B2: 上报学币 spend (fire-and-forget)
+    // - llm: tokens_used 按 LLM_API_COST_RATE 学币/token (server 侧定价, 这里按 cfg 同步对齐)
+    // - video: 计数, 每个按 draft 9 / final 19 学币
+    // demo 模式 (无 server) → noop, 不影响开发
+    let license_client = app.state::<LicenseClient>().inner().clone();
+    let license_file = app
+        .state::<crate::license_store::LicenseStore>()
+        .load();
+    if let Some(lf) = license_file {
+        spawn_spend_report(license_client, lf.license_token, response.tokens_used, response.assets.clone());
+    }
+
+    Ok(response)
+}
+
+fn spawn_spend_report(
+    client: LicenseClient,
+    license_token: String,
+    tokens_used: u32,
+    assets: Vec<GeneratedAsset>,
+) {
+    if client.is_demo() {
+        return;
+    }
+    tokio::spawn(async move {
+        // LLM spend (1 学币/tokens 聚合一次上报)
+        if tokens_used > 0 {
+            let call_id = format!("llm-{}", now_millis());
+            if let Err(e) = client
+                .record_spend(&license_token, &call_id, "llm", tokens_used)
+                .await
+            {
+                eprintln!("[agent] llm spend report failed: {e}");
+            }
+        }
+        // video spend: 每个 video 资产按 model 区分 draft/final
+        for a in &assets {
+            if a.kind != "video" {
+                continue;
+            }
+            let kind = if a.model.as_deref().unwrap_or("").contains("mini") {
+                "video_draft"
+            } else {
+                "video_final"
+            };
+            let call_id = format!("vid-{}-{}", now_millis(), short_hash(&a.url));
+            if let Err(e) = client.record_spend(&license_token, &call_id, kind, 1).await {
+                eprintln!("[agent] video spend report failed: {e}");
+            }
+        }
+    });
 }
 
 /// 取消 Tauri command
@@ -565,8 +620,20 @@ fn now_millis() -> i64 {
         .unwrap_or(0)
 }
 
+/// pub 包装, lib.rs 等 crate 外模块可调用
+pub fn now_millis_pub() -> i64 {
+    now_millis()
+}
+
 // 让 default_registry 可以从 tools 模块导入
 use crate::tools::default_registry;
+
+fn short_hash(s: &str) -> String {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    s.hash(&mut h);
+    format!("{:x}", h.finish())
+}
 
 #[cfg(test)]
 mod registry_tests {

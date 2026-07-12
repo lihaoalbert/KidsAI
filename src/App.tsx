@@ -48,6 +48,7 @@ import StudioPage from './pages/StudioPage';
 import OnboardingPage from './pages/OnboardingPage';
 import { checkAlreadyActivated } from './pages/OnboardingPage';
 import type { ActivateResponse } from './api/tauri';
+import { useAssetStore } from './stores/assetStore';
 
 export type PageKey =
   | 'home'
@@ -76,6 +77,14 @@ function App() {
     return () => {
       cancelled = true;
     };
+  }, []);
+
+  // W6 B3: 启动时拉 asset manifest (如果 license info 有 server url, 跟着走).
+  // fallback: 默认 https://api.kids.ibi.ren (production ECS).
+  useEffect(() => {
+    const serverUrl =
+      import.meta.env.VITE_KIDSAI_SERVER_URL ?? 'https://api.kids.ibi.ren';
+    void useAssetStore.getState().fetch(serverUrl);
   }, []);
 
   const handleActivated = (_resp: ActivateResponse) => {

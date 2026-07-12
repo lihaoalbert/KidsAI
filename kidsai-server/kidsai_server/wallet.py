@@ -178,8 +178,8 @@ def record_spend(
         (cost, cost, device_id),
     )
     conn.execute(
-        "INSERT INTO transactions (call_id, device_id, kind, amount, reason, created_at) VALUES (?, ?, 'consume', ?, ?, ?)",
-        (call_id, device_id, -cost, reason, now_ms()),
+        "INSERT INTO transactions (call_id, device_id, kind, amount, reason, created_at) VALUES (?, ?, ?, ?, ?, ?)",
+        (call_id, device_id, kind, -cost, reason, now_ms()),
     )
     new_balance = bal_row["balance"] - cost
     return SpendOutcome(True, call_id, cost, new_balance)

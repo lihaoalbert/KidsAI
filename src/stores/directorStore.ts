@@ -109,6 +109,10 @@ interface DirectorState {
   error: string | null;
   /// 已锁定的命题, 供下游 LLM 调用拼接到 system_prompt
   locked_props: LockedProps;
+  /// W6 C4: 视频引擎 — 默认 Seedance; 可切 MiniMax hailuo-02 (备用)
+  videoEngine: 'seedance' | 'hailuo';
+  /// W6 C2: 主角的声音 id (可选, voice_clone 后存)
+  voiceId: string | null;
 
   // actions
   reset(): void;
@@ -123,6 +127,10 @@ interface DirectorState {
   setCharacter(c: Character): void;
   setCharacterTweak(patch: Partial<CharacterTweak>): void;
   setStyle(s: StylePreset): void;
+  /** W6 C4: 切换视频引擎 (Seedance 默认 / MiniMax hailuo-02 备用) */
+  setVideoEngine(engine: 'seedance' | 'hailuo'): void;
+  /** W6 C2: 存 voice_clone 返回的 voice_id */
+  setVoiceId(id: string | null): void;
   /** 显式写入"已锁定命题"片段. 在每一阶 ✓ 拍板时由 studioStore 调用. */
   lockSubject(): void;
   lockStoryCore(): void;
@@ -204,6 +212,8 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
   isVideoRunning: false,
   error: null,
   locked_props: { ...EMPTY_LOCKED },
+  videoEngine: 'seedance',
+  voiceId: null,
 
   reset: () =>
     set({
@@ -220,6 +230,8 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
       isVideoRunning: false,
       error: null,
       locked_props: { ...EMPTY_LOCKED },
+      videoEngine: 'seedance',
+      voiceId: null,
     }),
 
   goToStage: (s) => {
@@ -288,6 +300,10 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
     set((state) => ({ characterTweak: { ...state.characterTweak, ...patch } })),
 
   setStyle: (s) => set({ style: s }),
+
+  setVideoEngine: (engine) => set({ videoEngine: engine }),
+
+  setVoiceId: (id) => set({ voiceId: id }),
 
   lockSubject: () => {
     const { character, characterTweak } = get();
@@ -451,7 +467,7 @@ ${shots
     const state = get();
     const shot = state.shots.find((s) => s.id === shotId);
     if (!shot) return;
-    const { character, style } = state;
+    const { character, style, videoEngine } = state;
     if (!character) {
       set({ error: '没选主角, 无法拍' });
       return;
@@ -484,7 +500,7 @@ ${shots
 - motion: ${motionWithStyle}
 - image_url: ${character.referenceImageUrl ?? useAssetStore.getState().getUrl(`${character.id}.stand`)}
 - image_role: reference_image
-- model: ${VIDEO_MODEL.SEEDANCE_PREVIEW}
+- model: ${videoEngine === 'hailuo' ? VIDEO_MODEL.HAILUO : VIDEO_MODEL.SEEDANCE_PREVIEW}
 - seed: ${seed}
 - duration: 4
 然后立即返回工具的输出,不要做其他任何事。`;
@@ -525,7 +541,7 @@ ${shots
 
   runFinalize: async (planTitle) => {
     const state = get();
-    const { character, style, shots, idea } = state;
+    const { character, style, shots, idea, videoEngine } = state;
     if (!character) {
       set({ error: '没选主角, 无法定稿' });
       return;
@@ -556,7 +572,7 @@ ${shots
 - motion: ${motionWithStyle}
 - image_url: ${character.referenceImageUrl ?? useAssetStore.getState().getUrl(`${character.id}.stand`)}
 - image_role: first_frame
-- model: ${VIDEO_MODEL.SEEDANCE_FINALIZE}
+- model: ${videoEngine === 'hailuo' ? VIDEO_MODEL.HAILUO : VIDEO_MODEL.SEEDANCE_FINALIZE}
 - duration: 5
 然后立即返回工具的输出,不要做其他任何事。`;
 

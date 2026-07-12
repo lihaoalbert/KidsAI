@@ -102,3 +102,13 @@ class AdminRotateKeyResponse(BaseModel):
 class HealthResponse(BaseModel):
     status: str
     version: str
+
+
+class SpendSummaryResponse(BaseModel):
+    """W6 E4: 今日按 kind 分组的消耗 (HomePage BalanceWidget 旁展示)."""
+    model_config = _CAMEL
+    device_id: str
+    today_total: int
+    by_kind: dict[str, int]  # kind → 学币数 (image_gen=5/voice_clone=10/music_gen=8/...)
+    daily_remaining: int
+    daily_quota: int

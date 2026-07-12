@@ -2,6 +2,7 @@ import { useMemo } from 'react';
 import Button from '../components/Button';
 import Card from '../components/Card';
 import { getLevel } from '../data/levels';
+import { useAssetStore, LEVEL_COVER_KEYS } from '../stores/assetStore';
 
 interface LevelDetailPageProps {
   levelId?: string;
@@ -39,6 +40,10 @@ export default function LevelDetailPage({
 
   const totalMinutes = level.estimatedMinutes;
   const prereqs = level.prerequisites;
+  // W6 E1: 优先用 manifest 里的 cover 图 (200 张预生成素材); 没命中走 emoji 占位.
+  // 用 getUrlOrNull 区分"manifest 没命中" vs "manifest 还没好", 后者直接走 emoji.
+  const coverKey = LEVEL_COVER_KEYS[resolvedId];
+  const coverUrl = coverKey ? useAssetStore.getState().getUrlOrNull(coverKey) : null;
 
   return (
     <div className="p-8 max-w-4xl mx-auto">
@@ -55,8 +60,16 @@ export default function LevelDetailPage({
       </div>
 
       {/* 关卡头部 */}
-      <Card variant="elevated" className="mb-6">
-        <div className="flex items-start gap-6">
+      <Card variant="elevated" className="mb-6 overflow-hidden p-0">
+        {/* W6 E1: cover banner 用 manifest 出的真图, 找不到 (manifest 未加载) 跳过 */}
+        {coverUrl ? (
+          <div
+            className="h-44 w-full bg-cover bg-center"
+            style={{ backgroundImage: `url(${coverUrl})` }}
+            aria-label={`${level.title} 封面`}
+          />
+        ) : null}
+        <div className="flex items-start gap-6 p-6">
           <div className="w-24 h-24 rounded-xl bg-gradient-to-br from-brand-100 to-warm-100 flex items-center justify-center text-5xl flex-shrink-0">
             {level.coverEmoji}
           </div>

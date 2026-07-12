@@ -13,6 +13,7 @@ from ..models import (
     RecordSpendRequest,
     RecordSpendResponse,
     RefreshResponse,
+    SpendSummaryResponse,
 )
 from ..wallet import get_balance, record_spend
 
@@ -103,3 +104,44 @@ def _pick_minimax_key_for_refresh(conn, cfg: Config, device_id: str) -> str:
         return pick_key_for_device(conn, device_id, cfg.minimax_api_keys)
     except Exception:
         return ""
+
+
+@router.get("/spend-summary", response_model=SpendSummaryResponse)
+def spend_summary(
+    claims: LicenseClaims = Depends(require_license),
+    conn=Depends(get_conn),
+    cfg: Config = Depends(get_cfg),
+) -> SpendSummaryResponse:
+    """W6 E4: 今日按 kind 分组的消耗 (HomePage BalanceWidget 旁展示).
+
+    SQL: SELECT kind, SUM(amount) FROM transactions
+         WHERE device_id=? AND kind<>'grant' AND created_at >= today_zero
+         GROUP BY kind
+
+    注: 'grant' 类型不计消耗; amount 字段对 consume 类是负数, 取 abs() 后累加.
+    """
+    import time
+    today_zero_ms = int(time.time() // 86400 * 86400) * 1000
+    rows = conn.execute(
+        """
+        SELECT kind, SUM(amount) AS total
+        FROM transactions
+        WHERE device_id = ?
+          AND kind <> 'grant'
+          AND created_at >= ?
+        GROUP BY kind
+        """,
+        (claims.device_id, today_zero_ms),
+    ).fetchall()
+    by_kind = {row["kind"]: abs(row["total"]) for row in rows}
+    today_total = sum(by_kind.values())
+    daily_quota = cfg.daily_quota
+    # daily_consumed (LLM token 学币 + 视频/图像/声音/音乐) — 复用 get_balance 算剩余
+    info = get_balance(conn, claims.device_id)
+    return SpendSummaryResponse(
+        device_id=claims.device_id,
+        today_total=today_total,
+        by_kind=by_kind,
+        daily_remaining=info["daily_remaining"],
+        daily_quota=daily_quota,
+    )

@@ -1,8 +1,9 @@
 # 产品文档（本地维护，不进 git）
 docs/*
-# 例外: 种子用户指南截图 (公开 PNG)
+# 例外: 种子用户指南 + 截图 (公开)
 !docs/screenshots/
 !docs/screenshots/*
+!docs/seed-user-guide.md
 
 # 凭证/账号/密钥目录（W4.5 安全事件：曾有 docs/00-账号信息/code.md 硬编码火山方舟 key）
 # 即便 docs/ 被反注释也不会进 git

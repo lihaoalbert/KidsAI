@@ -1,0 +1,42 @@
+[Unit]
+Description=KidsAI Server (license + 学币 quota control plane)
+Documentation=https://github.com/lihaoalbert/KidsAI
+After=network.target
+
+[Service]
+Type=simple
+# 生产用独立 user (systemd 自动创建)
+User=kidsai
+Group=kidsai
+WorkingDirectory=/opt/kidsai-server
+Environment="PATH=/opt/kidsai-server/.venv/bin:/usr/bin"
+EnvironmentFile=/etc/kidsai-server/.env
+ExecStart=/opt/kidsai-server/.venv/bin/uvicorn kidsai_server.main:app \
+  --host 127.0.0.1 --port 8080 \
+  --workers 2 \
+  --log-level info \
+  --no-access-log
+Restart=on-failure
+RestartSec=5s
+
+# 安全: 最小权限
+NoNewPrivileges=true
+PrivateTmp=true
+ProtectSystem=strict
+ProtectHome=true
+ReadWritePaths=/opt/kidsai-server/data /var/log/kidsai-server
+ProtectKernelTunables=true
+ProtectKernelModules=true
+ProtectControlGroups=true
+RestrictNamespaces=true
+RestrictRealtime=true
+RestrictSUIDSGID=true
+LockPersonality=true
+
+# 日志走 journald, 便于 journalctl -u kidsai-server
+StandardOutput=journal
+StandardError=journal
+SyslogIdentifier=kidsai-server
+
+[Install]
+WantedBy=multi-user.target

@@ -40,6 +40,7 @@ cp .env.example .env   # 然后编辑 JWT_SECRET / ADMIN_TOKEN
 ## 部署 (B3)
 
 生产环境由 systemd EnvironmentFile 注入密钥到 `/etc/kidsai-server/.env` (root 700),
-nginx `api.kids.ibi.ren` 反代 `http://127.0.0.1:8080`.
+nginx `kids.ibi.ren` 反代 `http://127.0.0.1:8080`.
 
-详见仓库根 plan: `W4.5 种子用户启动 (License + 直连架构)`.
+完整步骤见 [`deploy/RUNBOOK.md`](deploy/RUNBOOK.md) — 一键安装 (`deploy/install.sh`) + nginx vhost
+(`deploy/nginx-kids.ibi.ren.conf`) + 日常 admin CLI (`deploy/kidsai-admin.py`).

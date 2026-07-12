@@ -124,7 +124,7 @@ function App() {
       case 'library':
         return <LibraryPage />;
       case 'studio':
-        return <StudioPage />;
+        return <StudioPage onBackHome={handleBackToHome} />;
       case 'agent':
         return <MyAgentPage />;
       case 'level':

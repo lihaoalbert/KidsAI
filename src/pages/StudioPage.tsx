@@ -5,7 +5,11 @@ import ConversationPane from '../components/studio/ConversationPane';
 import ResultPane from '../components/studio/ResultPane';
 import { useStudioStore } from '../stores/studioStore';
 
-export default function StudioPage() {
+interface StudioPageProps {
+  onBackHome?: () => void;
+}
+
+export default function StudioPage({ onBackHome }: StudioPageProps = {}) {
   const started = useStudioStore((s) => s.started);
   const start = useStudioStore((s) => s.start);
 
@@ -15,7 +19,13 @@ export default function StudioPage() {
 
   return (
     <StudioLayout
-      left={<ProjectsPane onNewVideo={start} />}
+      left={
+        <ProjectsPane
+          onBackHome={() => {
+            onBackHome?.();
+          }}
+        />
+      }
       center={<ConversationPane />}
       right={<ResultPane />}
     />

@@ -57,6 +57,8 @@ interface StudioState {
   submitFree: (text: string) => void;
   confirmStory: () => Promise<void>;
   reEditSlot: (slot: StorySlot) => void;
+  /// W5 修复 ③: 回退到阶段 1, 清空对话流, 重放 4 个 beat (保留 directorStore 已选 slot)
+  goBackToStep1: () => void;
   dice: () => void;
   previewCurrent: () => Promise<void>;
   finalize: () => Promise<void>;
@@ -123,6 +125,9 @@ export const useStudioStore = create<StudioState>((set, get) => {
   // 阶段3 画风：拉候选 → 出卡
   const enterStyle = async () => {
     const d = useDirectorStore.getState();
+    // ✓ 拍板: 锁定主角 + 锁定故事核心
+    d.lockSubject();
+    d.lockStoryCore();
     d.goToStage(3);
     set({ phase: 'style' });
     pushAi(STAGE_COPY.style);
@@ -146,6 +151,8 @@ export const useStudioStore = create<StudioState>((set, get) => {
   // 阶段4 分镜
   const enterStoryboard = () => {
     const d = useDirectorStore.getState();
+    // ✓ 拍板: 锁定画风
+    d.lockArtStyle();
     d.goToStage(4);
     set({ phase: 'storyboard' });
     pushAi(STAGE_COPY.storyboard);
@@ -366,6 +373,22 @@ export const useStudioStore = create<StudioState>((set, get) => {
       runBeat(beatId);
     },
 
+    goBackToStep1: () => {
+      // W5 修复 ③: 顶部胶囊点回"点子", 重置对话流, 重放 4 个 beat.
+      // directorStore 已还原 stage 1 的 story, 这里不重置 (让用户直接看到之前选的角色 + 可改).
+      set({
+        items: [],
+        currentBeatId: null,
+        awaitingFree: false,
+        returnToStoryAfter: false,
+        phase: 'stage1',
+        previewIndex: 0,
+        started: true,
+      });
+      pushAi('欢迎回来～ 我们来重新想一想这个故事吧 ✨');
+      runBeat(STAGE1_BEATS[0].id);
+    },
+
     dice: () => {
       const s = DICE_STORIES[Math.floor(Math.random() * DICE_STORIES.length)];
       const d = useDirectorStore.getState();
@@ -387,9 +410,8 @@ export const useStudioStore = create<StudioState>((set, get) => {
         return;
       }
       pushAi(STAGE_COPY.planReady);
-      // 进阶段2 主角
+      // 进阶段2 主角 (runPlanGeneration 内部已经 goToStage(2) 把阶段1 入 history)
       set({ phase: 'character' });
-      after.goToStage(2);
       pushAi(STAGE_COPY.character);
       if (!after.character) pushAi('（没连上角色库，先用默认主角，之后也能换～）');
       actionCards([
@@ -431,17 +453,19 @@ export const useStudioStore = create<StudioState>((set, get) => {
   };
 });
 
-// 供阶段2/3 动态候选卡使用（读后端；失败返回空）
+// 供阶段2/3 动态候选卡使用（读后端；失败/无数据返回空）
 export async function loadCharacterCandidates(): Promise<Character[]> {
   try {
-    return await listCharacters();
+    const r = await listCharacters();
+    return r ?? [];
   } catch {
     return [];
   }
 }
 export async function loadStyleCandidates(): Promise<StylePreset[]> {
   try {
-    return await listStyles();
+    const r = await listStyles();
+    return r ?? [];
   } catch {
     return [];
   }

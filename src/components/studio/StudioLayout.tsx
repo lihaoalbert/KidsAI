@@ -14,9 +14,9 @@ export default function StudioLayout({ left, center, right }: StudioLayoutProps)
 
   return (
     <div className="flex h-full w-full overflow-hidden">
-      {/* 左：作品墙（可收窄成竖条） */}
+      {/* 左：作品墙（可收窄成竖条）—— W5 去重后只留极简历史 */}
       {leftOpen ? (
-        <div className="relative w-56 shrink-0 border-r border-gray-200">
+        <div className="relative w-44 shrink-0 border-r border-gray-200">
           {left}
           <button
             onClick={() => setLeftOpen(false)}

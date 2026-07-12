@@ -77,6 +77,8 @@ describe('parseDirectorPlan', () => {
   });
 });
 
+const EMPTY_STORY = { who: '', wants: '', but: '', ending: '' };
+
 // ============ directorStore 状态机测试 ============
 
 const runAgentMock: Mock = vi.fn();
@@ -162,7 +164,7 @@ describe('directorStore.runPlanGeneration', () => {
     await useDirectorStore.getState().runPlanGeneration('小猫追蝴蝶');
     const s = useDirectorStore.getState();
     expect(s.error).toBeNull();
-    expect(s.stage).toBe(2);
+    expect(s.cursor).toBe(2);
     expect(s.character?.id).toBe('xiaoyue');
     expect(s.style?.id).toBe('anime');
     expect(s.shots).toHaveLength(3);
@@ -346,5 +348,191 @@ describe('directorStore.runFinalize', () => {
     expect(s.finalVideoUrl).toBeNull();
     expect(s.error).toMatch(/定稿失败/);
     expect(useTokenStore.getState().balance).toBe(before);
+  });
+});
+
+// ============ W5 修复: cursor + history + locked_props + goBackTo ============
+
+describe('directorStore.cursor + history', () => {
+  it('runPlanGeneration 把阶段1 决策入 history, cursor 跳 2', async () => {
+    listCharactersMock.mockResolvedValue([xiaoqi]);
+    listStylesMock.mockResolvedValue([cartoon]);
+    runAgentMock.mockResolvedValue(
+      makeRunResponse({
+        finalAnswer: JSON.stringify({
+          idea: '小猫追蝴蝶',
+          character_id: 'xiaoqi',
+          style_id: 'cartoon',
+          shots: [
+            { description: 'a', motion: 'm1' },
+            { description: 'b', motion: 'm2' },
+            { description: 'c', motion: 'm3' },
+          ],
+        }),
+      }),
+    );
+    useDirectorStore.setState({
+      idea: '小猫追蝴蝶',
+      story: { who: '小猫', wants: '追蝴蝶', but: '迷路了', ending: '找到了' },
+    });
+    await useDirectorStore.getState().runPlanGeneration('小猫追蝴蝶');
+    const s = useDirectorStore.getState();
+    expect(s.cursor).toBe(2);
+    expect(s.history).toHaveLength(1);
+    expect(s.history[0].stage).toBe(1);
+    expect(s.history[0].snapshot.idea).toBe('小猫追蝴蝶');
+    expect(s.history[0].snapshot.story.who).toBe('小猫');
+    expect(s.history[0].stale).toBe(false);
+  });
+
+  it('goToStage 推进 → history 累积, 后续阶不立刻标 stale', () => {
+    useDirectorStore.setState({
+      cursor: 2,
+      history: [
+        {
+          stage: 1,
+          snapshot: {
+            idea: 'x', story: { who: 'w', wants: '', but: '', ending: '' },
+            character: null, characterTweak: {}, style: null, shots: [],
+            locked_props: {},
+          },
+          decided_at: 1, stale: false,
+        },
+      ],
+    });
+    useDirectorStore.getState().goToStage(3);
+    const s = useDirectorStore.getState();
+    expect(s.cursor).toBe(3);
+    expect(s.history).toHaveLength(2);
+    expect(s.history[1].stage).toBe(2);
+  });
+
+  it('goBackTo 还原快照 + 标下游 stale', () => {
+    useDirectorStore.setState({
+      cursor: 4,
+      history: [
+        {
+          stage: 1,
+          snapshot: {
+            idea: 'idea_1', story: { who: 'w1', wants: '', but: '', ending: '' },
+            character: null, characterTweak: {}, style: null, shots: [],
+            locked_props: { story_core: '老故事' },
+          },
+          decided_at: 1, stale: false,
+        },
+        {
+          stage: 2,
+          snapshot: {
+            idea: 'idea_1', story: { who: 'w1', wants: '', but: '', ending: '' },
+            character: xiaoqi, characterTweak: {}, style: null, shots: [],
+            locked_props: { story_core: '老故事', subject: '老主角' },
+          },
+          decided_at: 2, stale: false,
+        },
+        {
+          stage: 3,
+          snapshot: {
+            idea: 'idea_1', story: { who: 'w1', wants: '', but: '', ending: '' },
+            character: xiaoqi, characterTweak: {}, style: cartoon, shots: [],
+            locked_props: { story_core: '老故事', subject: '老主角', art_style: '老画风' },
+          },
+          decided_at: 3, stale: false,
+        },
+      ],
+    });
+    const ok = useDirectorStore.getState().goBackTo(2);
+    expect(ok).toBe(true);
+    const s = useDirectorStore.getState();
+    expect(s.cursor).toBe(2);
+    expect(s.character?.id).toBe('xiaoqi');
+    expect(s.style).toBeNull();
+    expect(s.locked_props.story_core).toBe('老故事');
+    expect(s.locked_props.subject).toBe('老主角');
+    expect(s.locked_props.art_style).toBeUndefined();
+    // 下游 (stage 3) 标 stale
+    expect(s.history[2].stale).toBe(true);
+  });
+
+  it('goBackTo 未决策的阶 → 返回 false', () => {
+    useDirectorStore.setState({ cursor: 2, history: [] });
+    const ok = useDirectorStore.getState().goBackTo(1);
+    expect(ok).toBe(false);
+  });
+
+  it('reset 清空 cursor + history + locked_props', () => {
+    useDirectorStore.setState({
+      cursor: 5,
+      history: [
+        { stage: 1, snapshot: { idea: 'x', story: EMPTY_STORY, character: null, characterTweak: {}, style: null, shots: [], locked_props: {} }, decided_at: 1, stale: false },
+      ],
+      locked_props: { subject: 'x' },
+    });
+    useDirectorStore.getState().reset();
+    const s = useDirectorStore.getState();
+    expect(s.cursor).toBe(1);
+    expect(s.history).toHaveLength(0);
+    expect(s.locked_props).toEqual({ subject: undefined, story_core: undefined, art_style: undefined });
+  });
+});
+
+describe('directorStore.locked_props', () => {
+  it('lockSubject 写入主角描述 + 微调', () => {
+    useDirectorStore.setState({
+      character: xiaoqi,
+      characterTweak: { color: 'yellow', size: 'M', expression: 'smile' },
+    });
+    useDirectorStore.getState().lockSubject();
+    expect(useDirectorStore.getState().locked_props.subject).toContain('小启');
+    expect(useDirectorStore.getState().locked_props.subject).toContain('主色yellow');
+    expect(useDirectorStore.getState().locked_props.subject).toContain('体型M');
+    expect(useDirectorStore.getState().locked_props.subject).toContain('表情smile');
+  });
+
+  it('lockStoryCore 从 assembledIdea() 拼', () => {
+    useDirectorStore.setState({
+      story: { who: '小猫', wants: '追蝴蝶', but: '迷路了', ending: '找到了' },
+    });
+    useDirectorStore.getState().lockStoryCore();
+    expect(useDirectorStore.getState().locked_props.story_core).toBe(
+      '小猫，想要追蝴蝶，但是迷路了，最后找到了',
+    );
+  });
+
+  it('lockArtStyle 写入 style.name + description', () => {
+    useDirectorStore.setState({ style: cartoon });
+    useDirectorStore.getState().lockArtStyle();
+    expect(useDirectorStore.getState().locked_props.art_style).toBe('卡通, 明亮卡通');
+  });
+
+  it('runPlanGeneration 注入 locked_props 到 system_prompt (含硬约束)', async () => {
+    listCharactersMock.mockResolvedValue([xiaoqi]);
+    listStylesMock.mockResolvedValue([cartoon]);
+    runAgentMock.mockResolvedValue(
+      makeRunResponse({
+        finalAnswer: JSON.stringify({
+          idea: 'x', character_id: 'xiaoqi', style_id: 'cartoon',
+          shots: [
+            { description: 'a', motion: 'm1' },
+            { description: 'b', motion: 'm2' },
+            { description: 'c', motion: 'm3' },
+          ],
+        }),
+      }),
+    );
+    useDirectorStore.setState({
+      locked_props: {
+        subject: '主角是小启(黄发女孩)',
+        story_core: '小启想要追蝴蝶但是迷路了最后找到了',
+        art_style: '明亮卡通',
+      },
+    });
+    await useDirectorStore.getState().runPlanGeneration('x');
+    const call = runAgentMock.mock.calls[0][0] as { systemPrompt: string };
+    expect(call.systemPrompt).toContain('已锁定的主角');
+    expect(call.systemPrompt).toContain('主角是小启');
+    expect(call.systemPrompt).toContain('已锁定的故事核心');
+    expect(call.systemPrompt).toContain('已锁定的画风');
+    expect(call.systemPrompt).toContain('硬约束');
+    expect(call.systemPrompt).toContain('必须服务于已锁定的故事核心');
   });
 });

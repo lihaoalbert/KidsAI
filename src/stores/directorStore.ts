@@ -1,7 +1,11 @@
-// v1 视频导演流程状态机（6 阶）
-// 设计原则:每一阶孩子拍板才能进下一阶。①-④ 用 1 次 LLM 出 DirectorPlan 填充默认;
-// ⑤-⑥ 真实 Seedance 调用,学分扣/退由前端 useTokenStore 兜底。
-// 详见 memory/video_director_flow.md
+// v2 视频导演流程状态机 (W5 升级)
+// - 6 阶状态机:点子 → 主角 → 画风 → 分镜 → 试拍 → 定稿
+// - 锁定命题 (locked_props): 每阶 ✓ 拍板后写入 locked_props.subject / story_core / art_style,
+//   下游 LLM (尤其分镜) 必须基于已锁定命题生成, 保证故事连贯。
+// - 可回退 (cursor + history): 顶部进度胶囊可点击跳回任一已完成的阶,
+//   跳回时还原当时的快照, 下游阶标 ⚪ stale, 需重新 ✓ 拍板才会重生。
+//
+// 设计原则 + 失败兜底沿用 v1. 详见 memory/video_director_flow.md
 
 import { create } from 'zustand';
 import {
@@ -54,8 +58,44 @@ export interface DirectorShot {
   fx?: ShotFx; // ⑤ 轻量微调
 }
 
-interface DirectorState {
+/**
+ * 已锁定命题 (W5 修复 ②)
+ * 每一阶 ✓ 拍板后写入对应字段. 下游 LLM 调用前置拼接【上下文:已锁定命题】块,
+ * 让分镜 step 强制服务于 story_core, 不会再生成跟主角/故事无关的镜头.
+ */
+export interface LockedProps {
+  subject?: string; // 例: "主角是小启(9岁小猫女孩,黄短发+黄T恤+小围巾), 中等大小"
+  story_core?: string; // 例: "小恐龙想要找回火焰,被大冰山挡住,最后和朋友一起闯过去"
+  art_style?: string; // 例: "明亮卡通,色彩饱和,线条干净"
+}
+
+/** 阶段4–6 进入下游时, 下游状态(分镜/视频)的"是否有效"标记 */
+export interface DirectorHistoryEntry {
   stage: DirectorStage;
+  /// 该阶段的"决策后"快照(idea + story + character + style + shots + locked_props).
+  /// 回退到该阶段时还原.
+  snapshot: {
+    idea: string;
+    story: Story;
+    character: Character | null;
+    characterTweak: CharacterTweak;
+    style: StylePreset | null;
+    shots: DirectorShot[];
+    locked_props: LockedProps;
+  };
+  decided_at: number;
+  /// 回退后再前进时该阶段是否已重新生成 (false = 仍为旧版, UI 标 ⚪ stale)
+  stale: boolean;
+}
+
+interface DirectorState {
+  // —— 状态机 cursor + history (W5 修复 ③) ——
+  /// 当前所在的阶段 (1-6). 用 cursor 而非单调 stage, 支持 goBackTo
+  cursor: DirectorStage;
+  /// 已决策的历史快照. 长度 0..5. history[i] 对应第 (i+1) 阶决策后的状态.
+  history: DirectorHistoryEntry[];
+
+  // —— 当前显示用的运行时字段 (来自 history[cursor-1] 的 snapshot 或运行中编辑) ——
   idea: string;
   story: Story;
   character: Character | null;
@@ -66,10 +106,15 @@ interface DirectorState {
   isLLMRunning: boolean;
   isVideoRunning: boolean;
   error: string | null;
+  /// 已锁定的命题, 供下游 LLM 调用拼接到 system_prompt
+  locked_props: LockedProps;
 
   // actions
   reset(): void;
+  /** 进入阶段 s: 先把当前状态快照入 history[cursor-1], 再设 cursor=s */
   goToStage(s: DirectorStage): void;
+  /** 回退到阶段 idx (1-based). 还原 history[idx-1] 快照, 后续阶标 stale=true */
+  goBackTo(idx: DirectorStage): boolean;
   setIdea(text: string): void;
   setStorySlot(slot: StorySlot, value: string): void;
   /** 把四槽拼成喂给 LLM 的骨架句 */
@@ -77,6 +122,10 @@ interface DirectorState {
   setCharacter(c: Character): void;
   setCharacterTweak(patch: Partial<CharacterTweak>): void;
   setStyle(s: StylePreset): void;
+  /** 显式写入"已锁定命题"片段. 在每一阶 ✓ 拍板时由 studioStore 调用. */
+  lockSubject(): void;
+  lockStoryCore(): void;
+  lockArtStyle(): void;
   updateShot(id: string, patch: Partial<Pick<DirectorShot, 'description' | 'motion'>>): void;
   setShotFx(id: string, patch: Partial<ShotFx>): void;
   moveShot(id: string, dir: 'up' | 'down'): void;
@@ -104,6 +153,7 @@ function genId(prefix: string) {
 }
 
 const EMPTY_STORY: Story = { who: '', wants: '', but: '', ending: '' };
+const EMPTY_LOCKED: LockedProps = { subject: undefined, story_core: undefined, art_style: undefined };
 
 function freshSeed(): number {
   // Seedance seed 范围(参考其文档示例): 用 32 位正整数
@@ -121,8 +171,27 @@ function shotsFromPlan(plan: DirectorPlan): DirectorShot[] {
   }));
 }
 
+/** 拍当前运行时状态快照, 用于 goToStage 入 history. */
+function snapshotOf(state: DirectorState) {
+  return {
+    idea: state.idea,
+    story: { ...state.story },
+    character: state.character,
+    characterTweak: { ...state.characterTweak },
+    style: state.style,
+    shots: state.shots.map((s) => ({ ...s })),
+    locked_props: { ...state.locked_props },
+  };
+}
+
+/** 把 stage 之前(含)尚未决策的所有下游阶标 stale=true, 提示 UI 显示 ⚪ 灰. */
+function markDownstreamStale(history: DirectorHistoryEntry[], fromStage: DirectorStage): DirectorHistoryEntry[] {
+  return history.map((e) => (e.stage > fromStage ? { ...e, stale: true } : e));
+}
+
 export const useDirectorStore = create<DirectorState>((set, get) => ({
-  stage: 1,
+  cursor: 1,
+  history: [],
   idea: '',
   story: { ...EMPTY_STORY },
   character: null,
@@ -133,10 +202,12 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
   isLLMRunning: false,
   isVideoRunning: false,
   error: null,
+  locked_props: { ...EMPTY_LOCKED },
 
   reset: () =>
     set({
-      stage: 1,
+      cursor: 1,
+      history: [],
       idea: '',
       story: { ...EMPTY_STORY },
       character: null,
@@ -147,9 +218,53 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
       isLLMRunning: false,
       isVideoRunning: false,
       error: null,
+      locked_props: { ...EMPTY_LOCKED },
     }),
 
-  goToStage: (s) => set({ stage: s }),
+  goToStage: (s) => {
+    const state = get();
+    // 不允许跳到比 cursor 还早的阶段 (回退必须走 goBackTo, 会标 stale)
+    if (s <= state.cursor) {
+      set({ cursor: s });
+      return;
+    }
+    // 把 cursor 处决策的状态写入 history[cursor-1]
+    const newHistory = [...state.history];
+    const existingIdx = newHistory.findIndex((e) => e.stage === state.cursor);
+    const entry: DirectorHistoryEntry = {
+      stage: state.cursor,
+      snapshot: snapshotOf(state),
+      decided_at: Date.now(),
+      stale: false,
+    };
+    if (existingIdx >= 0) newHistory[existingIdx] = entry;
+    else newHistory.push(entry);
+    // 跳到下游: 下游未决策的阶仍是 stale (默认), 无需特殊处理
+    set({ cursor: s, history: newHistory });
+  },
+
+  goBackTo: (idx) => {
+    const state = get();
+    // 只允许回退到已决策的阶
+    const target = state.history.find((e) => e.stage === idx);
+    if (!target) return false;
+    const snap = target.snapshot;
+    set({
+      cursor: idx,
+      idea: snap.idea,
+      story: { ...snap.story },
+      character: snap.character,
+      characterTweak: { ...snap.characterTweak },
+      style: snap.style,
+      shots: snap.shots.map((s) => ({ ...s })),
+      locked_props: { ...snap.locked_props },
+      // 下游全部标 stale
+      history: markDownstreamStale(state.history, idx),
+      error: null,
+      finalVideoUrl: null,
+    });
+    return true;
+  },
 
   setIdea: (text) => set({ idea: text }),
 
@@ -172,6 +287,29 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
     set((state) => ({ characterTweak: { ...state.characterTweak, ...patch } })),
 
   setStyle: (s) => set({ style: s }),
+
+  lockSubject: () => {
+    const { character, characterTweak } = get();
+    if (!character) return;
+    const size = characterTweak.size ? `, 体型${characterTweak.size}` : '';
+    const color = characterTweak.color ? `, 主色${characterTweak.color}` : '';
+    const expr = characterTweak.expression ? `, 表情${characterTweak.expression}` : '';
+    const subject = `主角是${character.name}(${character.description})${size}${color}${expr}`;
+    set((s) => ({ locked_props: { ...s.locked_props, subject } }));
+  },
+
+  lockStoryCore: () => {
+    const core = get().assembledIdea();
+    if (!core) return;
+    set((s) => ({ locked_props: { ...s.locked_props, story_core: core } }));
+  },
+
+  lockArtStyle: () => {
+    const { style } = get();
+    if (!style) return;
+    const art_style = `${style.name}, ${style.description}`;
+    set((s) => ({ locked_props: { ...s.locked_props, art_style } }));
+  },
 
   updateShot: (id, patch) =>
     set((state) => ({
@@ -205,9 +343,20 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
 
     // 拉角色 + 风格清单(兜底需要)
     const [chars, styles] = await Promise.all([
-      listCharacters().catch(() => [] as Character[]),
-      listStyles().catch(() => [] as StylePreset[]),
+      listCharacters().then((r) => r ?? []).catch(() => [] as Character[]),
+      listStyles().then((r) => r ?? []).catch(() => [] as StylePreset[]),
     ]);
+
+    // 把已锁定的命题拼接到 system_prompt 前 (W5 修复 ②)
+    const locked = get().locked_props;
+    const ctxLines: string[] = [];
+    if (locked.subject) ctxLines.push(`已锁定的主角: ${locked.subject}`);
+    if (locked.story_core) ctxLines.push(`已锁定的故事核心: ${locked.story_core}`);
+    if (locked.art_style) ctxLines.push(`已锁定的画风: ${locked.art_style}`);
+    const contextChunk = ctxLines.length
+      ? `\n\n【上下文: 已锁定的命题(必须遵循)】\n${ctxLines.join('\n')}\n\n硬约束: 每个分镜(description + motion)都必须服务于已锁定的故事核心, 主角必须是已锁定的主角, 风格必须与已锁定的画风一致。不得凭空生成跟主角/故事无关的镜头。`
+      : '';
+    const planSystemPrompt = DIRECTOR_PLAN_SYSTEM_PROMPT + contextChunk;
 
     // 尝试 LLM 解析,失败重试 1 次
     let plan: DirectorPlan | null = null;
@@ -216,7 +365,7 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
         const resp = await runAgent({
           levelId: 'director_plan',
           userInput: idea,
-          systemPrompt: DIRECTOR_PLAN_SYSTEM_PROMPT,
+          systemPrompt: planSystemPrompt,
           tools: [],
           characterId: undefined,
           styleId: undefined,
@@ -246,13 +395,55 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
     const style = styles.find((s) => s.id === plan!.style_id) ?? styles[0] ?? null;
     const shots = shotsFromPlan(plan);
 
+    // LLM 生成的分镜是否与 story_core 强相关? (W5 修复 ② 故事连贯自检)
+    let coherenceOk = true;
+    let coherenceReason = '';
+    if (locked.story_core && shots.length > 0) {
+      try {
+        const checkPrompt = `你是一个严格的"故事连贯性"审核员。
+
+【已锁定的故事核心】
+${locked.story_core}
+
+【LLM 刚生成的分镜(3 镜)】
+${shots
+  .map((s, i) => `第 ${i + 1} 镜: ${s.description} — ${s.motion}`)
+  .join('\n')}
+
+请判断: 这 3 个分镜是否服务于已锁定的故事核心?
+- 如果**每镜都跟故事核心直接相关**(同主角 + 同目标 + 同冲突/解决方向)→ 答 "YES"
+- 如果**有任何一镜游离于故事核心之外**(换了主角/跑了无关场景/丢了目标/冲突出戏)→ 答 "NO" + 1 句具体原因
+
+只回 "YES" 或 "NO: <原因>", 不要其他解释。`;
+        const resp = await runAgent({
+          levelId: 'director_coherence',
+          userInput: '做连贯性检查',
+          systemPrompt: checkPrompt,
+          tools: [],
+        });
+        const verdict = (resp.finalAnswer ?? '').trim().toUpperCase();
+        if (verdict.startsWith('NO')) {
+          coherenceOk = false;
+          coherenceReason = resp.finalAnswer.trim();
+        }
+      } catch {
+        // 自检失败不挡, 仅 warn
+      }
+    }
+
     set({
       character: char,
       style,
       shots,
-      stage: 2,
       isLLMRunning: false,
+      // 若已有 error(LLM 失败兜底)且连贯性 ok → 不覆盖; 仅当连贯性失败才追加
+      error: coherenceOk
+        ? get().error
+        : `分镜跟故事线有点偏: ${coherenceReason || 'LLM 自检不通过'}。你可以在分镜页直接改。`,
     });
+
+    // 走到阶段2: 顺手把阶段1 决策(idea + story)入 history, 供回退还原
+    get().goToStage(2);
   },
 
   runPreviewShot: async (shotId) => {

@@ -5,7 +5,7 @@ import CharacterEditor from './editors/CharacterEditor';
 import ShotFxEditor from './editors/ShotFxEditor';
 
 export default function ResultPane() {
-  const stage = useDirectorStore((s) => s.stage);
+  const cursor = useDirectorStore((s) => s.cursor);
   const character = useDirectorStore((s) => s.character);
   const style = useDirectorStore((s) => s.style);
   const shots = useDirectorStore((s) => s.shots);
@@ -18,12 +18,12 @@ export default function ResultPane() {
     (character ? `https://picsum.photos/seed/${character.id}-ref/512/512` : null);
 
   const body = (() => {
-    if (stage >= 6 && finalVideoUrl) {
+    if (cursor >= 6 && finalVideoUrl) {
       return (
         <video src={finalVideoUrl} controls className="max-h-full max-w-full rounded-xl" />
       );
     }
-    if (stage === 5) {
+    if (cursor === 5) {
       const shot = shots[previewIndex];
       if (shot?.previewUrl) {
         return <video src={shot.previewUrl} controls className="max-h-full max-w-full rounded-xl" />;
@@ -35,7 +35,7 @@ export default function ResultPane() {
         </div>
       );
     }
-    if (stage === 4) {
+    if (cursor === 4) {
       return (
         <div className="flex flex-wrap items-center justify-center gap-2">
           {shots.map((s, i) => (
@@ -50,7 +50,7 @@ export default function ResultPane() {
         </div>
       );
     }
-    if (stage >= 2 && charImg) {
+    if (cursor >= 2 && charImg) {
       return (
         <div className="text-center">
           <img
@@ -88,10 +88,10 @@ export default function ResultPane() {
       <div className="flex flex-1 items-center justify-center overflow-auto p-5">{body}</div>
 
       {/* 阶段2-4: 主角微调器 (色块/大小/表情) */}
-      {stage >= 2 && stage < 5 && character && <CharacterEditor />}
+      {cursor >= 2 && cursor < 5 && character && <CharacterEditor />}
 
       {/* 阶段5: 单镜微调器 (速度/音效/滤镜) */}
-      {stage === 5 && shots[previewIndex] && (
+      {cursor === 5 && shots[previewIndex] && (
         <ShotFxEditor shotId={shots[previewIndex].id} />
       )}
 
@@ -102,7 +102,7 @@ export default function ResultPane() {
         >
           <button className="absolute right-6 top-6 text-2xl text-white">✕</button>
           <div className="max-h-full max-w-full" onClick={(e) => e.stopPropagation()}>
-            {stage >= 6 && finalVideoUrl ? (
+            {cursor >= 6 && finalVideoUrl ? (
               <video src={finalVideoUrl} controls autoPlay className="max-h-[85vh] rounded-xl" />
             ) : shots[previewIndex]?.previewUrl ? (
               <video src={shots[previewIndex].previewUrl!} controls autoPlay className="max-h-[85vh] rounded-xl" />

@@ -279,8 +279,8 @@ describe('confirmStory', () => {
 
     const s = useStudioStore.getState();
     const d = useDirectorStore.getState();
-    // 阶段跳转
-    expect(d.stage).toBe(2);
+    // 阶段跳转 (W5: stage → cursor)
+    expect(d.cursor).toBe(2);
     expect(s.phase).toBe('character');
     expect(d.character?.id).toBe('xiaoqi');
     expect(d.style?.id).toBe('cartoon');

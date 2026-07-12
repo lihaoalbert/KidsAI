@@ -7,6 +7,21 @@
 
 ## [Unreleased]
 
+### Added (W6 — MiniMax 多能力 + 资产库 + Token 池)
+- **后端 MiniMax key 池 (A)**: `device_key_assignment` 表 + sticky 选 key + admin rotate endpoint
+- **桌面 4 新 tool (C)**: image-01 立绘 / T2A v2 旁白 / voice_clone 训练 / music-01 BGM
+- **Hailuo 视频备用 (C4)**: `HailuoVideoAdapter` + 引擎选择器 (`videoEngine` 状态)
+- **资产批跑 (B1)**: `kidsai-server/tools/generate_assets.py` + 200 条 yaml spec
+- **assets.kids.ibi.ren 静态托管 (B2)**: 新子域 + nginx vhost + manifest API
+- **前端 assetStore (B3)**: zustand store + sessionStorage 缓存 + picsum fallback 替换
+- **关卡 cover banner (E1)**: L1-L7 manifest 真图占顶
+- **声音复刻入口 (E2)**: VoiceClonePicker 弹窗
+- **视频引擎选择器 (E3)**: VideoEnginePicker 弹窗
+- **消耗看板 (E4)**: `GET /api/v1/me/spend-summary` + byKind 分组
+- **真机集成测试 (D2)**: 3 个 `--ignored` 测试 (~¥6 + 23 学币)
+- **学币计费扩展 (A1)**: 4 新 kind (image_gen=5 / voice_clone=10 / music_gen=8 / hailuo_video=12)
+- **总测试**: 60 backend + 119 frontend + 166 Rust = 345 pass + 4 ignored
+
 ### Added
 - Week 1 项目骨架：Tauri 2.0 + React 18 + Vite + TypeScript
 - 侧边栏导航（课程中心 / 作品工坊 / 作品库 / 我的 Agent）

@@ -52,3 +52,17 @@ yarn-error.log*
 .firecrawl/
 .playwright-mcp/
 kidsai-home.png
+
+# W6 B: 生成的资产图（~50MB, 200 PNG, 由 tools/generate_assets.py 跑批产出,
+# 部署走 scp 到 ECS /var/www/assets/, 不入 git)
+assets/character/
+assets/style/
+assets/bg/
+assets/storyboard/
+assets/icon/
+assets/home/
+assets/face_action/
+assets/bgm_thumb/
+assets/reserved/
+assets/asset_manifest.json
+assets/_failed.json

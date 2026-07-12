@@ -64,7 +64,7 @@ assets/home/
 assets/face_action/
 assets/bgm_thumb/
 assets/reserved/
-assets/asset_manifest.json
+assets/asset-manifest.json
 assets/_failed.json
 
 # W7: 宣传视频生成产物 (~10MB/条, 由 tools/generate_promo_video.py 跑批产出,

@@ -1,7 +1,7 @@
 """W6 B1: 资产批量生成脚本.
 
 读 asset_manifest_spec.yaml (~200 条), 串行调 MiniMax image-01,
-下载到 assets/<kind>/<key>.<ext>, 写 assets/asset_manifest.json.
+下载到 assets/<kind>/<key>.<ext>, 写 assets/asset-manifest.json.
 
 设计:
 - 串行 + 重试 3 次 + 指数退避 (MiniMax 文档 QPS 限制不严, 但我们不并发
@@ -9,6 +9,8 @@
 - 失败清单写 assets/_failed.json 待人工补 (skill 10s/张, 跑批 ~17min).
 - 默认 dry-run 只打印清单不下发 (用 --execute 真跑).
 - API key 从 MINIMAX_API_KEYS (逗号分隔) 任选一个 round-robin 用.
+- 命名: 用 hyphen `asset-manifest.json` 跟 nginx vhost + API endpoint /api/v1/asset-manifest 对齐
+  (W6 D5 部署后改, 早期可能还有 underscore 旧文件, deploy_assets.sh tar 上传前 rm 掉).
 
 用法:
     # 1. dry-run: 打印将生成的清单
@@ -40,7 +42,7 @@ THIS_DIR = Path(__file__).resolve().parent
 ROOT_DIR = THIS_DIR.parent.parent
 SPEC_PATH = THIS_DIR / "asset_manifest_spec.yaml"
 ASSETS_DIR = ROOT_DIR / "assets"
-MANIFEST_PATH = ASSETS_DIR / "asset_manifest.json"
+MANIFEST_PATH = ASSETS_DIR / "asset-manifest.json"
 FAILED_PATH = ASSETS_DIR / "_failed.json"
 
 MINIMAX_BASE = "https://api.minimaxi.com/v1"

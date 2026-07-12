@@ -21,6 +21,7 @@
 - **真机集成测试 (D2)**: 3 个 `--ignored` 测试 (~¥6 + 23 学币)
 - **学币计费扩展 (A1)**: 4 新 kind (image_gen=5 / voice_clone=10 / music_gen=8 / hailuo_video=12)
 - **总测试**: 60 backend + 119 frontend + 166 Rust = 345 pass + 4 ignored
+- **W6 D5 ECS 部署完成 (2026-07-13)**: assets.kids.ibi.ren 上线 — 200 张图 (~50MB) tar+scp 传 `/var/www/assets/`, aliyun SSL DV cert (assets.kids.ibi.ren.pem, 有效期 2026-07-12 ~ 10-09) 装到 `/etc/nginx/conf.d/`, `curl https://assets.kids.ibi.ren/asset-manifest.json` 返 200; manifest 文件名统一 hyphen (`asset-manifest.json`) 跟 nginx vhost `location = /asset-manifest.json` + API `/api/v1/asset-manifest` 对齐 (旧 underscore 残留已 `mv` 清理)
 
 ### Added (W7 — 宣传视频 + MiniMax API 适配)
 - **30s 横版 promo 脚本** (`tools/generate_promo_video.py`):

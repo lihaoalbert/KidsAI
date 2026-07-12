@@ -52,20 +52,25 @@ sudo cp deploy/nginx-api.kids.ibi.ren.conf /etc/nginx/conf.d/
 ### §2.1 证书上传
 
 ```bash
-# 在 Mac 上, 两个 .zip 已下载:
-# 26041845_kids.ibi.ren_nginx.zip    → kids.ibi.ren
-# 26043757_api.kids.ibi.ren_nginx.zip → api.kids.ibi.ren
+# 在 Mac 上, 三个 .zip 已下载:
+# 26041845_kids.ibi.ren_nginx.zip       → kids.ibi.ren
+# 26043757_api.kids.ibi.ren_nginx.zip   → api.kids.ibi.ren
+# 26049159_assets.kids.ibi.ren_nginx.zip → assets.kids.ibi.ren (W6 新增, 资产静态托管)
 unzip -p 26041845_kids.ibi.ren_nginx.zip '*' > /tmp/kids.tgz
 # 解出 _nginx_bundle.pem / .key 上传
 
 sudo mkdir -p /etc/nginx/ssl
 scp -i ~/Downloads/intfocus-albert.pem \
-    /path/to/kids.ibi.ren.pem   root@8.133.241.103:/etc/nginx/ssl/
+    /path/to/kids.ibi.ren.pem       root@8.133.241.103:/etc/nginx/ssl/
 scp -i ~/Downloads/intfocus-albert.pem \
-    /path/to/api.kids.ibi.ren.pem root@8.133.241.103:/etc/nginx/ssl/
+    /path/to/api.kids.ibi.ren.pem   root@8.133.241.103:/etc/nginx/ssl/
+scp -i ~/Downloads/intfocus-albert.pem \
+    /path/to/assets.kids.ibi.ren.pem root@8.133.241.103:/etc/nginx/ssl/
 # .key 同理
 sudo chmod 600 /etc/nginx/ssl/*.key
 ```
+
+> W6 D5 踩坑: Aliyun Linux 4 默认 `certbot` 装不上 (Python 3.11 跟 `python3-certbot-nginx` 不兼容, EPEL 也无新版). 备选方案: 直接从阿里云 / DigiCert 控制台下载 nginx 版证书 zip (用 `_nginx_bundle.pem` + `.key`), 走上面 scp 流程. 别用 `acme.sh --nginx`, 它依赖 nginx -t 通过, 而证书缺失时 -t 会先 fail 死循环.
 
 ### §2.2 校验 + reload
 

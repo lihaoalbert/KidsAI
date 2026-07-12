@@ -40,7 +40,7 @@ def test_spend_video_final_costs_19(client):
 
 
 def test_spend_llm_costs_units_x_rate(client, cfg):
-    """LLM cost = units * cost_per_llm_token (默认 0.001, 至少 1 学币)."""
+    """LLM cost = round(units * cost_per_llm_token). sub-1000 token 不强制 1 学币 floor."""
     env = _activate(client)
     auth = {"Authorization": f"Bearer {env['licenseToken']}"}
     # 1000 token * 0.001 = 1 学币
@@ -53,6 +53,23 @@ def test_spend_llm_costs_units_x_rate(client, cfg):
     assert body["accepted"] is True
     assert body["cost"] == 1
     assert body["balanceAfter"] == 99
+
+
+def test_spend_llm_sub_thousand_tokens_rounds_to_zero(client):
+    """sub-1000 token 调用 real cost = 0 (不强制 1 学币 minimum)."""
+    env = _activate(client)
+    auth = {"Authorization": f"Bearer {env['licenseToken']}"}
+    # 500 token * 0.001 = 0.5 → round → 0 学币
+    r = client.post(
+        "/api/v1/me/record-spend",
+        headers=auth,
+        json={"callId": "spend-004-dddd", "kind": "llm", "units": 500},
+    )
+    body = r.json()
+    assert body["accepted"] is True
+    assert body["cost"] == 0
+    # 不扣学币; balance 仍为 100 (no deduction)
+    assert body["balanceAfter"] == 100
 
 
 def test_spend_rejects_insufficient_balance(client):
@@ -104,18 +121,18 @@ def test_spend_rejected_when_insufficient_balance(client):
     """发到 cap 上限 → 扣到 < 0 → 拒."""
     env = _activate(client)
     auth = {"Authorization": f"Bearer {env['licenseToken']}"}
-    # 100 余额, 30 daily quota. 用 cheap 的 llm (1 学币) 扣到 30, 再扣超
+    # 100 余额, 30 daily quota. units=1000 → cost=1 学币 (跟 cost_per_llm_token=0.001 对齐).
     for i in range(30):
         client.post(
             "/api/v1/me/record-spend",
             headers=auth,
-            json={"callId": f"insuff-llm-{i:02d}", "kind": "llm", "units": 1},
+            json={"callId": f"insuff-llm-{i:02d}", "kind": "llm", "units": 1000},
         )
     # daily consumed=30 = quota, balance=70, 再一次应该被 daily 拒
     r = client.post(
         "/api/v1/me/record-spend",
         headers=auth,
-        json={"callId": "insuff-llm-over", "kind": "llm", "units": 1},
+        json={"callId": "insuff-llm-over", "kind": "llm", "units": 1000},
     )
     assert r.json()["accepted"] is False
 

@@ -22,7 +22,7 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 
 from . import __version__
-from .auth import require_admin, require_license, verify_license
+from .auth import assert_device_active, require_admin, require_license, verify_license
 from .config import Config, load_config
 from .db import open_db
 from .dependencies import get_cfg, get_conn
@@ -31,14 +31,23 @@ from .routes import activate, admin, me
 
 
 def _make_license_dep(secret: str):
-    """require_license 替代: secret 在 closure 里, 不再靠全局."""
+    """require_license 替代: secret 在 closure 里, 不再靠全局.
 
-    def _dep(authorization: str | None = Header(default=None)):
+    每个 /me/* request 都查一次 devices.revoked_at (PK 索引, ~µs)
+    — revoke 立即生效, 不需要等 JWT exp.
+    """
+
+    def _dep(
+        authorization: str | None = Header(default=None),
+        conn=Depends(get_conn),
+    ):
         if not authorization or not authorization.lower().startswith("bearer "):
             raise HTTPException(
                 status.HTTP_401_UNAUTHORIZED, "missing Authorization: Bearer <license_token>"
             )
-        return verify_license(secret, authorization.split(" ", 1)[1].strip())
+        claims = verify_license(secret, authorization.split(" ", 1)[1].strip())
+        assert_device_active(conn, claims.device_id)
+        return claims
 
     return _dep
 

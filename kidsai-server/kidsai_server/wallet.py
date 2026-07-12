@@ -32,16 +32,16 @@ class WalletError(Exception):
 
 def _calc_cost(kind: str, units: int, cfg: dict) -> int:
     if kind == "llm":
-        cost = int(round(units * cfg["cost_per_llm_token"]))
-    elif kind == "video_draft":
-        cost = cfg["cost_video_draft"]
-    elif kind == "video_final":
-        cost = cfg["cost_video_final"]
-    else:
-        raise WalletError(f"unknown kind: {kind}")
-    if cost < 1:
-        cost = 1  # 至少 1 学币, 避免 0 学币 tx 污染表
-    return cost
+        # LLM: cost = round(units * cost_per_llm_token). sub-1000 token 调用
+        # 会得到 cost=0, 仍插入 transactions 但不扣学币/不烧 quota — 真实
+        # 按 token 折算, 不强制 1 学币 minimum (which 否则会把 100 token 短
+        # 回复按 1000 token 收费, 跟 COST_PER_LLM_TOKEN 配置不一致).
+        return int(round(units * cfg["cost_per_llm_token"]))
+    if kind == "video_draft":
+        return cfg["cost_video_draft"]
+    if kind == "video_final":
+        return cfg["cost_video_final"]
+    raise WalletError(f"unknown kind: {kind}")
 
 
 def _maybe_reset_daily(conn: sqlite3.Connection, device_id: str) -> None:

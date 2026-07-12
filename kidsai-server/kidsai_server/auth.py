@@ -59,6 +59,27 @@ def verify_license(secret: str, token: str) -> LicenseClaims:
     )
 
 
+def assert_device_active(conn, device_id: str) -> None:
+    """检查 device 是否被吊销. revoke 后已签 license 立即失效 (401).
+
+    设计: JWT 本身无状态, 但每次 request 都 DB 查一下 revoked_at.
+    devices.id 是 PK, ~µs. revoke 立即生效, 不需要等 exp.
+    """
+    row = conn.execute(
+        "SELECT revoked_at FROM devices WHERE id = ?", (device_id,)
+    ).fetchone()
+    if row is None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="license invalid: device not found",
+        )
+    if row["revoked_at"] is not None:
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="license revoked",
+        )
+
+
 def require_license(
     authorization: Annotated[str | None, Header()] = None,
     secret: str = "",  # 由 main.py 通过 Depends 注入

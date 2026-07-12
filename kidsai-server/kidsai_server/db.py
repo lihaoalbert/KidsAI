@@ -53,6 +53,15 @@ CREATE TABLE IF NOT EXISTS audit_log (
     payload_json    TEXT,
     created_at      INTEGER NOT NULL
 );
+
+-- W6 A1: device_key_assignment — server 端 MiniMax key 池的粘性绑定
+-- 一台设备永远用同一个 MiniMax key (跨 refresh-license 保持一致),
+-- 由 keypool.pick_key_for_device() 在首次 activate / admin rotate 时写入.
+CREATE TABLE IF NOT EXISTS device_key_assignment (
+    device_id       TEXT PRIMARY KEY,
+    key_id          INTEGER NOT NULL,    -- minimax_api_keys 列表里的 index
+    assigned_at     INTEGER NOT NULL
+);
 """
 
 

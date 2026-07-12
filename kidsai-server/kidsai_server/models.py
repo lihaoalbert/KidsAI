@@ -31,6 +31,9 @@ class ApiKeys(BaseModel):
     model_config = _CAMEL
     llm: str
     video: str
+    # W6 A3: MiniMax key — 服务端从 key pool 粘性分配 1 个,
+    # 老客户端忽略此字段也能跑 (Pydantic populate_by_name + extra=ignore 由调用方保证).
+    minimax: str | None = None
 
 
 class ActivateResponse(BaseModel):
@@ -54,8 +57,11 @@ class BalanceResponse(BaseModel):
 class RecordSpendRequest(BaseModel):
     model_config = _CAMEL
     call_id: str = Field(min_length=8, max_length=64)
-    kind: str = Field(pattern="^(llm|video_draft|video_final)$")
-    units: int = Field(ge=1)  # LLM=token 数, video=1
+    # W6 D: 加 4 种 MiniMax 相关 kind (image_gen / voice_clone / music_gen / hailuo_video)
+    kind: str = Field(
+        pattern="^(llm|video_draft|video_final|image_gen|voice_clone|music_gen|hailuo_video)$"
+    )
+    units: int = Field(ge=1)  # LLM=token 数, 其它=1
     reason: str | None = None
 
 
@@ -84,6 +90,13 @@ class AdminGrantRequest(BaseModel):
 class AdminRevokeRequest(BaseModel):
     model_config = _CAMEL
     reason: str | None = None
+
+
+class AdminRotateKeyResponse(BaseModel):
+    model_config = _CAMEL
+    device_id: str
+    key_id: int
+    rotated_at: int
 
 
 class HealthResponse(BaseModel):

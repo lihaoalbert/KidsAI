@@ -24,6 +24,10 @@ def _wallet_cfg(cfg: Config) -> dict:
         "cost_per_llm_token": cfg.cost_per_llm_token,
         "cost_video_draft": cfg.cost_video_draft,
         "cost_video_final": cfg.cost_video_final,
+        "cost_image_gen": cfg.cost_image_gen,
+        "cost_voice_clone": cfg.cost_voice_clone,
+        "cost_music_gen": cfg.cost_music_gen,
+        "cost_hailuo_video": cfg.cost_hailuo_video,
         "single_tx_cap": cfg.single_tx_cap,
     }
 
@@ -77,8 +81,25 @@ def refresh(
         (now_ms(), claims.device_id),
     )
     new_token, _ = issue_license(cfg.jwt_secret, claims.device_id, cfg.jwt_ttl_seconds)
+    # W6 A3: 复用粘性 MiniMax key — 已绑过则返同一个, 也兼容首次 refresh (空池返 None).
+    minimax_key = _pick_minimax_key_for_refresh(conn, cfg, claims.device_id)
     return RefreshResponse(
         device_id=claims.device_id,
         license_token=new_token,
-        api_keys=ApiKeys(llm=cfg.llm_api_key, video=cfg.seedance_api_key),
+        api_keys=ApiKeys(
+            llm=cfg.llm_api_key,
+            video=cfg.seedance_api_key,
+            minimax=minimax_key or None,
+        ),
     )
+
+
+def _pick_minimax_key_for_refresh(conn, cfg: Config, device_id: str) -> str:
+    """refresh 路径: 同 activate, 但失败也不影响 license 续签 (None 走桌面 fallback)."""
+    if not cfg.minimax_api_keys:
+        return ""
+    try:
+        from ..keypool import pick_key_for_device  # 局部 import 避免循环
+        return pick_key_for_device(conn, device_id, cfg.minimax_api_keys)
+    except Exception:
+        return ""

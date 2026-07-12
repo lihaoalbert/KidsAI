@@ -29,6 +29,12 @@ class Config:
     llm_api_key: str
     seedance_api_key: str
     port: int
+    # W6: 新能力成本 + MiniMax key 池
+    minimax_api_keys: tuple[str, ...]
+    cost_image_gen: int
+    cost_voice_clone: int
+    cost_music_gen: int
+    cost_hailuo_video: int
 
 
 def load_config(env_file: str | None = None) -> Config:
@@ -52,6 +58,15 @@ def load_config(env_file: str | None = None) -> Config:
     if not admin_token or len(admin_token) < 8:
         raise RuntimeError("ADMIN_TOKEN 缺失或太短")
 
+    # W6 A1: MiniMax API key 池 — 优先读 MINIMAX_API_KEYS (逗号分隔),
+    # 回退到旧单 key 字段 MINIMAX_API_KEY (兼容老部署).
+    minimax_keys_raw = os.getenv("MINIMAX_API_KEYS", "").strip()
+    if minimax_keys_raw:
+        minimax_api_keys = tuple(k.strip() for k in minimax_keys_raw.split(",") if k.strip())
+    else:
+        legacy = os.getenv("MINIMAX_API_KEY", "").strip()
+        minimax_api_keys = (legacy,) if legacy else ()
+
     return Config(
         jwt_secret=jwt_secret,
         jwt_ttl_seconds=int(os.getenv("JWT_TTL_SECONDS", "86400")),
@@ -66,4 +81,9 @@ def load_config(env_file: str | None = None) -> Config:
         llm_api_key=os.getenv("LLM_API_KEY", ""),
         seedance_api_key=os.getenv("SEEDANCE_API_KEY", ""),
         port=int(os.getenv("PORT", "8080")),
+        minimax_api_keys=minimax_api_keys,
+        cost_image_gen=int(os.getenv("COST_IMAGE_GEN", "5")),
+        cost_voice_clone=int(os.getenv("COST_VOICE_CLONE", "10")),
+        cost_music_gen=int(os.getenv("COST_MUSIC_GEN", "8")),
+        cost_hailuo_video=int(os.getenv("COST_HAILUO_VIDEO", "12")),
     )

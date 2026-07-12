@@ -41,6 +41,15 @@ def _calc_cost(kind: str, units: int, cfg: dict) -> int:
         return cfg["cost_video_draft"]
     if kind == "video_final":
         return cfg["cost_video_final"]
+    # W6 D: 新 4 种 MiniMax 能力 — units 始终 = 1 (按调用次数计费).
+    if kind == "image_gen":
+        return cfg["cost_image_gen"]
+    if kind == "voice_clone":
+        return cfg["cost_voice_clone"]
+    if kind == "music_gen":
+        return cfg["cost_music_gen"]
+    if kind == "hailuo_video":
+        return cfg["cost_hailuo_video"]
     raise WalletError(f"unknown kind: {kind}")
 
 

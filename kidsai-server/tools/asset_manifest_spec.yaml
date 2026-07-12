@@ -25,53 +25,59 @@ defaults:
 
 # ─────────────── 角色立绘 (15 张) ───────────────
 # 3 角色 × 5 姿势 (stand / sit / run / fly / smile)
+# 描述对齐 src-tauri/src/character.rs:63/70/77 builtin_characters,
+# 否则 assetStore.getUrl('xiaoqi.stand') 跟 character.description 不一致,
+# Seedance reference_image 接到 LLM 时会形象打架.
 character:
+  # 小启 (xiaoqi) — 9 岁好奇小猫女孩, 黄色短发 + 黄色 T 恤 + 小围巾 + 大眼睛
   - key: xiaoqi.stand
-    prompt: "cute robot child character Xiaoqi, round head, large glowing teal eyes, soft teal-and-white armor, friendly pose, kids illustration style, full body, white background"
+    prompt: "9 year old cute cat girl Xiaoqi, short yellow hair, big sparkling eyes, yellow T-shirt, small white scarf, friendly standing pose, kids cartoon illustration, full body, white background"
     aspect: "1:1"
   - key: xiaoqi.sit
-    prompt: "cute robot child character Xiaoqi, round head, large glowing teal eyes, soft teal-and-white armor, sitting cross-legged, kids illustration style, full body, white background"
+    prompt: "9 year old cute cat girl Xiaoqi, short yellow hair, big sparkling eyes, yellow T-shirt, small white scarf, sitting cross-legged, kids cartoon illustration, full body, white background"
     aspect: "1:1"
   - key: xiaoqi.run
-    prompt: "cute robot child character Xiaoqi, round head, large glowing teal eyes, soft teal-and-white armor, running with joy, kids illustration style, dynamic pose, white background"
+    prompt: "9 year old cute cat girl Xiaoqi, short yellow hair, big sparkling eyes, yellow T-shirt, small white scarf, running with joy, kids cartoon illustration, dynamic pose, white background"
     aspect: "1:1"
   - key: xiaoqi.fly
-    prompt: "cute robot child character Xiaoqi, round head, large glowing teal eyes, soft teal-and-white armor, flying with small jet, kids illustration style, dynamic pose, white background"
+    prompt: "9 year old cute cat girl Xiaoqi, short yellow hair, big sparkling eyes, yellow T-shirt, small white scarf, arms raised joyfully on tiptoes, kids cartoon illustration, dynamic pose, white background"
     aspect: "1:1"
   - key: xiaoqi.smile
-    prompt: "cute robot child character Xiaoqi, round head, large glowing teal eyes, soft teal-and-white armor, big warm smile, kids illustration style, close-up portrait, white background"
+    prompt: "9 year old cute cat girl Xiaoqi, short yellow hair, big sparkling eyes, yellow T-shirt, small white scarf, big warm smile, kids cartoon illustration, close-up portrait, white background"
     aspect: "1:1"
 
+  # 小月 (xiaoyue) — 8 岁女孩, 双马尾 + 红色连衣裙 + 捧书
   - key: xiaoyue.stand
-    prompt: "cute fox child character Xiaoyue, fluffy orange tail, big amber eyes, soft white-and-orange fur, friendly pose, kids illustration style, full body, white background"
+    prompt: "8 year old cute girl Xiaoyue, twin ponytails, big amber eyes, red dress, holding an open book in her hands, friendly standing pose, kids cartoon illustration, full body, white background"
     aspect: "1:1"
   - key: xiaoyue.sit
-    prompt: "cute fox child character Xiaoyue, fluffy orange tail, big amber eyes, soft white-and-orange fur, sitting with tail wrapped around, kids illustration style, full body, white background"
+    prompt: "8 year old cute girl Xiaoyue, twin ponytails, big amber eyes, red dress, sitting and reading a book on her lap, kids cartoon illustration, full body, white background"
     aspect: "1:1"
   - key: xiaoyue.run
-    prompt: "cute fox child character Xiaoyue, fluffy orange tail, big amber eyes, soft white-and-orange fur, leaping forward, kids illustration style, dynamic pose, white background"
+    prompt: "8 year old cute girl Xiaoyue, twin ponytails, big amber eyes, red dress, skipping with book tucked under arm, kids cartoon illustration, dynamic pose, white background"
     aspect: "1:1"
   - key: xiaoyue.fly
-    prompt: "cute fox child character Xiaoyue, fluffy orange tail, big amber eyes, soft white-and-orange fur, soaring with leaf kite, kids illustration style, dynamic pose, white background"
+    prompt: "8 year old cute girl Xiaoyue, twin ponytails, big amber eyes, red dress, floating with book pages flying around, kids cartoon illustration, dynamic pose, white background"
     aspect: "1:1"
   - key: xiaoyue.smile
-    prompt: "cute fox child character Xiaoyue, fluffy orange tail, big amber eyes, soft white-and-orange fur, mischievous smile, kids illustration style, close-up portrait, white background"
+    prompt: "8 year old cute girl Xiaoyue, twin ponytails, big amber eyes, red dress, gentle smile holding a closed book to her chest, kids cartoon illustration, close-up portrait, white background"
     aspect: "1:1"
 
+  # 小星 (xiaoxing) — 10 岁男孩, 黑框眼镜 + 蓝色卫衣
   - key: xiaoxing.stand
-    prompt: "cute star child character Xiaoxing, glowing yellow star body, big sparkling eyes, soft yellow light halo, friendly pose, kids illustration style, full body, white background"
+    prompt: "10 year old cute boy Xiaoxing, black-framed glasses, big thoughtful eyes, blue hoodie, hand on chin thinking, friendly standing pose, kids cartoon illustration, full body, white background"
     aspect: "1:1"
   - key: xiaoxing.sit
-    prompt: "cute star child character Xiaoxing, glowing yellow star body, big sparkling eyes, soft yellow light halo, sitting on a small cloud, kids illustration style, full body, white background"
+    prompt: "10 year old cute boy Xiaoxing, black-framed glasses, big thoughtful eyes, blue hoodie, sitting on a stool, kids cartoon illustration, full body, white background"
     aspect: "1:1"
   - key: xiaoxing.run
-    prompt: "cute star child character Xiaoxing, glowing yellow star body, big sparkling eyes, soft yellow light halo, zooming like a comet, kids illustration style, dynamic pose, white background"
+    prompt: "10 year old cute boy Xiaoxing, black-framed glasses, big thoughtful eyes, blue hoodie, running with curiosity, kids cartoon illustration, dynamic pose, white background"
     aspect: "1:1"
   - key: xiaoxing.fly
-    prompt: "cute star child character Xiaoxing, glowing yellow star body, big sparkling eyes, soft yellow light halo, flying across a sky, kids illustration style, dynamic pose, white background"
+    prompt: "10 year old cute boy Xiaoxing, black-framed glasses, big thoughtful eyes, blue hoodie, leaping into the air with joy, kids cartoon illustration, dynamic pose, white background"
     aspect: "1:1"
   - key: xiaoxing.smile
-    prompt: "cute star child character Xiaoxing, glowing yellow star body, big sparkling eyes, soft yellow light halo, beaming smile, kids illustration style, close-up portrait, white background"
+    prompt: "10 year old cute boy Xiaoxing, black-framed glasses, big thoughtful eyes, blue hoodie, big proud smile, kids cartoon illustration, close-up portrait, white background"
     aspect: "1:1"
 
 # ─────────────── 风格样例 (28 张) ───────────────

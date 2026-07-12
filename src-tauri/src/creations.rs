@@ -7,6 +7,7 @@ use tauri::State;
 use crate::db::{AssetRow, CreationRow, Db, InsertAsset, InsertCreation};
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct SaveCreationRequest {
     pub id: String,
     pub level_id: String,
@@ -19,6 +20,7 @@ pub struct SaveCreationRequest {
 }
 
 #[derive(Debug, Deserialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AssetInput {
     #[serde(rename = "type")]
     pub kind: String,

@@ -26,7 +26,7 @@
       }
     ],
     "security": {
-      "csp": "default-src 'self'; img-src 'self' data: https:; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost"
+      "csp": "default-src 'self'; img-src 'self' data: https:; media-src 'self' data: blob: https://*.volces.com https://*.cdn.volces.com; script-src 'self'; style-src 'self' 'unsafe-inline'; connect-src 'self' ipc: http://ipc.localhost"
     }
   },
   "bundle": {
@@ -46,7 +46,7 @@
   },
   "plugins": {
     "updater": {
-      "active": true,
+      "active": false,
       "dialog": false,
       "endpoints": [
         "https://update.kidsai.com/{{target}}/{{arch}}/{{current_version}}"

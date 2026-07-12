@@ -259,6 +259,7 @@ impl Db {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct CreationRow {
     pub id: String,
     pub level_id: String,
@@ -271,6 +272,7 @@ pub struct CreationRow {
 }
 
 #[derive(Debug, Clone, serde::Serialize)]
+#[serde(rename_all = "camelCase")]
 pub struct AssetRow {
     pub kind: String,
     pub url: String,

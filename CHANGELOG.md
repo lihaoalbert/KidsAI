@@ -22,6 +22,14 @@
 - **学币计费扩展 (A1)**: 4 新 kind (image_gen=5 / voice_clone=10 / music_gen=8 / hailuo_video=12)
 - **总测试**: 60 backend + 119 frontend + 166 Rust = 345 pass + 4 ignored
 
+### Added (W7 — 宣传视频 + MiniMax API 适配)
+- **30s 横版 promo 脚本** (`tools/generate_promo_video.py`):
+  8 镜 (写死) → 5 镜合并 (Token Plan 每天 3 视频, 15 分钟重置窗口), 主角 xiaoxing + Pixar 3D 风格
+- **hailuo-02 file_id 2-step 检索**: `poll_hailuo` 改走 `GET /v1/files/retrieve?file_id=...` 拿下载 URL (旧版 poll 直接 `download_url` 字段已废)
+- **music-2.6 适配**: 同步返回 hex-encoded mp3, 不支持 `duration` 参数 (实测返 ~17s, 加 `-stream_loop -1` 在 stitch 阶段循环填 30s)
+- **5 镜 final.mp4**: `promo/A_5min_movie/final.mp4` (4.3 MB, h264 + aac, 29.4s @ 1366x768, 5 镜 × 5.875s + BGM 循环)
+- **`.gitignore` 排除 `promo/`**: 重产物 (clips/stills/mp4/mp3) 不进 git, 重跑即覆盖 (跟 W6 `assets/` 同套路)
+
 ### Added
 - Week 1 项目骨架：Tauri 2.0 + React 18 + Vite + TypeScript
 - 侧边栏导航（课程中心 / 作品工坊 / 作品库 / 我的 Agent）

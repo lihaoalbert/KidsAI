@@ -66,3 +66,11 @@ assets/bgm_thumb/
 assets/reserved/
 assets/asset_manifest.json
 assets/_failed.json
+
+# W7: 宣传视频生成产物 (~10MB/条, 由 tools/generate_promo_video.py 跑批产出,
+# 不入 git, 重跑即覆盖)
+promo/
+promo/**/clips/
+promo/**/stills/
+promo/**/*.mp4
+promo/**/*.mp3

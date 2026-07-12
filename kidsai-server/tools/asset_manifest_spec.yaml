@@ -174,6 +174,103 @@ style:
     prompt: "16-bit pixel art still life of a treasure chest, retro game aesthetic, vibrant palette"
     aspect: "4:3"
 
+  # W6 v2: 16+ 成熟风格 (与 kid-leaning 的 anime/cartoon/ink/photo/pixel 区分).
+  # 7 风格 × 4 = 28 张追加. 用于:
+  # - 关卡 L7 (Dream) + 后续 L8-L20 高级关卡背景
+  # - 14-16 岁用户的作品封面 / 分镜主视觉
+  # - 导演流程风格选项 (Studio 阶段 3 画风选择, 跟 kid 风格并列)
+  # 关键: 全部去掉 "kids cartoon illustration" 前缀, 用更高级的关键词.
+  - key: studio-ghibli.full
+    prompt: "Studio Ghibli inspired illustration, lush countryside with floating clouds, Hayao Miyazaki style, hand-painted watercolor textures, atmospheric perspective, soft golden light, full cinematic scene"
+    aspect: "16:9"
+  - key: studio-ghibli.half
+    prompt: "Studio Ghibli inspired portrait of a thoughtful teen, soft watercolor brushwork, gentle expression, pastel palette, half body"
+    aspect: "4:3"
+  - key: studio-ghibli.expression
+    prompt: "Studio Ghibli inspired close-up, eyes full of wonder, soft watercolor shading, painterly details"
+    aspect: "1:1"
+  - key: studio-ghibli.still
+    prompt: "Studio Ghibli inspired still life of an old leather journal and a feather pen on a wooden desk, soft window light, painterly"
+    aspect: "4:3"
+
+  - key: makoto-shinkai.full
+    prompt: "Makoto Shinkai anime cinematic, a quiet train station at dusk with hyper-detailed clouds and lens flare, atmospheric lighting, Your Name aesthetic, full scene"
+    aspect: "16:9"
+  - key: makoto-shinkai.half
+    prompt: "Makoto Shinkai anime portrait of a teen looking up at falling sakura petals, hyper-detailed eyes, atmospheric light, half body"
+    aspect: "4:3"
+  - key: makoto-shinkai.expression
+    prompt: "Makoto Shinkai anime close-up of eyes reflecting city lights, hyper-detailed iris, atmospheric bokeh"
+    aspect: "1:1"
+  - key: makoto-shinkai.still
+    prompt: "Makoto Shinkai anime still life of a worn sneaker on a Tokyo rooftop, hyper-detailed textures, sunset light"
+    aspect: "4:3"
+
+  - key: manga-mature.full
+    prompt: "manga panel illustration in the style of Vinland Saga or March Comes in Like a Lion, detailed ink work, screentone shading, dramatic composition, full page spread"
+    aspect: "16:9"
+  - key: manga-mature.half
+    prompt: "manga character portrait in mature shonen style, detailed line art, screentone, intense expression, half body"
+    aspect: "4:3"
+  - key: manga-mature.expression
+    prompt: "manga close-up of a character's determined face, dramatic line weight, ink hatching, screentone"
+    aspect: "1:1"
+  - key: manga-mature.still
+    prompt: "manga still life of a katana and a sake cup, detailed ink illustration, screentone shading, moody"
+    aspect: "4:3"
+
+  - key: vaporwave.full
+    prompt: "vaporwave aesthetic landscape, neon grid floor fading into purple horizon, retro 80s sun, glitchy chromatic aberration, full scene"
+    aspect: "16:9"
+  - key: vaporwave.half
+    prompt: "vaporwave portrait of a figure with neon sunglasses, magenta and cyan gradient lighting, retro aesthetic, half body"
+    aspect: "4:3"
+  - key: vaporwave.expression
+    prompt: "vaporwave close-up, glowing pink lips and neon-tinted skin, retro 80s digital aesthetic"
+    aspect: "1:1"
+  - key: vaporwave.still
+    prompt: "vaporwave still life of a vintage cassette tape and a CRT monitor, neon purple glow, retro digital aesthetic"
+    aspect: "4:3"
+
+  - key: concept-art.full
+    prompt: "AAA game concept art, epic fantasy warrior standing on a cliff overlooking a vast kingdom, dramatic rim lighting, painterly brushwork, full scene"
+    aspect: "16:9"
+  - key: concept-art.half
+    prompt: "AAA game character concept art, cyberpunk bounty hunter with neon visor, dramatic lighting, painterly detail, half body"
+    aspect: "4:3"
+  - key: concept-art.expression
+    prompt: "game character concept art close-up of a battle-scarred veteran's face, dramatic side lighting, painterly"
+    aspect: "1:1"
+  - key: concept-art.still
+    prompt: "concept art still life of an ancient sword on stone altar, dramatic volumetric lighting, painterly masterpiece"
+    aspect: "4:3"
+
+  - key: dark-academia.full
+    prompt: "dark academia aesthetic, an old library with towering bookshelves and golden candlelight, oil painting texture, melancholic mood, full scene"
+    aspect: "16:9"
+  - key: dark-academia.half
+    prompt: "dark academia portrait of a scholar in vintage clothing, candlelight, oil painting style, half body"
+    aspect: "4:3"
+  - key: dark-academia.expression
+    prompt: "dark academia close-up, eyes lit by candle flame, oil painting brushwork, contemplative expression"
+    aspect: "1:1"
+  - key: dark-academia.still
+    prompt: "dark academia still life of an old book, brass key, and dried roses, oil painting lighting, moody"
+    aspect: "4:3"
+
+  - key: poster-graphic.full
+    prompt: "vintage film poster style, bold geometric composition, limited color palette of teal orange and cream, halftone texture, full poster layout"
+    aspect: "16:9"
+  - key: poster-graphic.half
+    prompt: "modern editorial poster portrait of a stylish figure, bold flat colors with screen-printed texture, half body"
+    aspect: "4:3"
+  - key: poster-graphic.expression
+    prompt: "poster-style close-up, bold silhouette against contrasting color block, limited palette, screen-printed texture"
+    aspect: "1:1"
+  - key: poster-graphic.still
+    prompt: "poster-style still life of a vintage camera and a folded map, bold flat colors with halftone, editorial design"
+    aspect: "4:3"
+
 # ─────────────── 关卡背景 (7 张, L1-L7) ───────────────
 bg:
   - key: l1.my_ai_companion

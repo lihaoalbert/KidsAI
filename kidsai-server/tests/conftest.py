@@ -28,6 +28,13 @@ os.environ.setdefault("COST_VIDEO_DRAFT", "9")
 os.environ.setdefault("COST_VIDEO_FINAL", "19")
 os.environ.setdefault("SINGLE_TX_CAP", "20")
 
+# W6 A: 测试隔离 — 不让 .env 里的真 MiniMax key 漏到测试 fixture / pytest 输出.
+# 设空串而不是 pop: pop 之后 load_dotenv 会从 .env 重新塞回来
+# (因为 dotenv 默认不覆盖已存在的 env var, 但已 pop = 不存在 = 会塞).
+# 测试如需 pool 非空, 用 monkeypatch.setenv 显式注入测试 key.
+os.environ["MINIMAX_API_KEYS"] = ""
+os.environ["MINIMAX_API_KEY"] = ""
+
 from kidsai_server.config import Config, load_config  # noqa: E402
 from kidsai_server.main import create_app  # noqa: E402
 

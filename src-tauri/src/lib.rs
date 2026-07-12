@@ -24,6 +24,8 @@ pub mod test_helpers;
 pub use crate::db::Db;
 pub use crate::types::LevelStatus;
 
+pub mod crashlog;
+
 use tauri::{AppHandle, Manager};
 
 use crate::agent::{cancel_agent, run_agent, SessionRegistry};
@@ -169,15 +171,20 @@ pub fn run() {
                 .path()
                 .app_data_dir()
                 .expect("failed to resolve app data dir");
+
+            // W4.5 D1: 崩溃日志 (写在最前, 这样后续 init 出错也能留下痕迹)
+            crashlog::init(&data_dir);
+            crashlog::event("setup", &format!("app_data_dir = {:?}", data_dir));
+
             let db_path = data_dir.join("kidsai.db");
-            eprintln!("[db] opening at {:?}", db_path);
+            elog!("[db] opening at {:?}", db_path);
             let db = Db::open(&db_path).expect("failed to open SQLite database");
             app.manage(db);
 
             // W4.5 B2: license store + license client (server 模式按 KIDSAI_SERVER_URL env)
             let license_store = LicenseStore::new(&data_dir);
             let license_client = LicenseClient::from_env();
-            eprintln!(
+            elog!(
                 "[license] mode = {} (KIDSAI_SERVER_URL={:?})",
                 if license_client.is_demo() { "demo" } else { "server" },
                 std::env::var("KIDSAI_SERVER_URL").ok()

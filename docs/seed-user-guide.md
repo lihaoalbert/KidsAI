@@ -86,6 +86,7 @@
 - **视频生成失败?** → 试拍阶段是「最多重试 2 次」, 还失败就把 prompt 改简单点 (比如 "一只小猫追蝴蝶" 比 "一只橙色的虎斑小猫在月光下追一只蓝色的蝴蝶" 出图更稳)
 - **激活时连不上服务器?** → 检查网络; 还不行就重启 KidsAI
 - **崩溃 / 错误弹窗?** → 点右上角「🛎 反馈」告诉 lihao, 把错误截图发群里
+  - 想看运行日志, macOS 路径 `~/Library/Application Support/ai.kidsai.studio/logs/kidsai-YYYY-MM-DD.log`, Windows 路径 `%APPDATA%\ai.kidsai.studio\logs\kidsai-YYYY-MM-DD.log`
 
 ---
 

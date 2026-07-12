@@ -145,6 +145,56 @@
     - `tests/openai_parse.rs` 加 4 个 strip 测试：simple / multi-segment / no-tag-passthrough / unclosed-passthrough
     - **总计 29 个测试全过（4 单元 + 5 + 4 + 4 + 11 + 1 真实 LLM）**
 
+### Added (Week 4.5 — 种子用户启动)
+- **A 紧急安全 + IPC 修复**
+  - `docs/00-账号信息/code.md` 含明文密钥 → `git rm` + `.gitignore` 加固 `docs/00-*/` 模式
+  - `src-tauri/tauri.conf.json` `updater.active: true` + 空 pubkey → `active: false`
+  - `src-tauri/src/creations.rs` + `db.rs` 加 `#[serde(rename_all = "camelCase")]` 修 IPC 边界
+  - `index.html` CSP 加 `media-src https://*.volces.com https://*.cdn.volces.com data: blob:` (允许 Seedance 视频 CDN)
+- **B1 License + Quota 控制平面后端** (`kidsai-server/`)
+  - FastAPI + SQLite + python-jose JWT HS256, 7 个 endpoint: activate / balance / record-spend / refresh-license / admin grant+revoke / healthz
+  - 学币计费: 默认 daily_quota=30/天, 起始 balance=100, LLM cost=0.001/token, 视频试拍 9/定稿 19, 单笔 cap 20
+  - 幂等: `transactions.call_id UNIQUE`, 二次上报同 call_id 返原记录
+  - 修 2 bug: revoke 立即失效 (加 blacklist check) + LLM cost floor (min 1 token)
+- **B2 桌面 License 适配层** (直连 provider 模式, 不做代理)
+  - `src-tauri/src/license_client.rs` reqwest 4 method (activate/balance/record-spend/refresh-license)
+  - `src-tauri/src/license_store.rs` 持久化 `app_data_dir/license.json` chmod 600
+  - `agent.rs` / `video_adapter.rs` 加 check-then-act: 调用前查余额, 调用后异步 fire-and-forget 上报
+  - `src/pages/OnboardingPage.tsx` 首次激活流 (昵称 + 年级)
+  - `src/stores/tokenStore.ts` 退化为只读视图, 实际扣账由 server 权威
+- **B3 ECS 部署** (8.133.241.103, Aliyun Linux 4)
+  - systemd unit `kidsai-server.service` + nginx `api.kids.ibi.ren` vhost + `kids.ibi.ren` 静态前端
+  - 双 DigiCert DV 证书 (2026-10-09 到期需续)
+  - install.sh + admin CLI (`kidsai-admin grant DEVICE_ID 50`) + runbook
+  - 文档: `kidsai-server/DEPLOY.md` (systemd + nginx + certbot + .env 注入)
+- **C1 真 Seedance 端到端集成测试** (`src-tauri/tests/real_seedance_via_license.rs`, `--ignored`, ¥1 段视频)
+  - 真后端激活 → grant 学币 → 桌面直连 Seedance → 上报 spend → 拿到 video_url
+- **C2 + D3 vite 截图 + 删 dev 标记 + 修侧栏 hardcode**
+  - HomePage 删 `Week 2 进行中...` 内部 dev 行
+  - Sidebar "💎 500" → 读 `useTokenStore.balance`
+- **C3 macOS 真机 .dmg 打包** (`KidsAI Studio_0.1.0_aarch64.dmg`, 3.0 MB)
+  - Windows .msi 暂缓 (需 lihao 在 Windows VM 上 cargo-xwin)
+- **C4 种子用户指南** (`docs/seed-user-guide.md`)
+  - 3 屏图文: 安装 (mac .dmg + Win .msi deferred) / 首次启动激活 / Studio 试玩
+
+### Added (Week 5 — Studio 3 UX issues 修复)
+- **① ProjectsPane 去重**
+  - 砍掉重复的 视频/游戏/Agent tab + ➕开始新创作 + 学币栏 (全局 Sidebar 已管)
+  - 左栏 w-56 → w-44, 中屏对话流更宽
+  - ✕ 关闭按钮回首页 (`onBackHome` 通过 App.tsx `handleBackToHome` 注入)
+- **② directorStore 锁定命题 + 分镜故事连贯**
+  - 新增 `locked_props: { subject?, story_core?, art_style? }`
+  - studioStore 在每阶 ✓ 拍板时调 `lockSubject` / `lockStoryCore` / `lockArtStyle` 写入
+  - `runPlanGeneration` 注入【上下文:已锁定命题】chunk + 硬约束 "每个分镜必须服务于 story_core"
+  - 加 LLM 连贯性自检 (`director_coherence` level), 不达标时回原因给 UI 让用户在分镜页直接改
+- **③ 状态机可回退 (cursor + history)**
+  - `stage` (单调) → `cursor` + `history[]` (每阶决策时快照)
+  - `goBackTo(idx)` 还原快照 + 下游标 `stale: true` (UI 显示 ⚪)
+  - ProgressMap 的 ✓ 胶囊变可点击 `<button>`, 点击调 `goBackTo`
+  - 回退到 stage 1 还调 `studioStore.goBackToStep1()` 重放 4 个 beat
+  - 新增 7 个单测覆盖 cursor/history/locked_props/goBackTo/system_prompt 注入
+- **Bug fix**: `listCharacters`/`listStyles` 返回 null 时 `.find` 崩 (mock 返 null), 加 `.then((r) => r ?? [])` 防御
+
 ### TODO
 - 真实品牌图标（设计师出图后替换）
 - Apple Developer / Windows 代码签名证书

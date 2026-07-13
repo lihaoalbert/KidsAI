@@ -12,6 +12,7 @@ import {
   CREDITS,
   DIRECTOR_PLAN_SYSTEM_PROMPT,
   VIDEO_MODEL,
+  downloadAsset,
   listCharacters,
   listStyles,
   parseDirectorPlan,
@@ -27,6 +28,7 @@ import {
 } from '../api/tauri';
 import { useAssetStore } from './assetStore';
 import { useTokenStore } from './tokenStore';
+import { useProjectStore } from './projectStore';
 
 export type DirectorStage = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -105,7 +107,7 @@ export interface DirectorHistoryEntry {
   stale: boolean;
 }
 
-interface DirectorState {
+export interface DirectorState {
   // —— 状态机 cursor + history (W5 修复 ③) ——
   /// 当前所在的阶段 (1-6). 用 cursor 而非单调 stage, 支持 goBackTo
   cursor: DirectorStage;
@@ -360,12 +362,20 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
     return parts.join('，');
   },
 
-  setCharacter: (c) => set({ character: c, characterTweak: {} }),
+  setCharacter: (c) => {
+    set({ character: c, characterTweak: {} });
+    // W8 M1-D: 标准照落本地 projects/<id>/character/<id>-stand.png
+    const ref = c.standardImageUrl ?? c.referenceImageUrl;
+    if (ref) void enqueueLocalDownload(ref, 'image', `character/${c.id}-stand.png`);
+  },
 
   setCharacterTweak: (patch) =>
     set((state) => ({ characterTweak: { ...state.characterTweak, ...patch } })),
 
-  setStyle: (s) => set({ style: s }),
+  setStyle: (s) => {
+    set({ style: s });
+    // W8 M1-D: 风格预设暂不附带图片 URL, 留待 image-01 出图后单独入队
+  },
 
   setVideoEngine: (engine) => set({ videoEngine: engine }),
 
@@ -596,6 +606,10 @@ ${shots
           sh.id === shotId ? { ...sh, previewUrl: videoUrl, previewing: false } : sh,
         ),
       }));
+
+      // W8 M1-D: 后台把视频落到本机 projects/<id>/shots/<shot.id>/preview.mp4
+      // 失败不阻塞主流程, UI 仍用远端 URL; 下载完 emit asset://local 事件 → localMap 更新
+      void enqueueLocalDownload(videoUrl, 'video', `shots/${shotId}/preview.mp4`);
     } catch (e) {
       // 退款
       useTokenStore.getState().addTokens(credits);
@@ -690,9 +704,31 @@ ${shots
       }
 
       set({ isVideoRunning: false, finalVideoUrl: videoUrl });
+
+      // W8 M1-D: 落本地 exports/<date>.mp4
+      const today = new Date().toISOString().slice(0, 10);
+      void enqueueLocalDownload(videoUrl, 'video', `exports/final-${today}.mp4`);
     } catch (e) {
       useTokenStore.getState().addTokens(credits);
       set({ isVideoRunning: false, error: `定稿失败: ${e}` });
     }
   },
 }));
+
+// W8 M1-D: 把远程资产 URL 排到本机 projects/<id>/<subPath> 下载队列.
+// 失败/无 project_id 时静默忽略 — UI 仍用远端 URL, 等下次重启.
+async function enqueueLocalDownload(
+  url: string,
+  kind: 'image' | 'video' | 'audio',
+  subPath: string,
+): Promise<void> {
+  try {
+    const projectId = useProjectStore.getState().current?.id;
+    if (!projectId) return;
+    if (!/^https?:\/\//.test(url)) return; // data: / 本地路径跳过
+    await downloadAsset(projectId, url, kind, subPath);
+  } catch (e) {
+    // eslint-disable-next-line no-console
+    console.warn('[W8] enqueue local download failed', e);
+  }
+}

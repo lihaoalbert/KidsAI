@@ -2,12 +2,21 @@ import { useEffect, useState } from 'react';
 import Card from '../components/Card';
 import { listCreations, type CreationWithAssets } from '../api/tauri';
 import { useLevelStore } from '../stores/levelStore';
+import { useProjectStore } from '../stores/projectStore';
+import { convertFileSrc } from '@tauri-apps/api/core';
 
 export default function LibraryPage() {
   const [creations, setCreations] = useState<CreationWithAssets[]>([]);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const { levels } = useLevelStore();
+  const projects = useProjectStore((s) => s.list);
+  const projectsLoading = useProjectStore((s) => s.loading);
+  const refreshProjects = useProjectStore((s) => s.refresh);
+
+  useEffect(() => {
+    void refreshProjects();
+  }, [refreshProjects]);
 
   const refresh = async () => {
     setIsLoading(true);
@@ -52,57 +61,121 @@ export default function LibraryPage() {
 
       {isLoading ? (
         <div className="text-sm text-gray-500 py-12 text-center">加载中…</div>
-      ) : creations.length === 0 ? (
-        <div className="rounded-lg bg-white border border-dashed border-gray-300 p-16 text-center">
-          <div className="text-5xl mb-4">🎨</div>
-          <div className="font-semibold text-gray-900 mb-1">还没有作品</div>
-          <div className="text-sm text-gray-500">
-            完成第一个关卡后，作品会出现在这里
-          </div>
-        </div>
       ) : (
-        <div className="grid grid-cols-2 gap-4">
-          {creations.map((c) => (
-            <Card
-              key={c.id}
-              title={levelTitle(c.levelId)}
-              description={c.userInput}
-              footer={
-                <div className="flex items-center justify-between text-xs text-gray-600">
-                  <span>得分 {c.score ?? '-'}</span>
-                  <span>{new Date(c.createdAt).toLocaleString()}</span>
-                </div>
-              }
-            >
-              <div className="space-y-2">
-                {c.assets.length > 0 ? (
-                  <div className="grid grid-cols-2 gap-2">
-                    {c.assets.map((a, i) => (
-                      <div
-                        key={i}
-                        className="aspect-video bg-gray-100 rounded-md flex items-center justify-center text-2xl"
-                      >
-                        {a.kind === 'image' && '🖼️'}
-                        {a.kind === 'video' && '🎬'}
-                        {a.kind === 'audio' && '🔊'}
-                      </div>
-                    ))}
-                  </div>
-                ) : (
-                  <div className="aspect-video bg-gradient-to-br from-brand-50 to-warm-50 rounded-md flex items-center justify-center text-3xl">
-                    🎨
-                  </div>
-                )}
-                {c.feedback && (
-                  <div className="text-xs text-gray-600 bg-gray-50 rounded p-2">
-                    {c.feedback}
-                  </div>
-                )}
+        <>
+          {/* W8: 我的项目区 (源 = projectStore) */}
+          <section className="mb-8">
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">我的项目</h2>
+            {projectsLoading && projects.length === 0 ? (
+              <div className="text-sm text-gray-500 py-6 text-center bg-white rounded-lg border border-dashed border-gray-200">
+                正在读取项目…
               </div>
-            </Card>
-          ))}
-        </div>
+            ) : projects.length === 0 ? (
+              <div className="rounded-lg bg-white border border-dashed border-gray-200 p-8 text-center">
+                <div className="text-3xl mb-2">🎬</div>
+                <div className="text-sm font-semibold text-gray-700">还没有项目</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  进入「作品工坊」开始一个故事后，会在这里列出。
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-3 gap-3">
+                {projects.map((p) => (
+                  <div
+                    key={p.id}
+                    className="rounded-xl border border-gray-200 bg-white p-3 hover:border-brand-300 hover:shadow-sm transition"
+                  >
+                    <div className="aspect-video rounded-lg bg-gradient-to-br from-brand-50 to-warm-50 mb-2 overflow-hidden flex items-center justify-center">
+                      {p.thumbPath ? (
+                        <img
+                          src={localThumb(p.thumbPath) ?? ''}
+                          alt=""
+                          className="w-full h-full object-cover"
+                        />
+                      ) : (
+                        <span className="text-3xl">🎬</span>
+                      )}
+                    </div>
+                    <div className="text-sm font-semibold text-gray-900 truncate">{p.title}</div>
+                    <div className="mt-1 flex items-center justify-between text-[11px] text-gray-500">
+                      <span className="rounded-full bg-gray-100 px-1.5 py-0.5">
+                        {stageLabel(p.cursor)}
+                      </span>
+                      <span>已用 {p.totalCredits} 学币</span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+          </section>
+
+          {/* 老 W2.3 creations 区 (兼容历史数据) */}
+          <section>
+            <h2 className="text-lg font-semibold text-gray-900 mb-3">历史作品（W2.3）</h2>
+            {creations.length === 0 ? (
+              <div className="rounded-lg bg-white border border-dashed border-gray-300 p-12 text-center">
+                <div className="text-3xl mb-2">🎨</div>
+                <div className="text-sm font-semibold text-gray-700">还没有历史作品</div>
+                <div className="text-xs text-gray-400 mt-1">
+                  完成旧版关卡后，作品会出现在这里。
+                </div>
+              </div>
+            ) : (
+              <div className="grid grid-cols-2 gap-4">
+                {creations.map((c) => (
+                  <Card
+                    key={c.id}
+                    title={levelTitle(c.levelId)}
+                    description={c.userInput}
+                    footer={
+                      <div className="flex items-center justify-between text-xs text-gray-600">
+                        <span>得分 {c.score ?? '-'}</span>
+                        <span>{new Date(c.createdAt).toLocaleString()}</span>
+                      </div>
+                    }
+                  >
+                    <div className="space-y-2">
+                      {c.assets.length > 0 ? (
+                        <div className="grid grid-cols-2 gap-2">
+                          {c.assets.map((a, i) => (
+                            <div
+                              key={i}
+                              className="aspect-video bg-gray-100 rounded-md flex items-center justify-center text-2xl"
+                            >
+                              {a.kind === 'image' && '🖼️'}
+                              {a.kind === 'video' && '🎬'}
+                              {a.kind === 'audio' && '🔊'}
+                            </div>
+                          ))}
+                        </div>
+                      ) : (
+                        <div className="aspect-video bg-gradient-to-br from-brand-50 to-warm-50 rounded-md flex items-center justify-center text-3xl">
+                          🎨
+                        </div>
+                      )}
+                      {c.feedback && (
+                        <div className="text-xs text-gray-600 bg-gray-50 rounded p-2">
+                          {c.feedback}
+                        </div>
+                      )}
+                    </div>
+                  </Card>
+                ))}
+              </div>
+            )}
+          </section>
+        </>
       )}
     </div>
   );
+}
+
+function localThumb(path: string | null): string | null {
+  if (!path) return null;
+  if (/^(https?:|data:|blob:)/.test(path)) return path;
+  return '__TAURI_INTERNALS__' in window ? convertFileSrc(path) : path;
+}
+
+function stageLabel(cursor: number): string {
+  return ['刚开始', '点子', '主角', '画风', '分镜', '试拍', '定稿'][cursor] ?? '创作中';
 }

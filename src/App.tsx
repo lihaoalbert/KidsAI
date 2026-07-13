@@ -21,7 +21,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
     ];
     // @ts-expect-error 仅截图 dev 用
     window.__TAURI_INTERNALS__ = {
-      invoke: (cmd: string) => {
+      invoke: (cmd: string, args?: Record<string, unknown>) => {
         const stubs: Record<string, unknown> = {
           get_license_info: { deviceId: 'dev-screenshot-1', nickname: '小明', ageTier: 1, isDemo: false, llmApiKey: 'sk-stub', videoApiKey: 'sk-stub', lastBalance: 100 },
           get_balance: { deviceId: 'dev-screenshot-1', balance: 100, dailyConsumed: 11, dailyQuota: 30, dailyRemaining: 19 },
@@ -29,6 +29,42 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
           list_progress: [],
           completed_level_ids: [],
           list_creations: [],
+          list_projects: [],
+          // W8: 项目 CRUD 在 vite 截图模式返回空骨架, 避免 useProjectStore 触发 null.id
+          create_project: {
+            id: 'p-screenshot-1',
+            title: (args?.title as string) ?? '我的小电影',
+            levelId: null,
+            cursor: 0,
+            thumbPath: null,
+            totalCredits: 0,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
+          load_project: {
+            meta: {
+              id: 'p-screenshot-1',
+              title: '我的小电影',
+              levelId: null,
+              cursor: 0,
+              thumbPath: null,
+              totalCredits: 0,
+              createdAt: Date.now(),
+              updatedAt: Date.now(),
+            },
+            plan: {},
+            transcript: { items: [], started: false },
+          },
+          save_project_state: {
+            id: 'p-screenshot-1',
+            title: '我的小电影',
+            levelId: null,
+            cursor: 0,
+            thumbPath: null,
+            totalCredits: 0,
+            createdAt: Date.now(),
+            updatedAt: Date.now(),
+          },
         };
         return Promise.resolve(stubs[cmd] ?? null);
       },
@@ -49,6 +85,7 @@ import OnboardingPage from './pages/OnboardingPage';
 import { checkAlreadyActivated } from './pages/OnboardingPage';
 import type { ActivateResponse } from './api/tauri';
 import { useAssetStore } from './stores/assetStore';
+import { initializeProjectPersistence, useProjectStore } from './stores/projectStore';
 
 export type PageKey =
   | 'home'
@@ -82,10 +119,34 @@ function App() {
   // W6 B3: 启动时拉 asset manifest (如果 license info 有 server url, 跟着走).
   // fallback: 默认 https://api.kids.ibi.ren (production ECS).
   useEffect(() => {
+    if (!('__TAURI_INTERNALS__' in window)) return;
     const serverUrl =
       import.meta.env.VITE_KIDSAI_SERVER_URL ?? 'https://api.kids.ibi.ren';
     void useAssetStore.getState().fetch(serverUrl);
   }, []);
+
+  useEffect(() => {
+    if (activated !== true || !('__TAURI_INTERNALS__' in window)) return;
+    let cancelled = false;
+    const disposePersistence = initializeProjectPersistence();
+    void useProjectStore.getState().refresh().then(async () => {
+      if (cancelled) return;
+      const recent = useProjectStore
+        .getState()
+        .list.find((project) => project.cursor < 6);
+      if (!recent) return;
+      try {
+        await useProjectStore.getState().open(recent.id);
+        if (!cancelled) setCurrentPage('studio');
+      } catch {
+        return;
+      }
+    });
+    return () => {
+      cancelled = true;
+      disposePersistence();
+    };
+  }, [activated]);
 
   const handleActivated = (_resp: ActivateResponse) => {
     setActivated(true);
@@ -133,7 +194,7 @@ function App() {
       case 'library':
         return <LibraryPage />;
       case 'studio':
-        return <StudioPage onBackHome={handleBackToHome} />;
+        return <StudioPage />;
       case 'agent':
         return <MyAgentPage />;
       case 'level':

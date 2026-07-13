@@ -1,9 +1,17 @@
-import { useState } from 'react';
+import { useEffect, useState } from 'react';
 import { useDirectorStore } from '../../stores/directorStore';
 import { useStudioStore } from '../../stores/studioStore';
-import { useAssetStore } from '../../stores/assetStore';
+import { generatedAssetUrl, useAssetStore } from '../../stores/assetStore';
+import { useLocalAsset } from '../../stores/projectStore';
 import CharacterEditor from './editors/CharacterEditor';
 import ShotFxEditor from './editors/ShotFxEditor';
+
+const STYLE_PREVIEW_VARIANTS = [
+  ['full', '全身'],
+  ['half', '半身'],
+  ['expression', '表情'],
+  ['still', '场景'],
+] as const;
 
 export default function ResultPane() {
   const cursor = useDirectorStore((s) => s.cursor);
@@ -12,23 +20,36 @@ export default function ResultPane() {
   const shots = useDirectorStore((s) => s.shots);
   const finalVideoUrl = useDirectorStore((s) => s.finalVideoUrl);
   const previewIndex = useStudioStore((s) => s.previewIndex);
+  const manifestImages = useAssetStore((s) => s.manifest?.images);
   const [fullscreen, setFullscreen] = useState(false);
 
-  // W6 B3: 优先 manifest URL, 找不到走 picsum fallback (assetStore 统一处理)
-  const charImg =
-    character?.referenceImageUrl ??
-    (character ? useAssetStore.getState().getUrl(`${character.id}.stand`) : null);
+  const characterAssetUrl = character
+    ? manifestImages?.[`${character.id}.stand`] ??
+      generatedAssetUrl('character', `${character.id}.stand`)
+    : null;
+  const [charImg, setCharImg] = useState<string | null>(characterAssetUrl);
+
+  useEffect(() => {
+    setCharImg(characterAssetUrl);
+  }, [characterAssetUrl]);
+
+  const stylePreviews = style
+    ? STYLE_PREVIEW_VARIANTS.map(([variant, label]) => ({
+        label,
+        url:
+          manifestImages?.[`${style.id}.${variant}`] ??
+          generatedAssetUrl('style', `${style.id}.${variant}`),
+      }))
+    : [];
 
   const body = (() => {
     if (cursor >= 6 && finalVideoUrl) {
-      return (
-        <video src={finalVideoUrl} controls className="max-h-full max-w-full rounded-xl" />
-      );
+      return <FinalVideoPlayer url={finalVideoUrl} />;
     }
     if (cursor === 5) {
       const shot = shots[previewIndex];
       if (shot?.previewUrl) {
-        return <video src={shot.previewUrl} controls className="max-h-full max-w-full rounded-xl" />;
+        return <PreviewVideoPlayer url={shot.previewUrl} />;
       }
       return (
         <div className="text-center text-sm text-gray-400">
@@ -52,16 +73,41 @@ export default function ResultPane() {
         </div>
       );
     }
-    if (cursor >= 2 && charImg) {
+    if (cursor === 3 && style) {
+      return (
+        <div className="w-full text-center">
+          <div className="grid grid-cols-2 gap-2">
+            {stylePreviews.map((preview) => (
+              <figure key={preview.label} className="overflow-hidden rounded-xl bg-white shadow-sm">
+                <img
+                  src={preview.url}
+                  alt={`${style.name}${preview.label}预览`}
+                  className="h-32 w-full object-cover"
+                />
+                <figcaption className="py-1.5 text-[11px] font-semibold text-gray-500">
+                  {preview.label}
+                </figcaption>
+              </figure>
+            ))}
+          </div>
+          <div className="mt-3 text-sm font-bold text-gray-700">🎨 {style.name}</div>
+          <div className="mt-1 text-xs text-gray-400">四宫格画风参考</div>
+        </div>
+      );
+    }
+    if (cursor === 2 && charImg) {
       return (
         <div className="text-center">
           <img
             src={charImg}
-            alt={character?.name}
+            alt={`${character?.name ?? '主角'}标准照`}
+            onError={() => {
+              const fallback = character?.referenceImageUrl ?? null;
+              setCharImg(fallback && fallback !== charImg ? fallback : null);
+            }}
             className="mx-auto max-h-72 rounded-2xl border-4 border-white shadow-md"
           />
-          <div className="mt-3 text-sm font-bold text-gray-700">📸 {character?.name}</div>
-          {style && <div className="mt-1 text-xs text-gray-400">画风：{style.name}</div>}
+          <div className="mt-3 text-sm font-bold text-gray-700">📸 {character?.name}标准照</div>
         </div>
       );
     }
@@ -89,10 +135,8 @@ export default function ResultPane() {
 
       <div className="flex flex-1 items-center justify-center overflow-auto p-5">{body}</div>
 
-      {/* 阶段2-4: 主角微调器 (色块/大小/表情) */}
       {cursor >= 2 && cursor < 5 && character && <CharacterEditor />}
 
-      {/* 阶段5: 单镜微调器 (速度/音效/滤镜) */}
       {cursor === 5 && shots[previewIndex] && (
         <ShotFxEditor shotId={shots[previewIndex].id} />
       )}
@@ -105,13 +149,37 @@ export default function ResultPane() {
           <button className="absolute right-6 top-6 text-2xl text-white">✕</button>
           <div className="max-h-full max-w-full" onClick={(e) => e.stopPropagation()}>
             {cursor >= 6 && finalVideoUrl ? (
-              <video src={finalVideoUrl} controls autoPlay className="max-h-[85vh] rounded-xl" />
+              <FinalVideoPlayer url={finalVideoUrl} fullscreen />
             ) : shots[previewIndex]?.previewUrl ? (
-              <video src={shots[previewIndex].previewUrl!} controls autoPlay className="max-h-[85vh] rounded-xl" />
+              <PreviewVideoPlayer url={shots[previewIndex].previewUrl!} fullscreen />
             ) : null}
           </div>
         </div>
       )}
     </div>
+  );
+}
+
+function FinalVideoPlayer({ url, fullscreen = false }: { url: string; fullscreen?: boolean }) {
+  const src = useLocalAsset(url);
+  return (
+    <video
+      src={src ?? ''}
+      controls
+      autoPlay={fullscreen}
+      className={fullscreen ? 'max-h-[85vh] rounded-xl' : 'max-h-full max-w-full rounded-xl'}
+    />
+  );
+}
+
+function PreviewVideoPlayer({ url, fullscreen = false }: { url: string; fullscreen?: boolean }) {
+  const src = useLocalAsset(url);
+  return (
+    <video
+      src={src ?? ''}
+      controls
+      autoPlay={fullscreen}
+      className={fullscreen ? 'max-h-[85vh] rounded-xl' : 'max-h-full max-w-full rounded-xl'}
+    />
   );
 }

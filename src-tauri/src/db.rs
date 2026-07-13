@@ -10,6 +10,7 @@
 use rusqlite::{params, Connection, OptionalExtension};
 use std::path::Path;
 use std::sync::Mutex;
+use std::time::Duration;
 
 use crate::types::*;
 
@@ -23,6 +24,7 @@ impl Db {
             let _ = std::fs::create_dir_all(parent);
         }
         let conn = Connection::open(path)?;
+        conn.busy_timeout(Duration::from_secs(5))?;
         // 启用外键（虽然 MVP 没外键，但好习惯）
         conn.execute_batch("PRAGMA foreign_keys = ON;")?;
         Self::migrate(&conn)?;
@@ -66,9 +68,44 @@ impl Db {
 
             CREATE INDEX IF NOT EXISTS idx_creations_level ON creations(level_id);
             CREATE INDEX IF NOT EXISTS idx_assets_creation ON assets(creation_id);
+
+            CREATE TABLE IF NOT EXISTS project_meta (
+                id            TEXT PRIMARY KEY,
+                title         TEXT NOT NULL,
+                level_id      TEXT,
+                cursor        INTEGER NOT NULL DEFAULT 0,
+                thumb_path    TEXT,
+                total_credits INTEGER NOT NULL DEFAULT 0,
+                created_at    INTEGER NOT NULL,
+                updated_at    INTEGER NOT NULL
+            );
+
+            CREATE TABLE IF NOT EXISTS assets_local (
+                id         INTEGER PRIMARY KEY AUTOINCREMENT,
+                project_id TEXT NOT NULL,
+                url        TEXT NOT NULL,
+                local_path TEXT NOT NULL,
+                kind       TEXT NOT NULL,
+                bytes      INTEGER,
+                status     TEXT NOT NULL,
+                created_at INTEGER NOT NULL,
+                UNIQUE(project_id, url, local_path)
+            );
+
+            CREATE INDEX IF NOT EXISTS idx_project_meta_updated ON project_meta(updated_at DESC);
+            CREATE INDEX IF NOT EXISTS idx_assets_local_project ON assets_local(project_id);
+            CREATE INDEX IF NOT EXISTS idx_assets_local_url ON assets_local(project_id, url);
             "#,
         )?;
         Ok(())
+    }
+
+    pub(crate) fn with_connection<T>(
+        &self,
+        f: impl FnOnce(&mut Connection) -> rusqlite::Result<T>,
+    ) -> rusqlite::Result<T> {
+        let mut conn = self.conn.lock().unwrap();
+        f(&mut conn)
     }
 
     // ============ 关卡进度 ============
@@ -89,11 +126,7 @@ impl Db {
         Self::read_progress(&conn, level_id)
     }
 
-    pub fn mark_completed(
-        &self,
-        level_id: &str,
-        score: u32,
-    ) -> rusqlite::Result<LevelProgress> {
+    pub fn mark_completed(&self, level_id: &str, score: u32) -> rusqlite::Result<LevelProgress> {
         let conn = self.conn.lock().unwrap();
         let now = now_millis();
         conn.execute(

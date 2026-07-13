@@ -20,10 +20,11 @@ serde = { version = "1.0", features = ["derive"] }
 serde_json = "1.0"
 rusqlite = { version = "0.32", features = ["bundled"] }
 reqwest = { version = "0.12", default-features = false, features = ["json", "rustls-tls", "stream", "blocking", "multipart"] }
-tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync"] }
+tokio = { version = "1", features = ["rt-multi-thread", "macros", "time", "sync", "fs", "io-util"] }
 dotenvy = "0.15"
 async-trait = "0.1"
 futures-util = "0.3"
+uuid = { version = "1", features = ["v4"] }
 
 [dev-dependencies]
 mockito = "1.7"

@@ -1,11 +1,12 @@
 // Tauri 2.0 主入口
 
 pub mod agent;
+pub mod assets_local;
 pub mod character;
 pub mod content;
 pub mod creations;
 pub mod db;
-pub mod image_adapter;   // W6 C1
+pub mod image_adapter; // W6 C1
 pub mod levels;
 pub mod license_client;
 pub mod license_store;
@@ -13,14 +14,15 @@ pub mod model;
 pub mod model_factory;
 pub mod model_mock;
 pub mod model_openai;
-pub mod music_adapter;   // W6 C3
-pub mod prompt_builder;   // W4.6 #1 — Seedance 翻译层
+pub mod music_adapter; // W6 C3
+pub mod projects;
+pub mod prompt_builder; // W4.6 #1 — Seedance 翻译层
 pub mod safety;
 pub mod style;
 pub mod tools;
 pub mod types;
 pub mod video_adapter;
-pub mod voice_adapter;   // W6 C2
+pub mod voice_adapter; // W6 C2
 
 pub mod test_helpers;
 
@@ -33,6 +35,7 @@ pub mod crashlog;
 use tauri::{AppHandle, Manager};
 
 use crate::agent::{cancel_agent, run_agent, SessionRegistry};
+use crate::assets_local::{download_asset, resolve_asset, AssetsLocal, TauriAssetEventSink};
 use crate::character::{builtin_characters, Character, CharacterRegistry};
 use crate::creations::{list_creations, save_creation};
 use crate::levels::{
@@ -41,6 +44,10 @@ use crate::levels::{
 };
 use crate::license_client::{ActivateResponse, BalanceResponse, LicenseClient, RefreshResponse};
 use crate::license_store::{LicenseFile, LicenseStore};
+use crate::projects::{
+    create_project, delete_project, list_projects, load_project, rename_project,
+    save_project_state, Projects,
+};
 use crate::safety::{KeywordFilter, SafetyVerdict};
 use crate::style::{builtin_styles, StylePreset, StyleRegistry};
 
@@ -78,7 +85,9 @@ async fn activate_device(
     age_tier: u8,
 ) -> Result<ActivateResponse, String> {
     let client = app.state::<LicenseClient>().inner().clone();
-    let resp = client.activate(&fingerprint_hash, &nickname, age_tier).await?;
+    let resp = client
+        .activate(&fingerprint_hash, &nickname, age_tier)
+        .await?;
 
     let store = app.state::<LicenseStore>().inner();
     let license_file = LicenseFile {
@@ -111,9 +120,7 @@ async fn get_balance(app: AppHandle) -> Result<BalanceResponse, String> {
 async fn refresh_license(app: AppHandle) -> Result<RefreshResponse, String> {
     let client = app.state::<LicenseClient>().inner().clone();
     let store = app.state::<LicenseStore>().inner();
-    let mut lf = store
-        .load()
-        .ok_or_else(|| "not activated".to_string())?;
+    let mut lf = store.load().ok_or_else(|| "not activated".to_string())?;
     let r = client.refresh_license(&lf.license_token).await?;
     lf.license_token = r.license_token.clone();
     lf.llm_api_key = r.api_keys.llm.clone();
@@ -183,14 +190,25 @@ pub fn run() {
             let db_path = data_dir.join("kidsai.db");
             elog!("[db] opening at {:?}", db_path);
             let db = Db::open(&db_path).expect("failed to open SQLite database");
+            let projects =
+                Projects::new(&data_dir).expect("failed to initialize projects directory");
+            let asset_sink = std::sync::Arc::new(TauriAssetEventSink::new(app.handle().clone()));
+            let assets_local = AssetsLocal::new(&data_dir, &db_path, asset_sink)
+                .expect("failed to initialize local asset downloads");
             app.manage(db);
+            app.manage(projects);
+            app.manage(assets_local);
 
             // W4.5 B2: license store + license client (server 模式按 KIDSAI_SERVER_URL env)
             let license_store = LicenseStore::new(&data_dir);
             let license_client = LicenseClient::from_env();
             elog!(
                 "[license] mode = {} (KIDSAI_SERVER_URL={:?})",
-                if license_client.is_demo() { "demo" } else { "server" },
+                if license_client.is_demo() {
+                    "demo"
+                } else {
+                    "server"
+                },
                 std::env::var("KIDSAI_SERVER_URL").ok()
             );
             app.manage(license_store);
@@ -236,6 +254,15 @@ pub fn run() {
             // 作品
             save_creation,
             list_creations,
+            // 项目 + 本地资产
+            list_projects,
+            load_project,
+            create_project,
+            rename_project,
+            delete_project,
+            save_project_state,
+            download_asset,
+            resolve_asset,
             // 安全
             check_safety,
             // 模型

@@ -94,6 +94,99 @@ export async function listCreations(
   return invoke<CreationWithAssets[]>('list_creations', { levelId });
 }
 
+// ============ 项目 + 本地资产 ============
+
+export interface ProjectMeta {
+  id: string;
+  title: string;
+  levelId: string | null;
+  cursor: number;
+  thumbPath: string | null;
+  totalCredits: number;
+  createdAt: number;
+  updatedAt: number;
+}
+
+export type ProjectSummary = ProjectMeta;
+
+export interface ProjectFull {
+  meta: ProjectMeta;
+  plan: Record<string, unknown>;
+  transcript: Record<string, unknown> | unknown[];
+}
+
+export interface ProjectStatePatch {
+  cursor?: number;
+  thumbPath?: string;
+  totalCredits?: number;
+}
+
+export async function listProjects(): Promise<ProjectSummary[]> {
+  return invoke<ProjectSummary[]>('list_projects');
+}
+
+export async function loadProject(id: string): Promise<ProjectFull> {
+  return invoke<ProjectFull>('load_project', { id });
+}
+
+export async function createProject(
+  title: string,
+  levelId?: string,
+): Promise<ProjectMeta> {
+  return invoke<ProjectMeta>('create_project', { title, levelId });
+}
+
+export async function renameProject(id: string, title: string): Promise<void> {
+  return invoke<void>('rename_project', { id, title });
+}
+
+export async function deleteProject(id: string): Promise<void> {
+  return invoke<void>('delete_project', { id });
+}
+
+export async function saveProjectState(
+  id: string,
+  plan: Record<string, unknown>,
+  transcript: Record<string, unknown>,
+  meta: ProjectStatePatch,
+): Promise<ProjectMeta> {
+  return invoke<ProjectMeta>('save_project_state', {
+    id,
+    plan,
+    transcript,
+    meta,
+  });
+}
+
+export async function downloadAsset(
+  projectId: string,
+  url: string,
+  kind: 'image' | 'video' | 'audio',
+  subPath: string,
+): Promise<number> {
+  return invoke<number>('download_asset', { projectId, url, kind, subPath });
+}
+
+export async function resolveAsset(
+  projectId: string,
+  url: string,
+): Promise<string | null> {
+  return invoke<string | null>('resolve_asset', { projectId, url });
+}
+
+export interface AssetLocalEvent {
+  projectId: string;
+  url: string;
+  localPath: string;
+  status: 'downloaded' | 'failed';
+}
+
+export async function onAssetLocal(
+  handler: (event: AssetLocalEvent) => void,
+): Promise<UnlistenFn> {
+  return listen<AssetLocalEvent>('asset://local', (event) => handler(event.payload));
+}
+
 // ============ 角色 (W3.4) ============
 
 export interface Character {
@@ -102,6 +195,8 @@ export interface Character {
   description: string;
   styleTags: string[];
   referenceImageUrl?: string;
+  /// W4.6 #2: 三视图合图, 用于 Seedance 跨镜硬锚.
+  standardImageUrl?: string;
 }
 
 export async function listCharacters(): Promise<Character[]> {
@@ -269,7 +364,24 @@ export async function fetchAssetManifest(
   if (!r.ok) {
     throw new Error(`asset-manifest http ${r.status}`);
   }
-  return r.json() as Promise<AssetManifest>;
+  const raw = (await r.json()) as {
+    version?: unknown;
+    generated_count?: unknown;
+    generatedCount?: unknown;
+    images?: unknown;
+  };
+  if (!raw.images || typeof raw.images !== 'object' || Array.isArray(raw.images)) {
+    throw new Error('asset-manifest images invalid');
+  }
+  const images = Object.fromEntries(
+    Object.entries(raw.images).filter((entry): entry is [string, string] => typeof entry[1] === 'string'),
+  );
+  const generatedCount = raw.generatedCount ?? raw.generated_count;
+  return {
+    version: typeof raw.version === 'number' ? raw.version : 0,
+    generatedCount: typeof generatedCount === 'number' ? generatedCount : Object.keys(images).length,
+    images,
+  };
 }
 
 /// W4.6 #4: 节奏 5 拍 + 镜头语言, 每镜独立标注.

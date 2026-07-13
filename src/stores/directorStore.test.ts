@@ -99,6 +99,7 @@ const runAgentMock: Mock = vi.fn();
 const listCharactersMock: Mock = vi.fn();
 const listStylesMock: Mock = vi.fn();
 const saveCreationMock: Mock = vi.fn();
+const downloadAssetMock: Mock = vi.fn();
 
 vi.mock('../api/tauri', async () => {
   // 透传真实 parseDirectorPlan 供 test 用
@@ -109,6 +110,7 @@ vi.mock('../api/tauri', async () => {
     listCharacters: (...args: unknown[]) => listCharactersMock(...args),
     listStyles: (...args: unknown[]) => listStylesMock(...args),
     saveCreation: (...args: unknown[]) => saveCreationMock(...args),
+    downloadAsset: (...args: unknown[]) => downloadAssetMock(...args),
   };
 });
 
@@ -549,5 +551,55 @@ describe('directorStore.locked_props', () => {
     expect(call.systemPrompt).toContain('已锁定的画风');
     expect(call.systemPrompt).toContain('硬约束');
     expect(call.systemPrompt).toContain('必须服务于已锁定的故事核心');
+  });
+});
+
+// ============ W8 M1-D: 资产本地下载入队 ============
+describe('W8 M1-D: downloadAsset 触发点', () => {
+  it('setCharacter 触发 standardImageUrl 入队 (有 project_id)', async () => {
+    const { useProjectStore } = await import('./projectStore');
+    useProjectStore.setState({
+      current: {
+        id: 'p-active',
+        title: 't',
+        levelId: null,
+        cursor: 0,
+        thumbPath: null,
+        totalCredits: 0,
+        createdAt: 0,
+        updatedAt: 0,
+      },
+    });
+    downloadAssetMock.mockClear();
+    useDirectorStore.getState().setCharacter({
+      id: 'x',
+      name: 'x',
+      description: 'd',
+      styleTags: [],
+      standardImageUrl: 'https://cdn/x.png',
+    });
+    // 让 microtask 跑完
+    await new Promise((r) => setTimeout(r, 0));
+    expect(downloadAssetMock).toHaveBeenCalledWith(
+      'p-active',
+      'https://cdn/x.png',
+      'image',
+      'character/x-stand.png',
+    );
+  });
+
+  it('setCharacter 无 project_id 时静默跳过 (不抛错)', async () => {
+    const { useProjectStore } = await import('./projectStore');
+    useProjectStore.setState({ current: null });
+    downloadAssetMock.mockClear();
+    useDirectorStore.getState().setCharacter({
+      id: 'y',
+      name: 'y',
+      description: 'd',
+      styleTags: [],
+      standardImageUrl: 'https://cdn/y.png',
+    });
+    await new Promise((r) => setTimeout(r, 0));
+    expect(downloadAssetMock).not.toHaveBeenCalled();
   });
 });

@@ -1,6 +1,6 @@
 import { useEffect } from 'react';
 import StudioLayout from '../components/studio/StudioLayout';
-import ConversationPane from '../components/studio/ConversationPane';
+import StudioCenter from '../components/studio/StudioCenter';
 import ResultPane from '../components/studio/ResultPane';
 import StoryWorkspace from '../components/studio/StoryWorkspace';
 import { useProjectStore } from '../stores/projectStore';
@@ -32,7 +32,7 @@ export default function StudioPage() {
   return (
     <StudioLayout
       left={<StoryWorkspace />}
-      center={<ConversationPane />}
+      center={<StudioCenter />}
       right={<ResultPane />}
     />
   );

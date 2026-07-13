@@ -438,6 +438,8 @@ async fn character_injects_into_repeated_generate_image_args() {
         description: "黄发女孩".into(),
         style_tags: vec!["cartoon".into()],
         reference_image_url: None,
+        standard_image_url: None,
+        aliases: None,
     };
 
     let registry = SessionRegistry::default();
@@ -512,6 +514,8 @@ async fn character_appends_to_system_prompt() {
         description: "双马尾红裙".into(),
         style_tags: vec!["cartoon".into(), "child_friendly".into()],
         reference_image_url: None,
+        standard_image_url: None,
+        aliases: None,
     };
 
     let registry = SessionRegistry::default();
@@ -643,6 +647,7 @@ async fn style_appends_to_system_prompt() {
         name: "🖌️ 水墨".into(),
         description: "中国传统水墨画风格".into(),
         style_tags: vec!["ink_wash".into()],
+        seedance_style_keyword: None,
     };
 
     let registry = SessionRegistry::default();
@@ -706,6 +711,7 @@ async fn style_injects_into_repeated_generate_image_args() {
         name: "📺 像素".into(),
         description: "复古 8-bit 像素艺术".into(),
         style_tags: vec!["pixel_art".into()],
+        seedance_style_keyword: None,
     };
 
     let registry = SessionRegistry::default();
@@ -849,12 +855,15 @@ async fn character_and_style_compose_in_image_prompt() {
         description: "9岁小猫女孩".into(),
         style_tags: vec!["cartoon".into()],
         reference_image_url: None,
+        standard_image_url: None,
+        aliases: None,
     };
     let style = StylePreset {
         id: "ink".into(),
         name: "🖌️ 水墨".into(),
         description: "中国传统水墨画风格".into(),
         style_tags: vec!["ink_wash".into()],
+        seedance_style_keyword: None,
     };
 
     let registry = SessionRegistry::default();
@@ -935,12 +944,15 @@ async fn character_and_style_compose_in_system_prompt() {
         description: "8岁红裙女孩".into(),
         style_tags: vec!["cartoon".into()],
         reference_image_url: None,
+        standard_image_url: None,
+        aliases: None,
     };
     let style = StylePreset {
         id: "clay".into(),
         name: "🌈 3D 黏土".into(),
         description: "黏土材质 3D 渲染".into(),
         style_tags: vec!["3d_render".into()],
+        seedance_style_keyword: None,
     };
 
     let registry = SessionRegistry::default();
@@ -1133,12 +1145,15 @@ async fn edit_image_with_character_and_style_inherits_injection() {
         description: "9岁小猫女孩".into(),
         style_tags: vec!["cartoon".into()],
         reference_image_url: None,
+        standard_image_url: None,
+        aliases: None,
     };
     let style = StylePreset {
         id: "ink".into(),
         name: "🖌️ 水墨".into(),
         description: "中国传统水墨画".into(),
         style_tags: vec!["ink_wash".into()],
+        seedance_style_keyword: None,
     };
 
     let registry = SessionRegistry::default();

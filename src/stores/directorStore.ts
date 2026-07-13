@@ -19,6 +19,10 @@ import {
   saveCreation,
   type Character,
   type DirectorPlan,
+  type StoryBeat,
+  type ShotCamera,
+  type ShotMood,
+  type ShotTransition,
   type StylePreset,
 } from '../api/tauri';
 import { useAssetStore } from './assetStore';
@@ -57,6 +61,18 @@ export interface DirectorShot {
   seed: number;
   previewing: boolean; // ⑤ 当前分镜是否在试拍
   fx?: ShotFx; // ⑤ 轻量微调
+  /// W4.6 #4: 5 拍节奏 — hook / conflict / payoff
+  beat: StoryBeat;
+  /// W4.6 #4: 情绪颗粒度 — 喂给 build_seedance_prompt 的 [Mood] 行
+  mood: ShotMood;
+  /// W4.6 #4: 镜头语言 — 喂给 build_seedance_prompt 的 [Camera] 行
+  camera: ShotCamera;
+  /// W4.6 #4: 这镜涉及哪些角色 id (多角色故事必填, 单角色简化为 [character_id])
+  characterRefs: string[];
+  /// W4.6 #4: 与下一镜的转场 (最后一镜固定 'none')
+  transitionToNext: ShotTransition;
+  /// W4.6 #4: 同 session 内跨镜共享 seed (锁定角色一致性)
+  seedSession?: number;
 }
 
 /**
@@ -135,7 +151,21 @@ interface DirectorState {
   lockSubject(): void;
   lockStoryCore(): void;
   lockArtStyle(): void;
-  updateShot(id: string, patch: Partial<Pick<DirectorShot, 'description' | 'motion'>>): void;
+  updateShot(
+    id: string,
+    patch: Partial<
+      Pick<
+        DirectorShot,
+        | 'description'
+        | 'motion'
+        | 'beat'
+        | 'mood'
+        | 'camera'
+        | 'characterRefs'
+        | 'transitionToNext'
+      >
+    >,
+  ): void;
   setShotFx(id: string, patch: Partial<ShotFx>): void;
   moveShot(id: string, dir: 'up' | 'down'): void;
   /** ① → ②③④: 1 次 LLM 出 DirectorPlan, 失败重试 1 次, 二次失败用兜底 */
@@ -146,14 +176,40 @@ interface DirectorState {
   runFinalize(planTitle: string): Promise<void>;
 }
 
+/// W4.6 #4: FALLBACK_PLAN 也要带齐 6 字段 — 兜底也要满足严格 schema,
+/// 否则前端校验兜底数据时会再次失败,陷入死循环.
 const FALLBACK_PLAN: DirectorPlan = {
   idea: '一个简单有趣的小动画',
   character_id: 'xiaoqi',
   style_id: 'cartoon',
   shots: [
-    { description: '小启站在花园里,抬头看着天空', motion: '小启站在花园里,抬头看着天空,微风吹动头发' },
-    { description: '小启张开手臂,开始慢慢地飘起来', motion: '小启张开手臂, 慢慢地从地面飘到半空中' },
-    { description: '小启在云朵之间穿行,露出开心的笑容', motion: '小启在云朵之间穿行, 开心地笑' },
+    {
+      description: '小启站在花园里,抬头看着天空',
+      motion: '小启站在花园里,抬头看着天空,微风吹动头发',
+      beat: 'hook',
+      mood: 'joyful',
+      camera: 'wide',
+      character_refs: ['xiaoqi'],
+      transition_to_next: 'fade',
+    },
+    {
+      description: '小启张开手臂,开始慢慢地飘起来',
+      motion: '小启张开手臂, 慢慢地从地面飘到半空中',
+      beat: 'conflict',
+      mood: 'tense',
+      camera: 'medium',
+      character_refs: ['xiaoqi'],
+      transition_to_next: 'cut',
+    },
+    {
+      description: '小启在云朵之间穿行,露出开心的笑容',
+      motion: '小启在云朵之间穿行, 开心地笑',
+      beat: 'payoff',
+      mood: 'epic',
+      camera: 'overhead',
+      character_refs: ['xiaoqi'],
+      transition_to_next: 'none',
+    },
   ],
 };
 
@@ -170,13 +226,23 @@ function freshSeed(): number {
 }
 
 function shotsFromPlan(plan: DirectorPlan): DirectorShot[] {
-  return plan.shots.map((s) => ({
+  return plan.shots.map((s, idx) => ({
     id: genId('shot'),
     description: s.description,
     motion: s.motion,
     previewUrl: null,
     seed: freshSeed(),
     previewing: false,
+    // W4.6 #4: LLM 已校验过 6 字段, 兜底 (validateDirectorPlan 通过) 才能到这
+    beat: s.beat,
+    mood: s.mood,
+    camera: s.camera,
+    characterRefs: [...s.character_refs],
+    transitionToNext: s.transition_to_next,
+    // W4.6 #4: 用 index+session_seed_from_id 算同 plan 内统一 seed_session,
+    // 跨镜锁定角色一致性. 后端 run_loop 会用 session_seed_from_id(hash(session_id))
+    // 同算法, 但前端只是 hint, 真正锁定由后端 ToolContext.seed_session 负责.
+    seedSession: idx === 0 ? Math.floor(Math.random() * 0x7fffffff) : undefined,
   }));
 }
 
@@ -493,6 +559,7 @@ ${shots
       // 把 Seedance 调用的所有信息塞进 system_prompt + userInput,
       // 强制 LLM 调 image_to_video tool 一次(因为 image_to_video tool 内部会
       // 透传 image_url/image_role/seed/model 到 adapter)
+      // W4.6 #4: 拼入 mood/camera 提示, 后端 ToolContext.shot 会拿到
       const motionWithStyle = style
         ? `${shot.motion}. 视觉风格: ${style.description}.`
         : shot.motion;
@@ -503,6 +570,9 @@ ${shots
 - model: ${videoEngine === 'hailuo' ? VIDEO_MODEL.HAILUO : VIDEO_MODEL.SEEDANCE_PREVIEW}
 - seed: ${seed}
 - duration: 4
+- mood: ${shot.mood}        // W4.6 #4: 情绪颗粒度 (build_seedance_prompt 用)
+- camera: ${shot.camera}    // W4.6 #4: 镜头语言 (build_seedance_prompt 用)
+- beat: ${shot.beat}        // W4.6 #4: 节奏标记 (排障用)
 然后立即返回工具的输出,不要做其他任何事。`;
 
       const resp = await runAgent({
@@ -561,9 +631,11 @@ ${shots
     set({ isVideoRunning: true, error: null });
 
     try {
-      // 定稿: 1 条完整 prompt(把 3 镜连起来), 2.0 端点, 用 first_frame 不用 reference(更稳定)
+      // 定稿: 1 条完整 prompt(把 N 镜连起来), 2.0 端点, 用 first_frame 不用 reference(更稳定)
+      // W4.6 #4: 每镜 beat/mood/camera 都拼出来, 后端按 shotIndex 拆解 (current=0)
+      const firstShot = shots[0];
       const combinedMotion = shots
-        .map((s, i) => `第 ${i + 1} 镜: ${s.motion}`)
+        .map((s, i) => `第 ${i + 1} 镜[${s.beat}/${s.mood}/${s.camera}]: ${s.motion}`)
         .join(' | ');
       const motionWithStyle = style
         ? `${combinedMotion}. 视觉风格: ${style.description}.`
@@ -574,6 +646,9 @@ ${shots
 - image_role: first_frame
 - model: ${videoEngine === 'hailuo' ? VIDEO_MODEL.HAILUO : VIDEO_MODEL.SEEDANCE_FINALIZE}
 - duration: 5
+- mood: ${firstShot.mood}        // W4.6 #4: 首镜情绪 (build_seedance_prompt 用)
+- camera: ${firstShot.camera}    // W4.6 #4: 首镜镜头 (build_seedance_prompt 用)
+- beat: ${firstShot.beat}        // W4.6 #4: 首镜节奏 (排障用)
 然后立即返回工具的输出,不要做其他任何事。`;
 
       const resp = await runAgent({

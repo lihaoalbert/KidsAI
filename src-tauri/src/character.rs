@@ -22,6 +22,15 @@ pub struct Character {
     /// 可选参考图 URL（真实 IP-Adapter / 角色一致性模型接入时用）
     #[serde(skip_serializing_if = "Option::is_none")]
     pub reference_image_url: Option<String>,
+    /// W4.6 #2: 标准像 URL (1张三视图合图, 由 image-01 生成, 用于 Seedance 硬锚 first_frame/reference_image).
+    /// 第一次进 studio 时, 后端检测到 None 会自动生成并回填.
+    /// 注: reference_image_url 在 W4.6 前是 picsum 占位 (异步确定性图片), 现在与 standard_image_url 字段并存:
+    /// reference_image_url 作为单图参考 (v1 多模态参考模式), standard_image_url 作为三视图角色卡 (W4.6+ 跨镜锚).
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub standard_image_url: Option<String>,
+    /// W4.6 #2: 角色别名清单 (≥2 个, 第 1 个是基准名). 用于跨镜别名锚定 (防止模型输出"小明/小启/小星"漂移).
+    #[serde(skip_serializing_if = "Option::is_none", default)]
+    pub aliases: Option<Vec<String>>,
 }
 
 /// 角色注册表（in-memory）
@@ -63,6 +72,14 @@ pub fn builtin_characters() -> Vec<Character> {
             description: "一个9岁的好奇小猫女孩，黄色短发、穿黄色T恤、戴小围巾、眼睛又大又亮".into(),
             style_tags: vec!["cartoon".into(), "child_friendly".into()],
             reference_image_url: Some("https://picsum.photos/seed/xiaoqi-ref/512/512".into()),
+            // W4.6 #2: 首进 studio 后, 后端检测 None 自动调 image-01 生成三视图并回填.
+            standard_image_url: None,
+            // W4.6 #2: 别名清单 (第 1 个基准, 后 2 个 LLM 应优先用, 防止 drift).
+            aliases: Some(vec![
+                "小启".into(),
+                "小启猫".into(),
+                "XiaoQi".into(),
+            ]),
         },
         Character {
             id: "xiaoyue".into(),
@@ -70,6 +87,12 @@ pub fn builtin_characters() -> Vec<Character> {
             description: "一个8岁的小女孩，扎着双马尾、穿红色连衣裙、手里常捧着一本书".into(),
             style_tags: vec!["cartoon".into(), "child_friendly".into()],
             reference_image_url: Some("https://picsum.photos/seed/xiaoyue-ref/512/512".into()),
+            standard_image_url: None,
+            aliases: Some(vec![
+                "小月".into(),
+                "小月儿".into(),
+                "XiaoYue".into(),
+            ]),
         },
         Character {
             id: "xiaoxing".into(),
@@ -77,6 +100,12 @@ pub fn builtin_characters() -> Vec<Character> {
             description: "一个10岁的小男孩，戴黑框眼镜、穿蓝色卫衣、爱思考".into(),
             style_tags: vec!["cartoon".into(), "child_friendly".into()],
             reference_image_url: Some("https://picsum.photos/seed/xiaoxing-ref/512/512".into()),
+            standard_image_url: None,
+            aliases: Some(vec![
+                "小星".into(),
+                "星仔".into(),
+                "XiaoXing".into(),
+            ]),
         },
     ]
 }
@@ -118,6 +147,74 @@ pub fn inject_character_into_image_args(args_json: &str, character: &Character) 
     );
     obj.insert("prompt".into(), serde_json::Value::String(new_prompt));
     serde_json::to_string(&args).unwrap_or_else(|_| args_json.to_string())
+}
+
+/// W4.6 #2: 构造"1 张三视图角色卡"的 image-01 prompt.
+///
+/// 工业版三视图合图 (来自分镜指令-生图提示词-人物生图.txt 调研):
+/// - 左 3 视图: 正 / 侧 / 背 全身 (head to toe)
+/// - 右 3 特写: 嘴 / 眼 / 发
+/// - 8% 边距, 80mm 等效焦距, 柔光均匀
+/// - 人物无表情, 无现代物件 (防穿模)
+/// - 风格修饰走工业级风格 (Ghibli/Pixar 等), 不写 ARRI/Hue/IRE
+fn three_view_background_clause() -> &'static str {
+    "pure white background, 8% safe margin, 80mm portrait lens equivalent, soft even lighting, no facial expression, no modern objects"
+}
+
+fn three_view_composition_clause() -> &'static str {
+    "left half: front view, side view, back view (full body, head to toe); right half: 3 close-ups (mouth, eyes, hair); figures share identical anatomy and identical outfit across all views"
+}
+
+/// 工业级三视图角色卡 prompt — 让 image-01 出 1 张合图.
+///
+/// 用法: 前端在 stage 2 选完角色后首次进 studio 时, 后端检测 standard_image_url 为 None,
+/// 用此 prompt 调 generate_image 生成三视图, URL 存到 character.standard_image_url.
+pub fn build_three_view_prompt(character: &Character, seedance_style_keyword: &str) -> String {
+    format!(
+        "[W4.6 character card] one image, 6 panels.\n\
+         [Subject] {name}, child-friendly character, key features: {desc}\n\
+         [Style] {style_kw}\n\
+         [Composition] {composition}\n\
+         [Background] {background}\n\
+         [Constraints] outfit identical in all 6 panels (≤3 layers: top/outer/bottom+shoes), accessories consistent; hair color/style consistent; skin tone consistent; same character repeated 6 times, not 6 different characters",
+        name = character.name,
+        desc = character.description,
+        style_kw = seedance_style_keyword,
+        composition = three_view_composition_clause(),
+        background = three_view_background_clause(),
+    )
+}
+
+/// W4.6 #2: 提示 LLM 为后续跨镜锚定输出别名清单 (≥2 个, 第 1 个是基准名).
+///
+/// 实际别名仍由 LLM 生成 (含昵称/称呼/简称/English name), 这里给出"角色段"prompt 拼接给 system prompt.
+/// 不要写进 user 输入 — 这是 system_prompt 的一段.
+pub fn build_aliases_system_prompt_section(character: Option<&Character>) -> String {
+    match character {
+        Some(c) => format!(
+            "\n\n## W4.6 角色卡别名清单 (强制)\n\
+             主角: {name}\n\
+             你的回复中, 当引用该角色时, 必须用以下任一名称 (不要创造新名字, 防止跨镜 alias drift):\n\
+             - {baseline}\n\
+             - (LLM 负责在此追加 ≥1 个昵称/称呼/简称, 输出格式: `aliases: [\"基准名\", \"昵称1\", ...]`)",
+            name = c.name,
+            baseline = c.name,
+        ),
+        None => String::new(),
+    }
+}
+
+/// 把 standard_image_url 写回注册表 (用于后端检测到 None 时自动生成 → 回填).
+/// in-memory registry 不能直接 mutation from outside; 提供显式 setter 测试 + 流程都用.
+impl CharacterRegistry {
+    pub fn set_standard_image_url(&self, id: &str, url: &str) -> Result<(), String> {
+        let mut map = self.map.lock().unwrap();
+        let c = map
+            .get_mut(id)
+            .ok_or_else(|| format!("character not found: {id}"))?;
+        c.standard_image_url = Some(url.to_string());
+        Ok(())
+    }
 }
 
 /// v1 导演流程:把角色注入 image_to_video 工具的 args。
@@ -169,6 +266,8 @@ mod tests {
             description: "黄发女孩".into(),
             style_tags: vec!["cartoon".into()],
             reference_image_url: None,
+            standard_image_url: None,
+            aliases: None,
         }
     }
 
@@ -282,6 +381,8 @@ mod tests {
             description: "黄发女孩".into(),
             style_tags: vec!["cartoon".into()],
             reference_image_url: Some("https://picsum.photos/seed/x-ref/512/512".into()),
+            standard_image_url: None,
+            aliases: None,
         }
     }
 
@@ -338,5 +439,90 @@ mod tests {
         // motion 缺失 → 至少 image_url/image_role 仍被自动填上(ref 路径还是走得到的)
         assert_eq!(v["image_url"], "https://picsum.photos/seed/x-ref/512/512");
         assert_eq!(v["image_role"], "reference_image");
+    }
+
+    // ─── W4.6 #2 三视图 + 别名清单 ───────────────────────
+
+    /// 三视图角色卡 prompt 包含 6 panel (3 视图 + 3 特写), 防穿模约束
+    #[test]
+    fn build_three_view_prompt_has_six_panels_and_constraints() {
+        let c = sample();
+        let prompt = build_three_view_prompt(&c, "Studio-Ghibli inspired soft watercolor");
+        assert!(prompt.contains("W4.6 character card"), "got: {prompt}");
+        assert!(prompt.contains("[Subject] 小启"), "got: {prompt}");
+        assert!(prompt.contains("黄发女孩"), "got: {prompt}");
+        assert!(prompt.contains("[Style] Studio-Ghibli"), "got: {prompt}");
+        assert!(prompt.contains("front view"), "got: {prompt}");
+        assert!(prompt.contains("side view"), "got: {prompt}");
+        assert!(prompt.contains("back view"), "got: {prompt}");
+        assert!(prompt.contains("mouth"), "got: {prompt}");
+        assert!(prompt.contains("eyes"), "got: {prompt}");
+        assert!(prompt.contains("hair"), "got: {prompt}");
+        // 背景 + 边距约束
+        assert!(prompt.contains("pure white background"), "got: {prompt}");
+        assert!(prompt.contains("8% safe margin"), "got: {prompt}");
+        // 防穿模约束
+        assert!(prompt.contains("no facial expression"), "got: {prompt}");
+        assert!(prompt.contains("identical"), "got: {prompt}");
+    }
+
+    /// 别名清单 system_prompt 段:有 character 时输出强制段; None 时原样返回空字符串
+    #[test]
+    fn build_aliases_system_prompt_section_appears_when_character_set() {
+        let c = sample();
+        let section = build_aliases_system_prompt_section(Some(&c));
+        assert!(section.contains("W4.6 角色卡别名清单"), "got: {section}");
+        assert!(section.contains("小启"), "got: {section}");
+        assert!(section.contains("防止跨镜 alias drift"), "got: {section}");
+        // None 时返回空 (向后兼容, 老 system_prompt 不破)
+        let empty = build_aliases_system_prompt_section(None);
+        assert!(empty.is_empty(), "None 应返空, got: {empty}");
+    }
+
+    /// standard_image_url 字段 — registry 能在生成回填时改写
+    #[test]
+    fn character_registry_set_standard_image_url_writes_back() {
+        let reg = CharacterRegistry::new();
+        reg.register(sample());
+        // 初始 None
+        assert!(reg.get("x").unwrap().standard_image_url.is_none());
+        // 回填
+        reg.set_standard_image_url("x", "https://e/stand.png").unwrap();
+        let updated = reg.get("x").unwrap();
+        assert_eq!(
+            updated.standard_image_url.as_deref(),
+            Some("https://e/stand.png")
+        );
+    }
+
+    /// set_standard_image_url 不存在的角色应报错 (不静默创建)
+    #[test]
+    fn character_registry_set_standard_image_url_errors_on_unknown_id() {
+        let reg = CharacterRegistry::new();
+        let err = reg.set_standard_image_url("nope", "url").unwrap_err();
+        assert!(err.contains("nope"), "got: {err}");
+    }
+
+    /// 3 个 builtin 角色都有 aliases (>=2) — 防止跨镜 alias drift 的前置准备
+    #[test]
+    fn builtin_characters_have_aliases_set() {
+        for c in builtin_characters() {
+            let aliases = c
+                .aliases
+                .as_ref()
+                .unwrap_or_else(|| panic!("角色 {} 必须有 aliases", c.id));
+            assert!(
+                aliases.len() >= 2,
+                "角色 {} 的 aliases 至少 2 个 (基准 + 1 昵称), got: {:?}",
+                c.id,
+                aliases
+            );
+            // 基准名必须是 names[0]
+            assert_eq!(
+                aliases[0], c.name,
+                "角色 {} 基准名应为 name={}",
+                c.id, c.name
+            );
+        }
     }
 }

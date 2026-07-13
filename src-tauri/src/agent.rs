@@ -22,7 +22,7 @@ use crate::style::{
     build_system_prompt_with_style, inject_style_into_image_args, inject_style_into_video_args,
     StylePreset,
 };
-use crate::tools::{GeneratedAsset, ToolOutput};
+use crate::tools::{GeneratedAsset, ShotContext, ToolContext, ToolOutput};
 
 /// 取消会话的注册表（Tauri state）
 /// session_id -> 取消 flag (true 表示请求取消)
@@ -302,6 +302,9 @@ pub async fn run_loop(
 ) -> Result<AgentRunResponse, String> {
     let started = std::time::Instant::now();
     let session_id = format!("sess_{}", now_millis());
+    // W4.6 #5: 同 session 内跨视频调用共享 seed_session (跨镜一致性杠杆).
+    // 用 session_id 哈希成 u64, 简单且确定. 不需要时设为 None.
+    let seed_session: Option<u64> = Some(session_seed_from_id(&session_id));
     let cancel = registry.insert(session_id.clone());
     let _guard = RegistryGuard {
         registry,
@@ -503,8 +506,46 @@ pub async fn run_loop(
                 args: args_val.clone(),
             });
 
+            // W4.6 #5 + #4: 组装 ToolContext (character/style/seed_session/scene/shot).
+            // 所有 image_to_video 调用都拿到相同的 seed_session 锁,
+            // 让 build_seedance_prompt 的硬锚话术三件套跨镜生效.
+            // W4.6 #4: 从 args_val 抽 mood/camera/beat/character_refs/transition_to_next 塞进 shot.
+            let shot = ShotContext {
+                beat: args_val
+                    .get("beat")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                mood: args_val
+                    .get("mood")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                camera: args_val
+                    .get("camera")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+                character_refs: args_val
+                    .get("character_refs")
+                    .and_then(|v| v.as_array())
+                    .map(|arr| {
+                        arr.iter()
+                            .filter_map(|x| x.as_str().map(String::from))
+                            .collect()
+                    })
+                    .unwrap_or_default(),
+                transition_to_next: args_val
+                    .get("transition_to_next")
+                    .and_then(|v| v.as_str())
+                    .map(|s| s.to_string()),
+            };
+            let ctx = ToolContext {
+                character: character.clone(),
+                style: style.clone(),
+                seed_session,
+                scene: None, // 场景资产: W4.6 #4 阶段 4 之前还没建 bg, 暂留 None
+                shot: Some(shot),
+            };
             let exec_result: Result<ToolOutput, String> = match tool_registry.get(tool_name) {
-                Some(t) => t.execute(&args_str, &session_id),
+                Some(t) => t.execute_with_context(&args_str, &session_id, &ctx),
                 None => Err(format!("tool not found: {tool_name}")),
             };
 
@@ -649,6 +690,16 @@ fn short_hash(s: &str) -> String {
     format!("{:x}", h.finish())
 }
 
+/// W4.6 #5: 把 session_id 字符串哈希成 u64, 作为跨视频调用共享 seed.
+/// 用 std DefaultHasher (与 short_hash 一致) — 不同 session 拿不同 seed,
+/// 同 session 内多次 video_to_image 调用 seed 相同 (跨镜角色一致).
+pub fn session_seed_from_id(id: &str) -> u64 {
+    use std::hash::{Hash, Hasher};
+    let mut h = std::collections::hash_map::DefaultHasher::new();
+    id.hash(&mut h);
+    h.finish()
+}
+
 #[cfg(test)]
 mod registry_tests {
     use super::*;
@@ -764,12 +815,15 @@ mod registry_tests {
             description: "黄发女孩".into(),
             style_tags: vec!["cartoon".into()],
             reference_image_url: Some("https://picsum.photos/seed/xiaoqi-ref/512/512".into()),
+            standard_image_url: None,
+            aliases: None,
         };
         let s = StylePreset {
             id: "cartoon".into(),
             name: "卡通".into(),
             description: "明亮卡通风格".into(),
             style_tags: vec!["cartoon".into()],
+            seedance_style_keyword: None,
         };
 
         // LLM 决策出的 image_to_video args(只有 motion)

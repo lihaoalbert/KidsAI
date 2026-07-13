@@ -65,7 +65,7 @@ describe('ShotFxEditor', () => {
           motion: '走',
           previewUrl: null,
           seed: 1,
-          previewing: false,
+          previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none",
         },
       ],
     });

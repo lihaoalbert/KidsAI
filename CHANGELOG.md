@@ -23,6 +23,15 @@
 - **总测试**: 60 backend + 119 frontend + 166 Rust = 345 pass + 4 ignored
 - **W6 D5 ECS 部署完成 (2026-07-13)**: assets.kids.ibi.ren 上线 — 200 张图 (~50MB) tar+scp 传 `/var/www/assets/`, aliyun SSL DV cert (assets.kids.ibi.ren.pem, 有效期 2026-07-12 ~ 10-09) 装到 `/etc/nginx/conf.d/`, `curl https://assets.kids.ibi.ren/asset-manifest.json` 返 200; manifest 文件名统一 hyphen (`asset-manifest.json`) 跟 nginx vhost `location = /asset-manifest.json` + API `/api/v1/asset-manifest` 对齐 (旧 underscore 残留已 `mv` 清理)
 
+### Added (W4.6 — 工业级出图出视频流程)
+- **Seedance 2.0 七域 prompt 翻译层 (#1)**: `src-tauri/src/prompt_builder.rs` (新, 700+ 行) — 把 kid-friendly motion 翻译成工业级 [Subject][Action][Scene][Camera][Motion][Style][Lighting][Duration] 八行 + 硬锚话术三件套 (first_frame + reference_image + seed); 中文 + 英文 7 个代词替换防 pronoun drift; Negative prompt 按 provider 分派 (Seedance 2.0 默认关闭, Hailuo opt-in)
+- **三视图角色卡 prompt (#2)**: `Character.build_three_view_prompt` + `build_aliases_system_prompt_section` — 1 张三视图合图 (3 视图 + 3 闭眼) + 角色 alias 段 (防 LLM 代词 / 别名 drift); `Character` 加 `standard_image_url` + `aliases` 字段 (backward compat via `default + skip_serializing_if`)
+- **2x2 场景卡 prompt (#3)**: `StylePreset` 加 `seedance_style_keyword` 字段; `Style.build_multiview_scene_prompt` — 1 张 4 视角 (front/reverse/left/right) 场景合图; 7 个内置风格手写 keyword (省 LLM 跑批 token 成本)
+- **DirectorShot 6 字段 + 5 拍节奏 + 严格 JSON Schema (#4)**: `DirectorPlanShot` 扩 beat / mood / camera / character_refs / transition_to_next 五字段; `validateDirectorPlan` 严格 enum (mood/camera/transition 白名单) + shots 长度 3-5 + 最后一镜 transition 必为 'none' + error 字段细分 (JSON parse / schema failed); enum 字面量跟 Rust `prompt_builder.rs` 严格对齐; TS `tauri.test.ts` 14 case 覆盖; Rust `tests/storyboard_prompt.rs` 7 case 覆盖全链路 (mood/camera 透传 → [Camera][Motion] 行差异化 → 未知 enum 静默回退默认 → 5 拍排障可见)
+- **video_adapter 硬锚 + seed_session (#5)**: `ToolContext` 扩 character/style/seed_session/scene/shot; `Tool` trait 加 `execute_with_context` 默认实现 (向后兼容, 不破坏老 tool); `agent.rs` 工具 dispatch 点从 args_val 抽 5 字段塞进 ShotContext; `ImageToVideoTool::run_video_pipeline` 走 build_seedance_prompt 七域路径 (有 character+style) vs 老 raw motion 路径 (无 character); provider-aware PromptOptions (ark → default, hailuo → opt-in Negative); `session_seed_from_id` 把 session_id 哈希成 u64 → 同 session 跨镜共享 seed 锁
+- **总测试**: 220 Rust (160 lib + 53 integration + 7 new storyboard_prompt) + 133 TS vitest (含 14 new tauri.test.ts) = 353 pass + 4 ignored; tsc --noEmit 0 错; cargo build 0 错; npm run build 0 错
+- **真机端到端 (studio_pipeline 真 LLM round-trip)**: 真 MiniMax API + 真 SQLite + 真 Seedance mock adapter 全链路走 DirectorPlan → DB save → 6 字段落地 → 回读 — 仍 3/3 pass (W3.4 已就绪测试, W4.6 #1-#5 改动向后兼容)
+
 ### Added (W7 — 宣传视频 + MiniMax API 适配)
 - **30s 横版 promo 脚本** (`tools/generate_promo_video.py`):
   8 镜 (写死) → 5 镜合并 (Token Plan 每天 3 视频, 15 分钟重置窗口), 主角 xiaoxing + Pixar 3D 风格

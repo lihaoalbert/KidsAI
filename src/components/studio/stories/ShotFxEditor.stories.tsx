@@ -26,7 +26,7 @@ const SHOT: DirectorShot = {
   motion: '小七冲过草地，刹车仰望冰山',
   previewUrl: null,
   seed: 1,
-  previewing: false,
+  previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none",
 };
 
 const seedShot = () => {

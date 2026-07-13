@@ -13,16 +13,30 @@ import type { AgentRunResponse, Character, StylePreset } from '../api/tauri';
 import { parseDirectorPlan } from '../api/tauri';
 
 // ============ parseDirectorPlan 单测(纯函数, 不需要 mock) ============
+// W4.6 #4: shots 必须带 6 字段 (beat/mood/camera/character_refs/transition_to_next).
+// 老的只 description/motion 的 plan 形状 → 严格 schema 拒绝 (用 tauri.test.ts case 1 覆盖).
+function shot(beat: string, transition: string, overrides: Partial<{mood: string; camera: string}> = {}) {
+  return {
+    description: 'd',
+    motion: 'm',
+    beat,
+    mood: overrides.mood ?? 'joyful',
+    camera: overrides.camera ?? 'wide',
+    character_refs: ['xiaoqi'],
+    transition_to_next: transition,
+  };
+}
+
 describe('parseDirectorPlan', () => {
-  it('接受严格 JSON', () => {
+  it('接受严格 JSON (W4.6 #4: 6 字段 + 3 镜)', () => {
     const raw = JSON.stringify({
       idea: '小猫追蝴蝶',
       character_id: 'xiaoqi',
       style_id: 'cartoon',
       shots: [
-        { description: '开头', motion: 'a' },
-        { description: '中间', motion: 'b' },
-        { description: '结尾', motion: 'c' },
+        shot('hook', 'fade'),
+        shot('conflict', 'cut'),
+        shot('payoff', 'none'),
       ],
     });
     const r = parseDirectorPlan(raw);
@@ -31,16 +45,16 @@ describe('parseDirectorPlan', () => {
     expect(r.plan?.character_id).toBe('xiaoqi');
   });
 
-  it('从 markdown fence 抽取', () => {
+  it('从 markdown fence 抽取 (W4.6 #4: 6 字段)', () => {
     const raw = '我帮你想好了：\n```json\n' +
       JSON.stringify({
         idea: 'x',
         character_id: 'xiaoyue',
         style_id: 'anime',
         shots: [
-          { description: 'a', motion: '1' },
-          { description: 'b', motion: '2' },
-          { description: 'c', motion: '3' },
+          shot('hook', 'fade'),
+          shot('conflict', 'cut'),
+          shot('payoff', 'none'),
         ],
       }) +
       '\n```\n好了';
@@ -153,10 +167,11 @@ describe('directorStore.runPlanGeneration', () => {
           idea: '小猫追蝴蝶',
           character_id: 'xiaoyue',
           style_id: 'anime',
+          // W4.6 #4: 6 字段 + 3 镜 (hook → conflict → payoff)
           shots: [
-            { description: '开头', motion: 'a' },
-            { description: '中间', motion: 'b' },
-            { description: '结尾', motion: 'c' },
+            { description: '开头', motion: 'a', beat: 'hook', mood: 'joyful', camera: 'wide', character_refs: ['xiaoyue'], transition_to_next: 'fade' },
+            { description: '中间', motion: 'b', beat: 'conflict', mood: 'tense', camera: 'medium', character_refs: ['xiaoyue'], transition_to_next: 'cut' },
+            { description: '结尾', motion: 'c', beat: 'payoff', mood: 'epic', camera: 'overhead', character_refs: ['xiaoyue'], transition_to_next: 'none' },
           ],
         }),
       }),
@@ -205,7 +220,7 @@ describe('directorStore.runPreviewShot', () => {
       character: xiaoqi,
       style: cartoon,
       shots: [
-        { id: 's1', description: 'a', motion: 'm', previewUrl: null, seed: 1, previewing: false },
+        { id: 's1', description: 'a', motion: 'm', previewUrl: null, seed: 1, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
       ],
     });
     await useDirectorStore.getState().runPreviewShot('s1');
@@ -219,7 +234,7 @@ describe('directorStore.runPreviewShot', () => {
       character: xiaoqi,
       style: cartoon,
       shots: [
-        { id: 's1', description: 'a', motion: 'm', previewUrl: null, seed: 1, previewing: false },
+        { id: 's1', description: 'a', motion: 'm', previewUrl: null, seed: 1, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
       ],
     });
     runAgentMock.mockResolvedValue(
@@ -241,7 +256,7 @@ describe('directorStore.runPreviewShot', () => {
       character: xiaoqi,
       style: cartoon,
       shots: [
-        { id: 's1', description: 'a', motion: 'm', previewUrl: null, seed: 1, previewing: false },
+        { id: 's1', description: 'a', motion: 'm', previewUrl: null, seed: 1, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
       ],
     });
     runAgentMock.mockRejectedValue(new Error('seedance down'));
@@ -258,9 +273,9 @@ describe('directorStore.moveShot', () => {
   it('向上移动中间项', () => {
     useDirectorStore.setState({
       shots: [
-        { id: 's1', description: '1', motion: '', previewUrl: null, seed: 1, previewing: false },
-        { id: 's2', description: '2', motion: '', previewUrl: null, seed: 1, previewing: false },
-        { id: 's3', description: '3', motion: '', previewUrl: null, seed: 1, previewing: false },
+        { id: 's1', description: '1', motion: '', previewUrl: null, seed: 1, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
+        { id: 's2', description: '2', motion: '', previewUrl: null, seed: 1, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
+        { id: 's3', description: '3', motion: '', previewUrl: null, seed: 1, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
       ],
     });
     useDirectorStore.getState().moveShot('s2', 'up');
@@ -271,9 +286,9 @@ describe('directorStore.moveShot', () => {
   it('向下移动到末尾', () => {
     useDirectorStore.setState({
       shots: [
-        { id: 's1', description: '1', motion: '', previewUrl: null, seed: 1, previewing: false },
-        { id: 's2', description: '2', motion: '', previewUrl: null, seed: 1, previewing: false },
-        { id: 's3', description: '3', motion: '', previewUrl: null, seed: 1, previewing: false },
+        { id: 's1', description: '1', motion: '', previewUrl: null, seed: 1, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
+        { id: 's2', description: '2', motion: '', previewUrl: null, seed: 1, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
+        { id: 's3', description: '3', motion: '', previewUrl: null, seed: 1, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
       ],
     });
     useDirectorStore.getState().moveShot('s2', 'down');
@@ -284,8 +299,8 @@ describe('directorStore.moveShot', () => {
   it('最上向上不动', () => {
     useDirectorStore.setState({
       shots: [
-        { id: 's1', description: '1', motion: '', previewUrl: null, seed: 1, previewing: false },
-        { id: 's2', description: '2', motion: '', previewUrl: null, seed: 1, previewing: false },
+        { id: 's1', description: '1', motion: '', previewUrl: null, seed: 1, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
+        { id: 's2', description: '2', motion: '', previewUrl: null, seed: 1, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
       ],
     });
     useDirectorStore.getState().moveShot('s1', 'up');
@@ -296,8 +311,8 @@ describe('directorStore.moveShot', () => {
   it('最下向下不动', () => {
     useDirectorStore.setState({
       shots: [
-        { id: 's1', description: '1', motion: '', previewUrl: null, seed: 1, previewing: false },
-        { id: 's2', description: '2', motion: '', previewUrl: null, seed: 1, previewing: false },
+        { id: 's1', description: '1', motion: '', previewUrl: null, seed: 1, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
+        { id: 's2', description: '2', motion: '', previewUrl: null, seed: 1, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
       ],
     });
     useDirectorStore.getState().moveShot('s2', 'down');
@@ -314,9 +329,9 @@ describe('directorStore.runFinalize', () => {
       style: cartoon,
       idea: '小猫追蝴蝶',
       shots: [
-        { id: 's1', description: 'a', motion: 'm1', previewUrl: null, seed: 1, previewing: false },
-        { id: 's2', description: 'b', motion: 'm2', previewUrl: null, seed: 2, previewing: false },
-        { id: 's3', description: 'c', motion: 'm3', previewUrl: null, seed: 3, previewing: false },
+        { id: 's1', description: 'a', motion: 'm1', previewUrl: null, seed: 1, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
+        { id: 's2', description: 'b', motion: 'm2', previewUrl: null, seed: 2, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
+        { id: 's3', description: 'c', motion: 'm3', previewUrl: null, seed: 3, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
       ],
     });
     runAgentMock.mockResolvedValue(
@@ -339,7 +354,7 @@ describe('directorStore.runFinalize', () => {
       character: xiaoqi,
       style: cartoon,
       shots: [
-        { id: 's1', description: 'a', motion: 'm', previewUrl: null, seed: 1, previewing: false },
+        { id: 's1', description: 'a', motion: 'm', previewUrl: null, seed: 1, previewing: false, beat: "hook", mood: "joyful", camera: "wide", characterRefs: ["xiaoqi"], transitionToNext: "none" },
       ],
     });
     runAgentMock.mockRejectedValue(new Error('seedance down'));

@@ -14,6 +14,7 @@ pub mod model_factory;
 pub mod model_mock;
 pub mod model_openai;
 pub mod music_adapter;   // W6 C3
+pub mod prompt_builder;   // W4.6 #1 — Seedance 翻译层
 pub mod safety;
 pub mod style;
 pub mod tools;

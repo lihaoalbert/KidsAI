@@ -3,6 +3,7 @@ import StudioLayout from '../components/studio/StudioLayout';
 import StudioCenter from '../components/studio/StudioCenter';
 import ResultPane from '../components/studio/ResultPane';
 import StoryWorkspace from '../components/studio/StoryWorkspace';
+import PendingConfirmationBanner from '../components/studio/PendingConfirmationBanner';
 import { useProjectStore } from '../stores/projectStore';
 import { useStudioStore } from '../stores/studioStore';
 
@@ -30,10 +31,13 @@ export default function StudioPage() {
   }, [started, start]);
 
   return (
-    <StudioLayout
-      left={<StoryWorkspace />}
-      center={<StudioCenter />}
-      right={<ResultPane />}
-    />
+    <>
+      <StudioLayout
+        left={<StoryWorkspace />}
+        center={<StudioCenter />}
+        right={<ResultPane />}
+      />
+      <PendingConfirmationBanner />
+    </>
   );
 }

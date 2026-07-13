@@ -4,19 +4,24 @@
 //
 // W3.2: 支持 SSE 流式输出 + 取消（通过 Arc<AtomicBool> 在 chunk 间轮询）
 //
+// Token Plan task #31: MiniMax 支持 key 池（KeyPool），401/429 自动切下一个 key。
+// 失败转移只发生在流开始前的初始响应；流一旦开始就是 2xx，SSE 解析逻辑不变。
+//
 // 参考：https://platform.deepseek.com/api-docs/
 
 use std::collections::HashMap;
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 use std::time::Duration;
 
 use async_trait::async_trait;
 use futures_util::StreamExt;
+use reqwest::StatusCode;
 use serde::{Deserialize, Serialize};
 use serde_json::json;
 
 use super::model::{Chunk, Model, ModelDecision, ModelRequest, ModelToolCall};
+use crate::key_pool::KeyPool;
 
 /// OpenAI 兼容 chat completion 请求
 #[derive(Debug, Serialize)]
@@ -143,17 +148,25 @@ pub struct OpenAiCompatible {
     pub name: String,
     pub model: String,
     pub base_url: String,
-    pub api_key: String,
+    api_keys: KeyPool,
     client: reqwest::Client,
 }
 
 impl OpenAiCompatible {
+    /// 单 key 入口：内部包成 1-key KeyPool，非 MiniMax 分支继续用这个
     pub fn new(name: &str, model: &str, base_url: &str, api_key: &str) -> Self {
+        let pool = KeyPool::from_str(api_key)
+            .expect("OpenAiCompatible::new 收到空 key；上层应在 select_model 阶段拦截");
+        Self::new_pool(name, model, base_url, pool)
+    }
+
+    /// 多 key 入口：MiniMax 分支用，401/429 自动切下一个 key
+    pub fn new_pool(name: &str, model: &str, base_url: &str, pool: KeyPool) -> Self {
         Self {
             name: name.to_string(),
             model: model.to_string(),
             base_url: base_url.trim_end_matches('/').to_string(),
-            api_key: api_key.to_string(),
+            api_keys: pool,
             client: reqwest::Client::builder()
                 .timeout(std::time::Duration::from_secs(180))
                 .connect_timeout(std::time::Duration::from_secs(30))
@@ -272,21 +285,60 @@ impl Model for OpenAiCompatible {
         // base_url 形如 "https://api.minimaxi.com/v1"，直接拼 path
         let url = format!("{}/chat/completions", self.base_url);
 
-        let resp = self
-            .client
-            .post(&url)
-            .bearer_auth(&self.api_key)
-            .json(&body)
-            .send()
-            .await
-            .map_err(|e| format!("http request failed: {e}"))?;
+        // 失败转移循环：仅 401/429 切下一个 key；网络/超时/5xx/其他 4xx 立即返回
+        let mut last_err = String::new();
+        let resp = loop {
+            if cancel.load(Ordering::Relaxed) {
+                return Err("cancelled".into());
+            }
+            let Some((idx, key)) = self.api_keys.next_healthy() else {
+                return Err(format!("all keys exhausted: {last_err}"));
+            };
 
-        if !resp.status().is_success() {
+            let resp = self
+                .client
+                .post(&url)
+                .bearer_auth(&key)
+                .json(&body)
+                .send()
+                .await;
+            let resp = match resp {
+                Ok(r) => r,
+                // 网络/超时：立即返回，不切 key
+                Err(e) => return Err(format!("http request failed: {e}")),
+            };
+
             let status = resp.status();
-            let txt = resp.text().await.unwrap_or_default();
-            return Err(format!("upstream {}: {}", status, txt));
-        }
+            if status.is_success() {
+                break resp;
+            }
 
+            if status == StatusCode::UNAUTHORIZED || status == StatusCode::TOO_MANY_REQUESTS {
+                let txt = resp.text().await.unwrap_or_default();
+                last_err = format!("upstream {status}: {txt}");
+                self.api_keys.mark_failed(idx);
+                continue; // 试下一个 key
+            }
+
+            // 其他（5xx / 4xx）：立即返回
+            let txt = resp.text().await.unwrap_or_default();
+            return Err(format!("upstream {status}: {txt}"));
+        };
+
+        self.stream_body(resp, cancel).await
+    }
+}
+
+/// OpenAiCompatible 自身的辅助方法（非 Model trait）
+impl OpenAiCompatible {
+    /// 解析 SSE 响应体（已确认 2xx）。
+    /// 抽出来是为了让 `decide_stream` 的失败转移循环只包裹 send + status，
+    /// 不污染后续流式逻辑。
+    async fn stream_body(
+        &self,
+        resp: reqwest::Response,
+        cancel: Arc<AtomicBool>,
+    ) -> Result<(ModelDecision, Vec<Chunk>), String> {
         // 边读边解析 SSE
         let mut stream = resp.bytes_stream();
         let mut parser = SseParser::new();
@@ -404,7 +456,10 @@ impl SseParser {
     }
 
     fn take_state(&mut self) -> (String, HashMap<usize, ToolBuf>) {
-        (std::mem::take(&mut self.content), std::mem::take(&mut self.tool_bufs))
+        (
+            std::mem::take(&mut self.content),
+            std::mem::take(&mut self.tool_bufs),
+        )
     }
 
     fn into_chunks(self) -> Vec<Chunk> {
@@ -419,7 +474,11 @@ fn parse_decision(
 ) -> ModelDecision {
     // 流式响应通常不返回 usage（按调用计费；usage 在非流式响应里）。
     // tokens 留给后续按字符估算或上游单独提供。
-    let tokens_used = if text.is_empty() { 0 } else { (text.len() as u32) / 4 + 1 };
+    let tokens_used = if text.is_empty() {
+        0
+    } else {
+        (text.len() as u32) / 4 + 1
+    };
     // W3.3: 推理模型会在 content 里塞 <think>...</think> 思考片段，必须剥除再交给前端
     let text = strip_think_tags(&text);
 
@@ -475,10 +534,7 @@ pub fn strip_think_tags(input: &str) -> String {
 
 /// 从非流式 OpenAI 响应解析出 ModelDecision
 /// 公开出来供测试验证 JSON 解析逻辑（不依赖网络）
-pub fn parse_decision_from_response(
-    choice: &Choice,
-    usage: Option<&Usage>,
-) -> ModelDecision {
+pub fn parse_decision_from_response(choice: &Choice, usage: Option<&Usage>) -> ModelDecision {
     let msg = &choice.message;
     let tokens_used = usage.map(|u| u.total_tokens).unwrap_or(0);
 
@@ -581,10 +637,7 @@ fn tool_spec(name: &str) -> (&'static str, serde_json::Value) {
                 "required": ["message"]
             }),
         ),
-        _ => (
-            "未知工具",
-            json!({"type": "object", "properties": {}}),
-        ),
+        _ => ("未知工具", json!({"type": "object", "properties": {}})),
     }
 }
 
@@ -613,15 +666,21 @@ mod sse_parser_tests {
     #[test]
     fn sse_multi_chunks_accumulate() {
         let mut p = SseParser::new();
-        p.feed_event(r#"data: {"choices":[{"delta":{"content":"你"}}]}
+        p.feed_event(
+            r#"data: {"choices":[{"delta":{"content":"你"}}]}
 
-"#);
-        p.feed_event(r#"data: {"choices":[{"delta":{"content":"好"}}]}
+"#,
+        );
+        p.feed_event(
+            r#"data: {"choices":[{"delta":{"content":"好"}}]}
 
-"#);
-        p.feed_event(r#"data: {"choices":[{"delta":{"content":"！"}}]}
+"#,
+        );
+        p.feed_event(
+            r#"data: {"choices":[{"delta":{"content":"！"}}]}
 
-"#);
+"#,
+        );
         let (text, _bufs) = p.take_state();
         assert_eq!(text, "你好！");
         let chunks = p.into_chunks();
@@ -688,9 +747,11 @@ mod sse_parser_tests {
     #[test]
     fn sse_done_terminator_is_ignored() {
         let mut p = SseParser::new();
-        p.feed_event(r#"data: {"choices":[{"delta":{"content":"hi"}}]}
+        p.feed_event(
+            r#"data: {"choices":[{"delta":{"content":"hi"}}]}
 
-"#);
+"#,
+        );
         p.feed_event("data: [DONE]\n\n");
         let (text, _) = p.take_state();
         assert_eq!(text, "hi");
@@ -703,9 +764,11 @@ mod sse_parser_tests {
         p.feed_event(": heartbeat\n\n");
         p.feed_event("data: not-json\n\n");
         p.feed_event("event: ping\n\n");
-        p.feed_event(r#"data: {"choices":[{"delta":{"content":"ok"}}]}
+        p.feed_event(
+            r#"data: {"choices":[{"delta":{"content":"ok"}}]}
 
-"#);
+"#,
+        );
         let (text, _) = p.take_state();
         assert_eq!(text, "ok");
     }

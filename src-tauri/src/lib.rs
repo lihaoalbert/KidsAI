@@ -7,6 +7,7 @@ pub mod content;
 pub mod creations;
 pub mod db;
 pub mod image_adapter; // W6 C1
+pub mod key_pool; // Token Plan task #31: MiniMax key pool + 失败转移
 pub mod levels;
 pub mod license_client;
 pub mod license_store;

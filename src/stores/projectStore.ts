@@ -252,12 +252,17 @@ function directorSnapshot(): Record<string, unknown> {
     story: state.story,
     character: state.character,
     characterTweak: state.characterTweak,
+    characterMetas: state.characterMetas,
     style: state.style,
     shots: state.shots,
     finalVideoUrl: state.finalVideoUrl,
     locked_props: state.locked_props,
     videoEngine: state.videoEngine,
     voiceId: state.voiceId,
+    chatHistory: state.chatHistory,
+    sessionCredits: state.sessionCredits,
+    activeVersionId: state.activeVersionId,
+    versions: state.versions,
   };
 }
 
@@ -297,6 +302,9 @@ function hydrateProject(full: ProjectFull): void {
     if (isRecord(plan.characterTweak)) {
       patch.characterTweak = plan.characterTweak as DirectorState['characterTweak'];
     }
+    if (isRecord(plan.characterMetas)) {
+      patch.characterMetas = plan.characterMetas as DirectorState['characterMetas'];
+    }
     if (plan.style === null || isRecord(plan.style)) {
       patch.style = plan.style as DirectorState['style'];
     }
@@ -311,6 +319,10 @@ function hydrateProject(full: ProjectFull): void {
       patch.videoEngine = plan.videoEngine;
     }
     if (plan.voiceId === null || typeof plan.voiceId === 'string') patch.voiceId = plan.voiceId;
+    if (Array.isArray(plan.chatHistory)) patch.chatHistory = plan.chatHistory as DirectorState['chatHistory'];
+    if (typeof plan.sessionCredits === 'number') patch.sessionCredits = plan.sessionCredits;
+    if (typeof plan.activeVersionId === 'string') patch.activeVersionId = plan.activeVersionId;
+    if (isRecord(plan.versions)) patch.versions = plan.versions as DirectorState['versions'];
     useDirectorStore.setState({
       ...patch,
       isLLMRunning: false,

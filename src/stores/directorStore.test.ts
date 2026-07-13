@@ -91,7 +91,14 @@ describe('parseDirectorPlan', () => {
   });
 });
 
-const EMPTY_STORY = { who: '', wants: '', but: '', ending: '' };
+const EMPTY_STORY = {
+  who: '',
+  wants: '',
+  but: '',
+  ending: '',
+  spine: { core: '', conflict: '', world: '', tone: 'playful' as const, audience: '', theme_color: '', ending_moral: '' },
+  narrative: { paragraphs: [], updatedAt: 0 },
+};
 
 // ============ directorStore 状态机测试 ============
 
@@ -390,7 +397,7 @@ describe('directorStore.cursor + history', () => {
     );
     useDirectorStore.setState({
       idea: '小猫追蝴蝶',
-      story: { who: '小猫', wants: '追蝴蝶', but: '迷路了', ending: '找到了' },
+      story: { who: '小猫', wants: '追蝴蝶', but: '迷路了', ending: '找到了', spine: { core: '', conflict: '', world: '', tone: 'playful', audience: '', theme_color: '', ending_moral: '' }, narrative: { paragraphs: [], updatedAt: 0 } },
     });
     await useDirectorStore.getState().runPlanGeneration('小猫追蝴蝶');
     const s = useDirectorStore.getState();
@@ -409,8 +416,8 @@ describe('directorStore.cursor + history', () => {
         {
           stage: 1,
           snapshot: {
-            idea: 'x', story: { who: 'w', wants: '', but: '', ending: '' },
-            character: null, characterTweak: {}, style: null, shots: [],
+            idea: 'x', story: { who: 'w', wants: '', but: '', ending: '', spine: { core: '', conflict: '', world: '', tone: 'playful', audience: '', theme_color: '', ending_moral: '' }, narrative: { paragraphs: [], updatedAt: 0 } },
+            character: null, characterTweak: {}, characterMetas: {}, style: null, shots: [],
             locked_props: {},
           },
           decided_at: 1, stale: false,
@@ -431,8 +438,8 @@ describe('directorStore.cursor + history', () => {
         {
           stage: 1,
           snapshot: {
-            idea: 'idea_1', story: { who: 'w1', wants: '', but: '', ending: '' },
-            character: null, characterTweak: {}, style: null, shots: [],
+            idea: 'idea_1', story: { who: 'w1', wants: '', but: '', ending: '', spine: { core: '', conflict: '', world: '', tone: 'playful', audience: '', theme_color: '', ending_moral: '' }, narrative: { paragraphs: [], updatedAt: 0 } },
+            character: null, characterTweak: {}, characterMetas: {}, style: null, shots: [],
             locked_props: { story_core: '老故事' },
           },
           decided_at: 1, stale: false,
@@ -440,8 +447,8 @@ describe('directorStore.cursor + history', () => {
         {
           stage: 2,
           snapshot: {
-            idea: 'idea_1', story: { who: 'w1', wants: '', but: '', ending: '' },
-            character: xiaoqi, characterTweak: {}, style: null, shots: [],
+            idea: 'idea_1', story: { who: 'w1', wants: '', but: '', ending: '', spine: { core: '', conflict: '', world: '', tone: 'playful', audience: '', theme_color: '', ending_moral: '' }, narrative: { paragraphs: [], updatedAt: 0 } },
+            character: xiaoqi, characterTweak: {}, characterMetas: {}, style: null, shots: [],
             locked_props: { story_core: '老故事', subject: '老主角' },
           },
           decided_at: 2, stale: false,
@@ -449,8 +456,8 @@ describe('directorStore.cursor + history', () => {
         {
           stage: 3,
           snapshot: {
-            idea: 'idea_1', story: { who: 'w1', wants: '', but: '', ending: '' },
-            character: xiaoqi, characterTweak: {}, style: cartoon, shots: [],
+            idea: 'idea_1', story: { who: 'w1', wants: '', but: '', ending: '', spine: { core: '', conflict: '', world: '', tone: 'playful', audience: '', theme_color: '', ending_moral: '' }, narrative: { paragraphs: [], updatedAt: 0 } },
+            character: xiaoqi, characterTweak: {}, characterMetas: {}, style: cartoon, shots: [],
             locked_props: { story_core: '老故事', subject: '老主角', art_style: '老画风' },
           },
           decided_at: 3, stale: false,
@@ -480,7 +487,7 @@ describe('directorStore.cursor + history', () => {
     useDirectorStore.setState({
       cursor: 5,
       history: [
-        { stage: 1, snapshot: { idea: 'x', story: EMPTY_STORY, character: null, characterTweak: {}, style: null, shots: [], locked_props: {} }, decided_at: 1, stale: false },
+        { stage: 1, snapshot: { idea: 'x', story: EMPTY_STORY, character: null, characterTweak: {}, characterMetas: {}, style: null, shots: [], locked_props: {} }, decided_at: 1, stale: false },
       ],
       locked_props: { subject: 'x' },
     });
@@ -507,7 +514,7 @@ describe('directorStore.locked_props', () => {
 
   it('lockStoryCore 从 assembledIdea() 拼', () => {
     useDirectorStore.setState({
-      story: { who: '小猫', wants: '追蝴蝶', but: '迷路了', ending: '找到了' },
+      story: { who: '小猫', wants: '追蝴蝶', but: '迷路了', ending: '找到了', spine: { core: '', conflict: '', world: '', tone: 'playful', audience: '', theme_color: '', ending_moral: '' }, narrative: { paragraphs: [], updatedAt: 0 } },
     });
     useDirectorStore.getState().lockStoryCore();
     expect(useDirectorStore.getState().locked_props.story_core).toBe(

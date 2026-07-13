@@ -1,5 +1,6 @@
 import { useEffect, useRef, useState } from 'react';
 import { useStudioStore } from '../../stores/studioStore';
+import { useDirectorStore } from '../../stores/directorStore';
 import ProgressMap from './ProgressMap';
 import ChatBubble from './ChatBubble';
 import OptionCards from './OptionCards';
@@ -11,6 +12,8 @@ export default function ConversationPane() {
   const awaitingFree = useStudioStore((s) => s.awaitingFree);
   const pick = useStudioStore((s) => s.pick);
   const submitFree = useStudioStore((s) => s.submitFree);
+  // W9: 长程 chat — agent 永远倾听，输入框常驻 enabled
+  const chat = useDirectorStore((s) => s.chat);
 
   const [draft, setDraft] = useState('');
   const scrollRef = useRef<HTMLDivElement>(null);
@@ -21,7 +24,7 @@ export default function ConversationPane() {
   }, [items]);
 
   useEffect(() => {
-    if (awaitingFree) inputRef.current?.focus();
+    inputRef.current?.focus();
   }, [awaitingFree]);
 
   // 最新一张故事卡（阶段1）才可操作
@@ -31,8 +34,11 @@ export default function ConversationPane() {
   })();
 
   const send = () => {
-    if (!draft.trim()) return;
-    submitFree(draft);
+    const text = draft.trim();
+    if (!text) return;
+    // W9: 输入框永远可用 — awaitingFree 走原 funnel，否则写 chatHistory 让 agent 听见
+    if (awaitingFree) submitFree(text);
+    else chat(text);
     setDraft('');
   };
 
@@ -51,6 +57,7 @@ export default function ConversationPane() {
             case 'system':
               return <ChatBubble key={item.id} role="system" text={item.text} loading={item.loading} />;
             case 'cards':
+              // W9: 卡片是建议，不是 funnel 锁 — answered 仍可点
               return (
                 <OptionCards key={item.id} cards={item.cards} answered={item.answered} onPick={pick} />
               );
@@ -69,15 +76,18 @@ export default function ConversationPane() {
           <input
             ref={inputRef}
             value={draft}
-            disabled={!awaitingFree}
             onChange={(e) => setDraft(e.target.value)}
             onKeyDown={(e) => e.key === 'Enter' && send()}
-            placeholder={awaitingFree ? '打字告诉我，或按回车～' : '点上面的选项卡，或按 🎤 我自己说'}
-            className="flex-1 rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-brand-400 focus:bg-white focus:outline-none disabled:cursor-not-allowed"
+            placeholder={
+              awaitingFree
+                ? '打字告诉我，或按回车～'
+                : '随时告诉我你的想法，Agent 一直都在听 🎧'
+            }
+            className="flex-1 rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-brand-400 focus:bg-white focus:outline-none"
           />
           <button
             onClick={send}
-            disabled={!awaitingFree || !draft.trim()}
+            disabled={!draft.trim()}
             className="rounded-2xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-40"
           >
             发送

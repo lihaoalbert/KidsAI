@@ -34,11 +34,34 @@ export type DirectorStage = 1 | 2 | 3 | 4 | 5 | 6;
 
 /** 阶段1 故事骨架四槽：谁 / 想要 / 但是 / 结局味道 */
 export type StorySlot = 'who' | 'wants' | 'but' | 'ending';
+
+/** W9: 故事骨架 7 维 — 数据是 first-class，不再是步骤 */
+export type StoryTone = 'playful' | 'epic' | 'healing' | 'comedy' | 'mystery' | 'serious' | 'romantic';
+export interface StorySpine {
+  core: string;          // 故事内核：「勇气战胜恐惧」「友情可贵」
+  conflict: string;      // 冲突：小火龙 vs 黑暗大怪兽
+  world: string;         // 世界观：火山世界 / 现代都市 / 太空站
+  tone: StoryTone;       // 调性
+  audience: string;      // 适龄：6-9 / 10-13 / 14+
+  theme_color: string;   // 主色调
+  ending_moral: string;  // 结尾寓意
+}
+
+/** W9: LLM 充实的详细剧本（3-5 段） */
+export interface StoryNarrative {
+  paragraphs: string[];  // 3-5 段详细描写
+  updatedAt: number;     // 上次刷新时间（毫秒）
+}
+
 export interface Story {
   who: string;
   wants: string;
   but: string;
   ending: string;
+  /** W9: 7 维故事骨架 */
+  spine: StorySpine;
+  /** W9: LLM 充实的详细剧本 */
+  narrative: StoryNarrative;
 }
 
 /** 阶段5 单镜微调（轻量：档位/预设，绝不数值） */
@@ -75,6 +98,66 @@ export interface DirectorShot {
   transitionToNext: ShotTransition;
   /// W4.6 #4: 同 session 内跨镜共享 seed (锁定角色一致性)
   seedSession?: number;
+  /// W9: 镜头语言 6 维（与 camera 字段并存，camera 是简版，cinematography 是完整版）
+  cinematography?: ShotCinematography;
+  /// W9: 声音设计 4 维
+  soundDesign?: ShotSoundDesign;
+  /// W9: 这一镜里每个角色用哪个形态 (characterId -> formId)
+  characterForms?: Record<string, string>;
+}
+
+/** W9: 镜头语言 6 维 — 与 W4.6 #4 ShotCamera 并存，cinematography 是完整版 */
+export type ShotType = 'extreme-wide' | 'wide' | 'medium' | 'close-up' | 'extreme-close-up' | 'over-shoulder' | 'pov' | 'aerial';
+export type ShotAngle = 'eye-level' | 'low' | 'high' | 'dutch' | 'birds-eye' | 'worms-eye';
+export type ShotMovement = 'static' | 'pan' | 'tilt' | 'dolly' | 'track' | 'crane' | 'handheld' | 'zoom';
+export type ShotTransitionStyle = 'cut' | 'fade' | 'dissolve' | 'wipe' | 'match' | 'jump';
+export type ShotLighting = 'natural' | 'golden-hour' | 'blue-hour' | 'high-key' | 'low-key' | 'silhouette' | 'neon';
+export type ShotColorGrade = 'warm' | 'cool' | 'desaturated' | 'high-saturation' | 'noir' | 'pastel';
+
+export interface ShotCinematography {
+  shot_type: ShotType;
+  angle: ShotAngle;
+  movement: ShotMovement;
+  transition_in: ShotTransitionStyle;
+  transition_out: ShotTransitionStyle;
+  lighting: ShotLighting;
+  color_grade: ShotColorGrade;
+}
+
+/** W9: 声音设计 4 维 */
+export type BgmMood = 'none' | 'playful' | 'tense' | 'epic' | 'sad' | 'triumphant' | 'mysterious';
+export interface SfxCue {
+  timeSec: number;       // 0..shot_duration
+  kind: string;          // 'footstep' | 'roar' | 'wind' | 'magic' | 'fire' | 'splash' | 'magic-chime'
+  description: string;
+}
+export interface ShotSoundDesign {
+  bgm_mood: BgmMood;
+  bgm_volume: number;        // 0..100
+  sfx_cues: SfxCue[];
+  voice_direction: string;   // 配音语气指令
+  silence_beat: boolean;     // 是否静音节拍
+}
+
+/** W9: 角色形态 + 微表情 — 同一角色可以"幼儿/少年/战斗/受伤/胜利"等形态 */
+export interface CharacterForm {
+  id: string;            // 'default' | 'battle' | 'injured' | 'victory' | 自定义
+  name: string;          // 显示名：「战斗形态」
+  prompt: string;        // 该形态在视频生成 prompt 中的修饰
+  imageUrl?: string;
+}
+export interface CharacterExpression {
+  id: string;            // 'happy' | 'angry' | 'curious' | 'determined' | 自定义
+  name: string;
+  imageUrl?: string;
+}
+
+/** W9: 角色扩展元数据 — 与后端 Character 解耦，前端可自由扩展 */
+export interface CharacterMeta {
+  forms: CharacterForm[];
+  expressions: CharacterExpression[];
+  voiceId?: string;
+  voiceSampleUrl?: string;
 }
 
 /**
@@ -98,6 +181,7 @@ export interface DirectorHistoryEntry {
     story: Story;
     character: Character | null;
     characterTweak: CharacterTweak;
+    characterMetas: Record<string, CharacterMeta>;
     style: StylePreset | null;
     shots: DirectorShot[];
     locked_props: LockedProps;
@@ -131,6 +215,18 @@ export interface DirectorState {
   videoEngine: 'seedance' | 'hailuo';
   /// W6 C2: 主角的声音 id (可选, voice_clone 后存)
   voiceId: string | null;
+  /// W9: 角色扩展元数据（形态/微表情/配音）— 按 character.id 索引
+  characterMetas: Record<string, CharacterMeta>;
+  /// W9: Agent 长期对话历史（用户可随时打字，agent 永远倾听）
+  chatHistory: ChatMessage[];
+  /// W9: 学币会话累计（每次扣费/退款实时累加，供 ResultPane 显示）
+  sessionCredits: number;
+  /// W9: 待确认的代价（costModel 弹层等待用户响应）
+  pendingConfirmation: PendingConfirmation | null;
+  /// W9: 当前激活的故事版本（Master 模式多版本切换）
+  activeVersionId: string;
+  /// W9: 已保存的版本快照
+  versions: Record<string, VersionSnapshot>;
 
   // actions
   reset(): void;
@@ -140,6 +236,10 @@ export interface DirectorState {
   goBackTo(idx: DirectorStage): boolean;
   setIdea(text: string): void;
   setStorySlot(slot: StorySlot, value: string): void;
+  /** W9: 设置故事骨架 7 维任一字段 */
+  setSpineField<K extends keyof StorySpine>(field: K, value: StorySpine[K]): void;
+  /** W9: 替换整个 narrative（LLM 充实产物） */
+  setNarrative(paragraphs: string[]): void;
   /** 把四槽拼成喂给 LLM 的骨架句 */
   assembledIdea(): string;
   setCharacter(c: Character): void;
@@ -168,14 +268,82 @@ export interface DirectorState {
       >
     >,
   ): void;
+  /** W9: 改分镜提示词（不动 status），用户确认 costModel 后调用 */
+  editShotPrompt(id: string, newDescription: string, newMotion: string): void;
+  /** W9: 重拍一镜（清 previewUrl，重置 previewing） */
+  reRenderShot(id: string): Promise<void>;
+  /** W9: 设置一镜的镜头语言 6 维 */
+  setShotCinematography(id: string, patch: Partial<ShotCinematography>): void;
+  /** W9: 设置一镜的声音设计 4 维 */
+  setShotSoundDesign(id: string, patch: Partial<ShotSoundDesign>): void;
+  /** W9: 选择该镜里某角色用的形态 */
+  setShotCharacterForm(shotId: string, characterId: string, formId: string): void;
+  /** W9: 给某角色加形态 */
+  addCharacterForm(characterId: string, form: CharacterForm): void;
+  /** W9: 给某角色加微表情 */
+  addCharacterExpression(characterId: string, expression: CharacterExpression): void;
   setShotFx(id: string, patch: Partial<ShotFx>): void;
   moveShot(id: string, dir: 'up' | 'down'): void;
+  /** W9: 插入新镜到指定位置 */
+  insertShot(at: number, shot: Partial<DirectorShot>): void;
+  /** W9: 删除一镜 */
+  deleteShot(id: string): void;
+  /** W9: Agent 长期对话 — 用户随便打的文字落 chatHistory */
+  chat(message: string): void;
+  /** W9: 确认 / 取消待执行的代价 */
+  confirmPending(): void;
+  cancelPending(): void;
+  /** W9: 多版本 — 保存当前快照为版本 */
+  saveVersion(name: string): void;
+  /** W9: 多版本 — 切换到某版本 */
+  switchVersion(id: string): void;
   /** ① → ②③④: 1 次 LLM 出 DirectorPlan, 失败重试 1 次, 二次失败用兜底 */
   runPlanGeneration(idea: string): Promise<void>;
   /** ⑤: 拍单条分镜(默认走 mini + 学分扣/退) */
   runPreviewShot(shotId: string): Promise<void>;
   /** ⑥: 2.0 出 1 条高清 + 入库 */
   runFinalize(planTitle: string): Promise<void>;
+  /** W9: 重合成视频（用最新分镜，覆盖旧 finalVideoUrl） */
+  reFinalize(): Promise<void>;
+}
+
+/** W9: Agent 长期对话消息 */
+export interface ChatMessage {
+  id: string;
+  role: 'kid' | 'ai' | 'system';
+  text: string;
+  timestamp: number;
+  /** agent 主动建议时附带的 cost 评估摘要（UI 用来显示代价） */
+  costHint?: string;
+}
+
+/** W9: 待确认的代价（costModel 弹层） */
+export interface PendingConfirmation {
+  id: string;
+  change: string;         // 'who' | 'spine.world' | 'shot.cinematography' | ...
+  description: string;    // '改主角'
+  invalidates: string[];  // ['character.threeView', 'shots[*].prompt', 'shots[*].preview', 'final']
+  credits: number;
+  seconds: number;
+  rationale: string;
+  /** 实际执行的回调描述（前端用来调对应 action） */
+  executeHint: string;
+}
+
+/** W9: 多版本快照 — Master 模式保存/对比 */
+export interface VersionSnapshot {
+  id: string;
+  name: string;
+  createdAt: number;
+  idea: string;
+  story: Story;
+  character: Character | null;
+  characterTweak: CharacterTweak;
+  characterMetas: Record<string, CharacterMeta>;
+  style: StylePreset | null;
+  shots: DirectorShot[];
+  locked_props: LockedProps;
+  finalVideoUrl: string | null;
 }
 
 /// W4.6 #4: FALLBACK_PLAN 也要带齐 6 字段 — 兜底也要满足严格 schema,
@@ -219,7 +387,54 @@ function genId(prefix: string) {
   return `${prefix}_${Date.now()}_${Math.random().toString(36).slice(2, 7)}`;
 }
 
-const EMPTY_STORY: Story = { who: '', wants: '', but: '', ending: '' };
+const EMPTY_SPINE: StorySpine = {
+  core: '',
+  conflict: '',
+  world: '',
+  tone: 'playful',
+  audience: '',
+  theme_color: '',
+  ending_moral: '',
+};
+
+const EMPTY_NARRATIVE: StoryNarrative = {
+  paragraphs: [],
+  updatedAt: 0,
+};
+
+const EMPTY_CINEMATOGRAPHY: ShotCinematography = {
+  shot_type: 'medium',
+  angle: 'eye-level',
+  movement: 'static',
+  transition_in: 'cut',
+  transition_out: 'cut',
+  lighting: 'natural',
+  color_grade: 'warm',
+};
+
+const EMPTY_SOUND_DESIGN: ShotSoundDesign = {
+  bgm_mood: 'none',
+  bgm_volume: 30,
+  sfx_cues: [],
+  voice_direction: '',
+  silence_beat: false,
+};
+
+const EMPTY_CHARACTER_META: CharacterMeta = {
+  forms: [],
+  expressions: [],
+  voiceId: undefined,
+  voiceSampleUrl: undefined,
+};
+
+const EMPTY_STORY: Story = {
+  who: '',
+  wants: '',
+  but: '',
+  ending: '',
+  spine: { ...EMPTY_SPINE },
+  narrative: { ...EMPTY_NARRATIVE, paragraphs: [] },
+};
 const EMPTY_LOCKED: LockedProps = { subject: undefined, story_core: undefined, art_style: undefined };
 
 function freshSeed(): number {
@@ -228,33 +443,107 @@ function freshSeed(): number {
 }
 
 function shotsFromPlan(plan: DirectorPlan): DirectorShot[] {
-  return plan.shots.map((s, idx) => ({
-    id: genId('shot'),
-    description: s.description,
-    motion: s.motion,
-    previewUrl: null,
-    seed: freshSeed(),
-    previewing: false,
-    // W4.6 #4: LLM 已校验过 6 字段, 兜底 (validateDirectorPlan 通过) 才能到这
-    beat: s.beat,
-    mood: s.mood,
-    camera: s.camera,
-    characterRefs: [...s.character_refs],
-    transitionToNext: s.transition_to_next,
-    // W4.6 #4: 用 index+session_seed_from_id 算同 plan 内统一 seed_session,
-    // 跨镜锁定角色一致性. 后端 run_loop 会用 session_seed_from_id(hash(session_id))
-    // 同算法, 但前端只是 hint, 真正锁定由后端 ToolContext.seed_session 负责.
-    seedSession: idx === 0 ? Math.floor(Math.random() * 0x7fffffff) : undefined,
-  }));
+  return plan.shots.map((s, idx) => {
+    // W9: 从 LLM 的简版 camera/mood 推导完整版 cinematography / soundDesign
+    const cinematography: ShotCinematography = {
+      ...EMPTY_CINEMATOGRAPHY,
+      shot_type: shotTypeFromCamera(s.camera),
+      transition_out: s.transition_to_next === 'none' ? 'cut' : s.transition_to_next,
+    };
+    const soundDesign: ShotSoundDesign = {
+      ...EMPTY_SOUND_DESIGN,
+      bgm_mood: bgmMoodFromMood(s.mood),
+      voice_direction: voiceFromBeat(s.beat),
+    };
+    return {
+      id: genId('shot'),
+      description: s.description,
+      motion: s.motion,
+      previewUrl: null,
+      seed: freshSeed(),
+      previewing: false,
+      // W4.6 #4: LLM 已校验过 6 字段, 兜底 (validateDirectorPlan 通过) 才能到这
+      beat: s.beat,
+      mood: s.mood,
+      camera: s.camera,
+      characterRefs: [...s.character_refs],
+      transitionToNext: s.transition_to_next,
+      // W4.6 #4: 用 index+session_seed_from_id 算同 plan 内统一 seed_session,
+      // 跨镜锁定角色一致性. 后端 run_loop 会用 session_seed_from_id(hash(session_id))
+      // 同算法, 但前端只是 hint, 真正锁定由后端 ToolContext.seed_session 负责.
+      seedSession: idx === 0 ? Math.floor(Math.random() * 0x7fffffff) : undefined,
+      // W9: 完整版
+      cinematography,
+      soundDesign,
+      characterForms: {},
+    };
+  });
+}
+
+/** W4.6 #4 ShotCamera 字符串 → W9 ShotType 映射 (LLM 写广义的 camera, 前端展示成 6 维之一) */
+function shotTypeFromCamera(camera: string): ShotType {
+  switch (camera) {
+    case 'wide':
+      return 'wide';
+    case 'medium':
+      return 'medium';
+    case 'close':
+      return 'close-up';
+    case 'overhead':
+      return 'aerial';
+    default:
+      return 'medium';
+  }
+}
+
+/** W4.6 #4 ShotMood → W9 BgmMood — 情绪决定 BGM 情绪 */
+function bgmMoodFromMood(mood: string): BgmMood {
+  switch (mood) {
+    case 'joyful':
+    case 'playful':
+      return 'playful';
+    case 'tense':
+    case 'mysterious':
+      return 'tense';
+    case 'epic':
+    case 'triumphant':
+      return 'epic';
+    case 'sad':
+    case 'reflective':
+      return 'sad';
+    default:
+      return 'none';
+  }
+}
+
+/** W4.6 #4 StoryBeat → 默认配音语气 */
+function voiceFromBeat(beat: string): string {
+  switch (beat) {
+    case 'hook':
+      return '明亮、好奇、有吸引力';
+    case 'conflict':
+      return '紧张、坚定、推动感';
+    case 'payoff':
+      return '温暖、满足、有回响';
+    default:
+      return '自然';
+  }
 }
 
 /** 拍当前运行时状态快照, 用于 goToStage 入 history. */
 function snapshotOf(state: DirectorState) {
   return {
     idea: state.idea,
-    story: { ...state.story },
+    story: {
+      ...state.story,
+      spine: { ...state.story.spine },
+      narrative: { ...state.story.narrative, paragraphs: [...state.story.narrative.paragraphs] },
+    },
     character: state.character,
     characterTweak: { ...state.characterTweak },
+    characterMetas: Object.fromEntries(
+      Object.entries(state.characterMetas).map(([k, v]) => [k, { ...v, forms: [...v.forms], expressions: [...v.expressions] }]),
+    ),
     style: state.style,
     shots: state.shots.map((s) => ({ ...s })),
     locked_props: { ...state.locked_props },
@@ -270,9 +559,14 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
   cursor: 1,
   history: [],
   idea: '',
-  story: { ...EMPTY_STORY },
+  story: {
+    ...EMPTY_STORY,
+    spine: { ...EMPTY_SPINE },
+    narrative: { ...EMPTY_NARRATIVE, paragraphs: [] },
+  },
   character: null,
   characterTweak: {},
+  characterMetas: {},
   style: null,
   shots: [],
   finalVideoUrl: null,
@@ -282,15 +576,41 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
   locked_props: { ...EMPTY_LOCKED },
   videoEngine: 'seedance',
   voiceId: null,
+  // W9: 长程 chat + cost + 版本 — 初始值
+  chatHistory: [],
+  sessionCredits: 0,
+  pendingConfirmation: null,
+  activeVersionId: 'main',
+  versions: {
+    main: {
+      id: 'main',
+      name: '主版本',
+      createdAt: Date.now(),
+      idea: '',
+      story: { ...EMPTY_STORY, spine: { ...EMPTY_SPINE }, narrative: { ...EMPTY_NARRATIVE, paragraphs: [] } },
+      character: null,
+      characterTweak: {},
+      characterMetas: {},
+      style: null,
+      shots: [],
+      locked_props: { ...EMPTY_LOCKED },
+      finalVideoUrl: null,
+    },
+  },
 
   reset: () =>
     set({
       cursor: 1,
       history: [],
       idea: '',
-      story: { ...EMPTY_STORY },
+      story: {
+        ...EMPTY_STORY,
+        spine: { ...EMPTY_SPINE },
+        narrative: { ...EMPTY_NARRATIVE, paragraphs: [] },
+      },
       character: null,
       characterTweak: {},
+      characterMetas: {},
       style: null,
       shots: [],
       finalVideoUrl: null,
@@ -300,6 +620,12 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
       locked_props: { ...EMPTY_LOCKED },
       videoEngine: 'seedance',
       voiceId: null,
+      // W9: 长程 chat + cost + 版本 — reset 时一并清
+      chatHistory: [],
+      sessionCredits: 0,
+      pendingConfirmation: null,
+      activeVersionId: 'main',
+      versions: { main: { id: 'main', name: '主版本', createdAt: 0, idea: '', story: { ...EMPTY_STORY, spine: { ...EMPTY_SPINE }, narrative: { ...EMPTY_NARRATIVE, paragraphs: [] } }, character: null, characterTweak: {}, characterMetas: {}, style: null, shots: [], locked_props: { ...EMPTY_LOCKED }, finalVideoUrl: null } },
     }),
 
   goToStage: (s) => {
@@ -333,9 +659,16 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
     set({
       cursor: idx,
       idea: snap.idea,
-      story: { ...snap.story },
+      story: {
+        ...snap.story,
+        spine: { ...snap.story.spine },
+        narrative: { ...snap.story.narrative, paragraphs: [...snap.story.narrative.paragraphs] },
+      },
       character: snap.character,
       characterTweak: { ...snap.characterTweak },
+      characterMetas: Object.fromEntries(
+        Object.entries(snap.characterMetas ?? {}).map(([k, v]) => [k, { ...v, forms: [...v.forms], expressions: [...v.expressions] }]),
+      ),
       style: snap.style,
       shots: snap.shots.map((s) => ({ ...s })),
       locked_props: { ...snap.locked_props },
@@ -426,6 +759,197 @@ export const useDirectorStore = create<DirectorState>((set, get) => ({
       [next[idx], next[target]] = [next[target], next[idx]];
       return { shots: next };
     }),
+
+  // ============================ W9 actions ============================
+
+  setSpineField: (field, value) =>
+    set((state) => ({
+      story: { ...state.story, spine: { ...state.story.spine, [field]: value } },
+    })),
+
+  setNarrative: (paragraphs) =>
+    set((state) => ({
+      story: {
+        ...state.story,
+        narrative: { paragraphs, updatedAt: Date.now() },
+      },
+    })),
+
+  editShotPrompt: (id, newDescription, newMotion) =>
+    set((state) => ({
+      shots: state.shots.map((sh) =>
+        sh.id === id ? { ...sh, description: newDescription, motion: newMotion } : sh,
+      ),
+    })),
+
+  reRenderShot: async (id) => {
+    // 重拍一镜：清 previewUrl + 重置 previewing → 复用 runPreviewShot 的链路
+    set((state) => ({
+      shots: state.shots.map((sh) =>
+        sh.id === id ? { ...sh, previewUrl: null, previewing: false } : sh,
+      ),
+    }));
+    await get().runPreviewShot(id);
+  },
+
+  setShotCinematography: (id, patch) =>
+    set((state) => ({
+      shots: state.shots.map((sh) =>
+        sh.id === id
+          ? { ...sh, cinematography: { ...(sh.cinematography ?? EMPTY_CINEMATOGRAPHY), ...patch } }
+          : sh,
+      ),
+    })),
+
+  setShotSoundDesign: (id, patch) =>
+    set((state) => ({
+      shots: state.shots.map((sh) =>
+        sh.id === id
+          ? { ...sh, soundDesign: { ...(sh.soundDesign ?? EMPTY_SOUND_DESIGN), ...patch } }
+          : sh,
+      ),
+    })),
+
+  setShotCharacterForm: (shotId, characterId, formId) =>
+    set((state) => ({
+      shots: state.shots.map((sh) =>
+        sh.id === shotId
+          ? { ...sh, characterForms: { ...(sh.characterForms ?? {}), [characterId]: formId } }
+          : sh,
+      ),
+    })),
+
+  addCharacterForm: (characterId, form) =>
+    set((state) => {
+      const prev = state.characterMetas[characterId] ?? { ...EMPTY_CHARACTER_META, forms: [], expressions: [] };
+      // 覆盖同 id 形态
+      const forms = prev.forms.filter((f) => f.id !== form.id).concat(form);
+      return {
+        characterMetas: {
+          ...state.characterMetas,
+          [characterId]: { ...prev, forms },
+        },
+      };
+    }),
+
+  addCharacterExpression: (characterId, expression) =>
+    set((state) => {
+      const prev = state.characterMetas[characterId] ?? { ...EMPTY_CHARACTER_META, forms: [], expressions: [] };
+      const expressions = prev.expressions.filter((e) => e.id !== expression.id).concat(expression);
+      return {
+        characterMetas: {
+          ...state.characterMetas,
+          [characterId]: { ...prev, expressions },
+        },
+      };
+    }),
+
+  insertShot: (at, partial) =>
+    set((state) => {
+      const newShot: DirectorShot = {
+        id: genId('shot'),
+        description: partial.description ?? '',
+        motion: partial.motion ?? '',
+        previewUrl: null,
+        seed: freshSeed(),
+        previewing: false,
+        beat: partial.beat ?? 'hook',
+        mood: partial.mood ?? 'joyful',
+        camera: partial.camera ?? 'medium',
+        characterRefs: partial.characterRefs ?? (state.character ? [state.character.id] : []),
+        transitionToNext: partial.transitionToNext ?? 'cut',
+        seedSession: state.shots[0]?.seedSession,
+        cinematography: partial.cinematography ?? { ...EMPTY_CINEMATOGRAPHY },
+        soundDesign: partial.soundDesign ?? { ...EMPTY_SOUND_DESIGN },
+        characterForms: {},
+      };
+      const clampedAt = Math.max(0, Math.min(at, state.shots.length));
+      const next = [...state.shots];
+      next.splice(clampedAt, 0, newShot);
+      return { shots: next };
+    }),
+
+  deleteShot: (id) =>
+    set((state) => ({
+      shots: state.shots.filter((sh) => sh.id !== id),
+    })),
+
+  chat: (message) => {
+    const text = message.trim();
+    if (!text) return;
+    const userMsg: ChatMessage = {
+      id: genId('chat'),
+      role: 'kid',
+      text,
+      timestamp: Date.now(),
+    };
+    set((state) => ({ chatHistory: [...state.chatHistory, userMsg] }));
+  },
+
+  confirmPending: () => {
+    const state = get();
+    const pending = state.pendingConfirmation;
+    if (!pending) return;
+    // 执行由调用方监听 pendingConfirmation 变化 + 读 executeHint 决定调哪个 action
+    // 这里只清 pending + 累加 sessionCredits
+    set((s) => ({
+      sessionCredits: s.sessionCredits + pending.credits,
+      pendingConfirmation: null,
+    }));
+  },
+
+  cancelPending: () => set({ pendingConfirmation: null }),
+
+  saveVersion: (name) => {
+    const state = get();
+    const id = genId('ver');
+    const snap: VersionSnapshot = {
+      id,
+      name: name.trim() || `版本 ${new Date().toLocaleTimeString('zh-CN', { hour: '2-digit', minute: '2-digit' })}`,
+      createdAt: Date.now(),
+      idea: state.idea,
+      story: {
+        ...state.story,
+        spine: { ...state.story.spine },
+        narrative: { ...state.story.narrative, paragraphs: [...state.story.narrative.paragraphs] },
+      },
+      character: state.character,
+      characterTweak: { ...state.characterTweak },
+      characterMetas: Object.fromEntries(
+        Object.entries(state.characterMetas).map(([k, v]) => [k, { ...v, forms: [...v.forms], expressions: [...v.expressions] }]),
+      ),
+      style: state.style,
+      shots: state.shots.map((s) => ({ ...s })),
+      locked_props: { ...state.locked_props },
+      finalVideoUrl: state.finalVideoUrl,
+    };
+    set((s) => ({ versions: { ...s.versions, [id]: snap }, activeVersionId: id }));
+  },
+
+  switchVersion: (id) => {
+    const state = get();
+    const snap = state.versions[id];
+    if (!snap) return;
+    set({
+      activeVersionId: id,
+      idea: snap.idea,
+      story: {
+        ...snap.story,
+        spine: { ...snap.story.spine },
+        narrative: { ...snap.story.narrative, paragraphs: [...snap.story.narrative.paragraphs] },
+      },
+      character: snap.character,
+      characterTweak: { ...snap.characterTweak },
+      characterMetas: Object.fromEntries(
+        Object.entries(snap.characterMetas ?? {}).map(([k, v]) => [k, { ...v, forms: [...v.forms], expressions: [...v.expressions] }]),
+      ),
+      style: snap.style,
+      shots: snap.shots.map((s) => ({ ...s })),
+      locked_props: { ...snap.locked_props },
+      finalVideoUrl: snap.finalVideoUrl,
+      error: null,
+    });
+  },
 
   runPlanGeneration: async (idea) => {
     if (!idea.trim()) {
@@ -712,6 +1236,21 @@ ${shots
       useTokenStore.getState().addTokens(credits);
       set({ isVideoRunning: false, error: `定稿失败: ${e}` });
     }
+  },
+
+  reFinalize: async () => {
+    // W9: 用当前分镜列表 + locked_props 重出视频, 覆盖旧 finalVideoUrl
+    const state = get();
+    if (state.shots.length === 0) {
+      set({ error: '还没有分镜, 先去排分镜' });
+      return;
+    }
+    if (!state.character) {
+      set({ error: '没选主角, 无法定稿' });
+      return;
+    }
+    const title = `${state.character.name} - ${state.idea.slice(0, 20)}`;
+    await get().runFinalize(title);
   },
 }));
 

@@ -98,7 +98,14 @@ describe('useStudioStore.start', () => {
     expect(cards!.some((c) => c.kind === 'free')).toBe(true);
     expect(cards!.some((c) => c.kind === 'stuck')).toBe(true);
     // directorStore story 全部空
-    expect(useDirectorStore.getState().story).toEqual({ who: '', wants: '', but: '', ending: '' });
+    expect(useDirectorStore.getState().story).toEqual({
+      who: '',
+      wants: '',
+      but: '',
+      ending: '',
+      spine: { core: '', conflict: '', world: '', tone: 'playful', audience: '', theme_color: '', ending_moral: '' },
+      narrative: { paragraphs: [], updatedAt: 0 },
+    });
   });
 });
 
@@ -288,6 +295,38 @@ describe('confirmStory', () => {
     const lastCards = getCards(s)!;
     expect(lastCards.some((c) => c.value === '__confirm__')).toBe(true);
     expect(lastCards.some((c) => c.value === '__change__')).toBe(true);
+  });
+
+  it('换主角候选卡带角色标准照缩略图', async () => {
+    useDirectorStore.setState({
+      story: { who: '小启', wants: '冒险', but: '迷路', ending: '回家', spine: { core: '', conflict: '', world: '', tone: 'playful', audience: '', theme_color: '', ending_moral: '' }, narrative: { paragraphs: [], updatedAt: 0 } },
+    });
+    await useStudioStore.getState().confirmStory();
+    const change = getCards(useStudioStore.getState())!.find((c) => c.value === '__change__')!;
+    useStudioStore.getState().pick(change);
+
+    await vi.waitFor(() => {
+      const cards = getCards(useStudioStore.getState())!;
+      expect(cards[0].imageUrl).toBe(
+        'https://assets.kids.ibi.ren/character/xiaoqi.stand.png',
+      );
+    });
+  });
+
+  it('画风候选卡带画风预览缩略图', async () => {
+    useDirectorStore.setState({
+      story: { who: '小启', wants: '冒险', but: '迷路', ending: '回家', spine: { core: '', conflict: '', world: '', tone: 'playful', audience: '', theme_color: '', ending_moral: '' }, narrative: { paragraphs: [], updatedAt: 0 } },
+    });
+    await useStudioStore.getState().confirmStory();
+    const confirm = getCards(useStudioStore.getState())!.find((c) => c.value === '__confirm__')!;
+    useStudioStore.getState().pick(confirm);
+
+    await vi.waitFor(() => {
+      const cards = getCards(useStudioStore.getState())!;
+      expect(cards[0].imageUrl).toBe(
+        'https://assets.kids.ibi.ren/style/cartoon.full.png',
+      );
+    });
   });
 
   it('assembledIdea 拼成骨架句（directorStore 已在 directorStore.test.ts 覆盖）', () => {

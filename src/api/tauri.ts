@@ -701,3 +701,101 @@ export async function getFingerprintHash(): Promise<string> {
     .map((b) => b.toString(16).padStart(2, '0'))
     .join('');
 }
+
+// ============ Skills (W10 Day 3) ============
+
+export type Audience = 'child' | 'adult' | 'both';
+export type UserMode = 'child' | 'adult';
+
+export interface SkillSummary {
+  id: string;
+  name: string;
+  version: string;
+  enabled: boolean;
+  installedAt: number;
+  audience: Audience;
+}
+
+export interface MarketplaceSkill {
+  id: string;
+  name: string;
+  version: string;
+  audience: Audience;
+  ageTier: number[];
+  category: string;
+  sizeBytes: number;
+  description?: string;
+  installed: boolean;
+  enabled: boolean;
+  creditsPerUse: number;
+  dailyQuota: number;
+  fromCache: boolean;
+}
+
+export interface InstallReceipt {
+  skillId: string;
+  version: string;
+  sizeBytes: number;
+  installedAt: number;
+  auditId: string;
+}
+
+export async function listInstalledSkills(): Promise<SkillSummary[]> {
+  return invoke<SkillSummary[]>('list_installed_skills');
+}
+
+export async function listAvailableSkills(): Promise<MarketplaceSkill[]> {
+  return invoke<MarketplaceSkill[]>('list_available_skills');
+}
+
+export async function installSkill(
+  skillId: string,
+  parentPin: string,
+): Promise<InstallReceipt> {
+  return invoke<InstallReceipt>('install_skill', { skillId, parentPin });
+}
+
+export async function uninstallSkill(skillId: string): Promise<void> {
+  return invoke<void>('uninstall_skill', { skillId });
+}
+
+export async function toggleSkill(skillId: string, enabled: boolean): Promise<void> {
+  return invoke<void>('toggle_skill', { skillId, enabled });
+}
+
+// ============ Parent PIN (W10 Day 4) ============
+
+export async function isParentPinSet(): Promise<boolean> {
+  return invoke<boolean>('is_parent_pin_set');
+}
+
+export async function setParentPin(pin: string): Promise<void> {
+  return invoke<void>('set_parent_pin', { pin });
+}
+
+export async function verifyParentPin(pin: string): Promise<boolean> {
+  return invoke<boolean>('verify_parent_pin', { pin });
+}
+
+export async function resetParentPin(): Promise<void> {
+  return invoke<void>('reset_parent_pin');
+}
+
+// ============ User Mode (W10 Day 4 - Part C) ============
+
+export interface SetModeResponse {
+  deviceId: string;
+  mode: UserMode;
+  switchedAt: number;
+}
+
+export async function getUserMode(): Promise<UserMode> {
+  return invoke<UserMode>('get_user_mode');
+}
+
+export async function setUserMode(
+  mode: UserMode,
+  parentPin: string,
+): Promise<SetModeResponse> {
+  return invoke<SetModeResponse>('set_user_mode', { mode, parentPin });
+}

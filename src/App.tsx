@@ -81,6 +81,7 @@ import MyAgentPage from './pages/MyAgentPage';
 import LevelDetailPage from './pages/LevelDetailPage';
 import AgentRunnerPage from './pages/AgentRunnerPage';
 import StudioPage from './pages/StudioPage';
+import MarketplacePage from './pages/MarketplacePage';
 import OnboardingPage from './pages/OnboardingPage';
 import { checkAlreadyActivated } from './pages/OnboardingPage';
 import type { ActivateResponse } from './api/tauri';
@@ -94,7 +95,9 @@ export type PageKey =
   | 'agent'
   | 'level'
   | 'runner'
-  | 'studio';
+  | 'studio'
+  | 'marketplace'
+  | 'settings';
 
 function App() {
   const [activated, setActivated] = useState<boolean | null>(null); // null = 探测中
@@ -197,6 +200,11 @@ function App() {
         return <StudioPage />;
       case 'agent':
         return <MyAgentPage />;
+      case 'marketplace':
+        return <MarketplacePage />;
+      case 'settings':
+        // 暂未实现 SettingsPage; 落到 marketplace
+        return <MarketplacePage />;
       case 'level':
         return (
           <LevelDetailPage

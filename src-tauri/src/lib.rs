@@ -18,6 +18,7 @@ pub mod model_factory;
 pub mod model_mock;
 pub mod model_openai;
 pub mod music_adapter; // W6 C3
+pub mod parent_pin; // W10 Day 4 — argon2 hash, app_data_dir/parent_pin.json
 pub mod projects;
 pub mod prompt_builder; // W4.6 #1 — Seedance 翻译层
 pub mod safety;
@@ -26,6 +27,7 @@ pub mod style;
 pub mod tools;
 pub mod trusted_storage; // W10/W11 共享底座 — 原子写 + chmod 600
 pub mod types;
+pub mod user_mode; // W10 Day 4 — User Mode IPC (Part C)
 pub mod video_adapter;
 pub mod voice_adapter; // W6 C2
 
@@ -207,6 +209,9 @@ pub fn run() {
 
             // W4.5 B2: license store + license client (server 模式按 KIDSAI_SERVER_URL env)
             let license_store = LicenseStore::new(&data_dir);
+            let existing_token: Option<String> = license_store
+                .load()
+                .map(|lf| lf.license_token);
             let license_client = LicenseClient::from_env();
             elog!(
                 "[license] mode = {} (KIDSAI_SERVER_URL={:?})",
@@ -257,11 +262,27 @@ pub fn run() {
                 marketplace_client.mode_label(),
                 std::env::var("KIDSAI_SERVER_URL").ok()
             );
+            // 注入现有 license_token (W10 Day 4 — 否则 /me/set-mode 等鉴权接口会 401)
+            if let Some(token) = existing_token.clone() {
+                let client_clone = marketplace_client.clone();
+                // setup 是 sync 闭包, 用 tauri 的 async runtime 跑一下.
+                tauri::async_runtime::spawn(async move {
+                    client_clone.set_token(Some(token)).await;
+                });
+            }
             let skills_state = Arc::new(
                 crate::skills::SkillsState::new(data_dir.clone(), marketplace_client.clone())
             );
             app.manage(skills_state);
             app.manage(marketplace_client);
+
+            // W10 Day 4 — ParentPinStore (argon2 hash, app_data_dir/parent_pin.json)
+            let parent_pin_store = crate::parent_pin::ParentPinStore::new(&data_dir);
+            elog!(
+                "[parent_pin] set = {}",
+                parent_pin_store.is_set()
+            );
+            app.manage(parent_pin_store);
 
             let window = app.get_webview_window("main").unwrap();
             window.set_title("KidsAI Studio").ok();
@@ -314,6 +335,13 @@ pub fn run() {
             crate::skills::install_skill,
             crate::skills::uninstall_skill,
             crate::skills::toggle_skill,
+            // Parent PIN + User Mode (W10 Day 4 — Part C)
+            crate::parent_pin::set_parent_pin,
+            crate::parent_pin::verify_parent_pin,
+            crate::parent_pin::is_parent_pin_set,
+            crate::parent_pin::reset_parent_pin,
+            crate::user_mode::get_user_mode,
+            crate::user_mode::set_user_mode,
         ])
         .run(tauri::generate_context!())
         .expect("启动 KidsAI Studio 时出错");

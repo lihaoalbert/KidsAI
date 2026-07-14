@@ -23,7 +23,7 @@ export default function StoryboardTab() {
 
   if (shots.length === 0) {
     return (
-      <div className="flex h-full items-center justify-center p-8 text-center text-sm text-gray-500">
+      <div className="flex h-full items-center justify-center p-8 text-center text-sm text-ink-2">
         还没有分镜 — 先在「对话」tab 里和小启聊聊，agent 会自动生成分镜
       </div>
     );
@@ -40,16 +40,16 @@ export default function StoryboardTab() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-gray-100 bg-white px-4 py-3">
+      <div className="border-b border-line bg-surface px-4 py-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-700">🎬 分镜 ({shots.length} 镜)</h2>
+          <h2 className="text-sm font-semibold text-ink-2">🎬 分镜 ({shots.length} 镜)</h2>
           <button
             type="button"
             onClick={() => {
               const desc = prompt('新镜描述', '');
               if (desc && desc.trim()) insertShot(shots.length, { description: desc.trim(), motion: desc.trim() });
             }}
-            className="rounded-md border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+            className="rounded-md border border-line px-3 py-1 text-xs font-semibold text-ink-2 hover:bg-surface-2"
           >
             ＋ 新镜
           </button>
@@ -60,10 +60,10 @@ export default function StoryboardTab() {
         {shots.map((shot, idx) => {
           const expanded = expandedShotId === shot.id;
           return (
-            <div key={shot.id} className="rounded-xl border border-gray-100 bg-white shadow-sm">
+            <div key={shot.id} className="rounded-xl border border-line bg-surface shadow-sm">
               {/* Header */}
               <div className="flex items-start gap-3 p-3">
-                <div className="flex h-16 w-24 shrink-0 items-center justify-center rounded-lg bg-gray-100 text-xs text-gray-400">
+                <div className="flex h-16 w-24 shrink-0 items-center justify-center rounded-lg bg-surface-2 text-xs text-ink-3">
                   {shot.previewUrl ? (
                     <video src={shot.previewUrl} className="h-full w-full rounded-lg object-cover" muted />
                   ) : (
@@ -72,17 +72,17 @@ export default function StoryboardTab() {
                 </div>
                 <div className="min-w-0 flex-1">
                   <div className="mb-1 flex items-center gap-1.5">
-                    <span className="rounded bg-brand-100 px-1.5 py-0.5 text-[10px] font-semibold text-brand-700">{shot.beat}</span>
-                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600">{shot.mood}</span>
-                    <span className="rounded bg-gray-100 px-1.5 py-0.5 text-[10px] text-gray-600">{shot.camera}</span>
+                    <span className="rounded bg-accent-soft-2 px-1.5 py-0.5 text-[10px] font-semibold text-accent-ink">{shot.beat}</span>
+                    <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] text-ink-2">{shot.mood}</span>
+                    <span className="rounded bg-surface-2 px-1.5 py-0.5 text-[10px] text-ink-2">{shot.camera}</span>
                   </div>
-                  <p className="line-clamp-2 text-sm text-gray-700">{shot.description}</p>
+                  <p className="line-clamp-2 text-sm text-ink-2">{shot.description}</p>
                 </div>
                 <div className="flex shrink-0 flex-col gap-1">
                   <button
                     type="button"
                     onClick={() => setExpandedShotId(expanded ? null : shot.id)}
-                    className="rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
+                    className="rounded px-2 py-0.5 text-xs text-ink-2 hover:bg-surface-2"
                     title="展开镜头语言 + 声音设计"
                   >
                     {expanded ? '▲' : '⚙️'}
@@ -91,7 +91,7 @@ export default function StoryboardTab() {
                     type="button"
                     onClick={() => moveShot(shot.id, 'up')}
                     disabled={idx === 0}
-                    className="rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                    className="rounded px-2 py-0.5 text-xs text-ink-2 hover:bg-surface-2 disabled:opacity-30"
                     title="上移"
                   >
                     ↑
@@ -100,7 +100,7 @@ export default function StoryboardTab() {
                     type="button"
                     onClick={() => moveShot(shot.id, 'down')}
                     disabled={idx === shots.length - 1}
-                    className="rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100 disabled:opacity-30"
+                    className="rounded px-2 py-0.5 text-xs text-ink-2 hover:bg-surface-2 disabled:opacity-30"
                     title="下移"
                   >
                     ↓
@@ -109,12 +109,12 @@ export default function StoryboardTab() {
               </div>
 
               {/* Actions */}
-              <div className="flex gap-2 border-t border-gray-100 px-3 py-2">
+              <div className="flex gap-2 border-t border-line px-3 py-2">
                 <button
                   type="button"
                   onClick={() => confirmReRender(shot.id)}
                   disabled={shot.previewing}
-                  className="flex-1 rounded-md bg-brand-600 px-2 py-1 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+                  className="flex-1 rounded-md bg-accent px-2 py-1 text-xs font-semibold text-bg hover:bg-accent-hover disabled:opacity-50"
                 >
                   {shot.previewing ? '⏳ 试拍中' : shot.previewUrl ? '🔄 重拍' : '▶ 试拍'}
                 </button>
@@ -130,7 +130,7 @@ export default function StoryboardTab() {
                       }
                     }
                   }}
-                  className="rounded-md px-2 py-1 text-xs text-red-500 hover:bg-red-50"
+                  className="rounded-md px-2 py-1 text-xs text-danger hover:bg-danger-soft"
                   title="删除"
                 >
                   🗑️
@@ -139,7 +139,7 @@ export default function StoryboardTab() {
 
               {/* Expanded: cinematography + sound */}
               {expanded && (
-                <div className="space-y-3 border-t border-gray-100 bg-warm-50/40 p-3">
+                <div className="space-y-3 border-t border-line bg-bg/40 p-3">
                   <CinematographyPanel
                     value={shot.cinematography}
                     onChange={(patch) => setShotCinematography(shot.id, patch)}
@@ -149,7 +149,7 @@ export default function StoryboardTab() {
                     onChange={(patch) => setShotSoundDesign(shot.id, patch)}
                   />
                   <div>
-                    <h4 className="mb-1 text-xs font-semibold text-gray-600">📝 提示词</h4>
+                    <h4 className="mb-1 text-xs font-semibold text-ink-2">📝 提示词</h4>
                     <textarea
                       defaultValue={shot.motion}
                       onBlur={(e) => {
@@ -157,7 +157,7 @@ export default function StoryboardTab() {
                           editShotPrompt(shot.id, e.target.value, e.target.value);
                         }
                       }}
-                      className="h-20 w-full rounded-lg border border-gray-200 p-2 text-xs focus:border-brand-400 focus:outline-none"
+                      className="h-20 w-full rounded-lg border border-line p-2 text-xs focus:border-accent focus:outline-none"
                     />
                   </div>
                 </div>
@@ -192,36 +192,36 @@ function CostConfirmDialog({ kind, shotIndex, onCancel, onConfirm }: { kind: 're
   const labels = formatInvalidates(cost.invalidates);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-96 rounded-2xl bg-white p-5 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40">
+      <div className="w-96 rounded-2xl bg-surface p-5 shadow-2xl">
         <div className="mb-3 flex items-center gap-2">
           <span className="text-2xl">⚠️</span>
-          <h3 className="text-base font-semibold text-gray-800">确认改动?</h3>
+          <h3 className="text-base font-semibold text-ink-2">确认改动?</h3>
         </div>
-        <p className="mb-3 text-sm text-gray-700">{cost.rationale}</p>
-        <div className="mb-3 space-y-1 rounded-lg bg-gray-50 p-3">
-          <p className="text-xs font-semibold text-gray-600">下游影响:</p>
+        <p className="mb-3 text-sm text-ink-2">{cost.rationale}</p>
+        <div className="mb-3 space-y-1 rounded-lg bg-surface-2 p-3">
+          <p className="text-xs font-semibold text-ink-2">下游影响:</p>
           <ul className="space-y-0.5">
             {labels.map((l, i) => (
-              <li key={i} className="text-xs text-gray-700">• {l}</li>
+              <li key={i} className="text-xs text-ink-2">• {l}</li>
             ))}
           </ul>
         </div>
-        <div className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+        <div className="mb-4 rounded-lg bg-warning-soft px-3 py-2 text-sm font-semibold text-warning">
           {formatCost(cost)}
         </div>
         <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+            className="rounded-md px-4 py-1.5 text-sm text-ink-2 hover:bg-surface-2"
           >
             取消
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-md bg-brand-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-brand-700"
+            className="rounded-md bg-accent px-4 py-1.5 text-sm font-semibold text-bg hover:bg-accent-hover"
           >
             继续
           </button>

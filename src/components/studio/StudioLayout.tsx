@@ -17,7 +17,7 @@ export default function StudioLayout({ left, center, right }: StudioLayoutProps)
           <button
             onClick={() => setLeftOpen(false)}
             title="收起左栏"
-            className="absolute -right-3 top-4 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-gray-200 bg-white text-xs text-gray-500 shadow-sm hover:bg-gray-50"
+            className="absolute -right-3 top-4 z-10 flex h-6 w-6 items-center justify-center rounded-full border border-line bg-surface text-xs text-ink-2 shadow-sm hover:bg-surface-2"
           >
             ‹
           </button>
@@ -26,9 +26,9 @@ export default function StudioLayout({ left, center, right }: StudioLayoutProps)
       ) : left ? (
         <button
           onClick={() => setLeftOpen(true)}
-          className="flex w-10 shrink-0 flex-col items-center gap-2 border-r border-gray-200 bg-white py-4 hover:bg-gray-50"
+          className="flex w-10 shrink-0 flex-col items-center gap-2 border-r border-line bg-surface py-4 hover:bg-surface-2"
         >
-          <span className="text-gray-400">›</span>
+          <span className="text-ink-3">›</span>
           <span className="text-lg">📖</span>
         </button>
       ) : null}
@@ -36,11 +36,11 @@ export default function StudioLayout({ left, center, right }: StudioLayoutProps)
       <div className="min-w-0 flex-1">{center}</div>
 
       {rightOpen ? (
-        <div className="relative w-[380px] shrink-0 border-l border-gray-200">
+        <div className="relative w-[380px] shrink-0 border-l border-line">
           <button
             onClick={() => setRightOpen(false)}
             title="收起"
-            className="absolute -left-3 top-4 z-10 flex h-6 w-6 items-center justify-center rounded-full border-gray-200 border bg-white text-xs text-gray-500 shadow-sm hover:bg-gray-50"
+            className="absolute -left-3 top-4 z-10 flex h-6 w-6 items-center justify-center rounded-full border-line border bg-surface text-xs text-ink-2 shadow-sm hover:bg-surface-2"
           >
             ›
           </button>
@@ -49,9 +49,9 @@ export default function StudioLayout({ left, center, right }: StudioLayoutProps)
       ) : (
         <button
           onClick={() => setRightOpen(true)}
-          className="flex w-12 shrink-0 flex-col items-center gap-2 border-l border-gray-200 bg-white py-4 hover:bg-gray-50"
+          className="flex w-12 shrink-0 flex-col items-center gap-2 border-l border-line bg-surface py-4 hover:bg-surface-2"
         >
-          <span className="text-gray-400">‹</span>
+          <span className="text-ink-3">‹</span>
           <span className="text-lg">🎥</span>
         </button>
       )}

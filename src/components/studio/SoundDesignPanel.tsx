@@ -42,10 +42,10 @@ export default function SoundDesignPanel({ value, onChange }: SoundDesignPanelPr
 
   return (
     <div>
-      <h4 className="mb-2 text-xs font-semibold text-gray-600">🎵 声音设计 (4 维)</h4>
-      <div className="space-y-2 rounded-lg bg-white p-3">
+      <h4 className="mb-2 text-xs font-semibold text-ink-2">🎵 声音设计 (4 维)</h4>
+      <div className="space-y-2 rounded-lg bg-surface p-3">
         <div>
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">BGM 情绪</div>
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-2">BGM 情绪</div>
           <div className="flex flex-wrap gap-1">
             {BGM_OPTIONS.map((opt) => (
               <button
@@ -55,8 +55,8 @@ export default function SoundDesignPanel({ value, onChange }: SoundDesignPanelPr
                 className={[
                   'rounded-md px-2 py-1 text-xs',
                   v.bgm_mood === opt.value
-                    ? 'bg-brand-500 text-white'
-                    : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
+                    ? 'bg-accent text-bg'
+                    : 'bg-surface text-ink-2 hover:bg-surface-2 border border-line',
                 ].join(' ')}
               >
                 <span className="mr-0.5">{opt.emoji}</span>
@@ -68,8 +68,8 @@ export default function SoundDesignPanel({ value, onChange }: SoundDesignPanelPr
 
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">BGM 音量</span>
-            <span className="text-xs text-gray-600">{v.bgm_volume}%</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-2">BGM 音量</span>
+            <span className="text-xs text-ink-2">{v.bgm_volume}%</span>
           </div>
           <input
             type="range"
@@ -77,35 +77,35 @@ export default function SoundDesignPanel({ value, onChange }: SoundDesignPanelPr
             max={100}
             value={v.bgm_volume}
             onChange={(e) => onChange({ bgm_volume: parseInt(e.target.value, 10) })}
-            className="w-full accent-brand-500"
+            className="w-full accent-accent"
           />
         </div>
 
         <div>
           <div className="mb-1 flex items-center justify-between">
-            <span className="text-[10px] font-semibold uppercase tracking-wide text-gray-500">SFX 关键点</span>
+            <span className="text-[10px] font-semibold uppercase tracking-wide text-ink-2">SFX 关键点</span>
             <button
               type="button"
               onClick={addCue}
-              className="rounded px-1.5 py-0.5 text-[10px] text-brand-600 hover:bg-brand-50"
+              className="rounded px-1.5 py-0.5 text-[10px] text-accent-ink hover:bg-accent-soft"
             >
               ＋ 添加
             </button>
           </div>
           {v.sfx_cues.length === 0 ? (
-            <p className="text-xs text-gray-400">（无 SFX）</p>
+            <p className="text-xs text-ink-3">（无 SFX）</p>
           ) : (
             <ul className="space-y-1">
               {v.sfx_cues.map((cue, i) => (
-                <li key={i} className="flex items-center justify-between rounded bg-gray-50 px-2 py-1 text-xs">
+                <li key={i} className="flex items-center justify-between rounded bg-surface-2 px-2 py-1 text-xs">
                   <span>
-                    <span className="font-mono text-gray-500">{cue.timeSec.toFixed(1)}s</span> · {cue.kind}
-                    {cue.description && <span className="text-gray-500"> — {cue.description}</span>}
+                    <span className="font-mono text-ink-2">{cue.timeSec.toFixed(1)}s</span> · {cue.kind}
+                    {cue.description && <span className="text-ink-2"> — {cue.description}</span>}
                   </span>
                   <button
                     type="button"
                     onClick={() => removeCue(i)}
-                    className="text-red-400 hover:text-red-600"
+                    className="text-danger hover:text-danger"
                   >
                     ✕
                   </button>
@@ -116,22 +116,22 @@ export default function SoundDesignPanel({ value, onChange }: SoundDesignPanelPr
         </div>
 
         <div>
-          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">配音语气</div>
+          <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-2">配音语气</div>
           <input
             type="text"
             defaultValue={v.voice_direction}
             onBlur={(e) => onChange({ voice_direction: e.target.value })}
             placeholder="明亮、好奇、有吸引力"
-            className="w-full rounded-md border border-gray-200 px-2 py-1 text-xs focus:border-brand-400 focus:outline-none"
+            className="w-full rounded-md border border-line px-2 py-1 text-xs focus:border-accent focus:outline-none"
           />
         </div>
 
-        <label className="flex items-center gap-2 text-xs text-gray-700">
+        <label className="flex items-center gap-2 text-xs text-ink-2">
           <input
             type="checkbox"
             checked={v.silence_beat}
             onChange={(e) => onChange({ silence_beat: e.target.checked })}
-            className="rounded accent-brand-500"
+            className="rounded accent-accent"
           />
           <span>静音节拍 (这一镜前 1 秒静音)</span>
         </label>

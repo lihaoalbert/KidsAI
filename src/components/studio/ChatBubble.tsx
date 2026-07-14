@@ -8,9 +8,9 @@ export default function ChatBubble({ role, text, loading }: ChatBubbleProps) {
   if (role === 'system') {
     return (
       <div className="flex justify-center my-1">
-        <div className="inline-flex items-center gap-2 rounded-full bg-gray-100 px-3 py-1.5 text-xs text-gray-500">
+        <div className="inline-flex items-center gap-2 rounded-full bg-surface-2 px-3 py-1.5 text-xs text-ink-2">
           {loading && (
-            <span className="inline-block w-3 h-3 border-2 border-brand-400 border-t-transparent rounded-full animate-spin" />
+            <span className="inline-block w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
           )}
           <span className="whitespace-pre-wrap">{text}</span>
         </div>
@@ -24,7 +24,7 @@ export default function ChatBubble({ role, text, loading }: ChatBubbleProps) {
       <div
         className={[
           'flex h-9 w-9 shrink-0 items-center justify-center rounded-full text-lg',
-          isKid ? 'bg-warm-100' : 'bg-brand-100',
+          isKid ? 'bg-accent-soft' : 'bg-accent-soft-2',
         ].join(' ')}
       >
         {isKid ? '🧒' : '🤖'}
@@ -33,8 +33,8 @@ export default function ChatBubble({ role, text, loading }: ChatBubbleProps) {
         className={[
           'max-w-[78%] rounded-2xl px-4 py-2.5 text-sm leading-relaxed whitespace-pre-wrap',
           isKid
-            ? 'bg-warm-500 text-white rounded-br-sm'
-            : 'bg-white text-gray-800 border border-gray-100 shadow-sm rounded-bl-sm',
+            ? 'bg-highlight text-bg rounded-br-sm'
+            : 'bg-surface text-ink-2 border border-line shadow-sm rounded-bl-sm',
         ].join(' ')}
       >
         {text}

@@ -32,15 +32,15 @@ export default function VideoEnginePicker({ onClose }: { onClose: () => void }) 
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-md rounded-2xl bg-white p-5 shadow-xl"
+        className="w-full max-w-md rounded-2xl bg-surface p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
-        <h3 className="mb-1 text-base font-semibold text-gray-800">🎥 选视频引擎</h3>
-        <p className="mb-4 text-xs text-gray-500">
+        <h3 className="mb-1 text-base font-semibold text-ink-2">🎥 选视频引擎</h3>
+        <p className="mb-4 text-xs text-ink-2">
           默认走火山 Seedance; MiniMax hailuo 是备用选项 (套餐里的额度, 不推荐给孩用).
         </p>
 
@@ -55,8 +55,8 @@ export default function VideoEnginePicker({ onClose }: { onClose: () => void }) 
                 onClick={() => setVideoEngine(e.id)}
                 className={`flex flex-col items-start gap-1 rounded-xl border-2 p-3 text-left transition-all ${
                   active
-                    ? 'border-brand-500 bg-brand-50'
-                    : 'border-gray-200 bg-white hover:border-brand-200'
+                    ? 'border-accent bg-accent-soft'
+                    : 'border-line bg-surface hover:border-accent-line'
                 }`}
               >
                 <div className="flex w-full items-center justify-between">
@@ -64,16 +64,16 @@ export default function VideoEnginePicker({ onClose }: { onClose: () => void }) 
                   <span
                     className={`rounded-full px-1.5 py-0.5 text-[9px] ${
                       isBackup
-                        ? 'bg-amber-100 text-amber-700'
-                        : 'bg-emerald-100 text-emerald-700'
+                        ? 'bg-warning-soft text-warning'
+                        : 'bg-success-soft text-success'
                     }`}
                   >
                     {e.note}
                   </span>
                 </div>
-                <div className="text-sm font-medium text-gray-800">{e.name}</div>
-                <div className="text-[10px] text-gray-500">{e.detail}</div>
-                <div className="mt-1 text-[10px] font-medium text-brand-700">
+                <div className="text-sm font-medium text-ink-2">{e.name}</div>
+                <div className="text-[10px] text-ink-2">{e.detail}</div>
+                <div className="mt-1 text-[10px] font-medium text-accent-ink">
                   {e.costPerShot} 学币 / 镜
                 </div>
               </button>
@@ -85,7 +85,7 @@ export default function VideoEnginePicker({ onClose }: { onClose: () => void }) 
           <button
             type="button"
             onClick={onClose}
-            className="rounded-xl bg-brand-500 px-4 py-1.5 text-sm font-medium text-white hover:bg-brand-600"
+            className="rounded-xl bg-accent px-4 py-1.5 text-sm font-medium text-bg hover:bg-accent"
           >
             选好啦 →
           </button>

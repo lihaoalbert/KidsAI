@@ -26,8 +26,8 @@ export default function OptionCards({ cards, answered, onPick }: OptionCardsProp
               'overflow-hidden rounded-2xl border-2 text-sm font-semibold transition-all',
               hasPreview ? 'w-32 p-2' : 'px-4 py-2.5',
               isChosen
-                ? 'border-brand-500 bg-brand-500 text-white shadow-md'
-                : 'border-brand-200 bg-white text-brand-700 hover:-translate-y-0.5 hover:border-brand-400 hover:bg-brand-50 active:translate-y-0',
+                ? 'border-accent bg-accent text-bg shadow-md'
+                : 'border-accent-line bg-surface text-accent-ink hover:-translate-y-0.5 hover:border-accent hover:bg-accent-soft active:translate-y-0',
             ].join(' ')}
           >
             {card.imageUrl && (

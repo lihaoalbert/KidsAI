@@ -81,12 +81,12 @@ export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
     <div className="p-8 max-w-6xl mx-auto">
       {/* 顶部: 模式 + 问候 */}
       <header className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">🤖 我的 Agent</h1>
-        <p className="text-sm text-gray-600 mt-1">
+        <h1 className="text-2xl font-bold text-ink">🤖 我的 Agent</h1>
+        <p className="text-sm text-ink-2 mt-1">
           当前模式:{' '}
           <span
             className={
-              mode === 'adult' ? 'text-purple-700' : 'text-green-700'
+              mode === 'adult' ? 'text-accent-ink' : 'text-success'
             }
           >
             {mode === 'adult' ? '🧑 成人模式' : '🧒 儿童模式'}
@@ -101,7 +101,7 @@ export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
       {/* 快速启动: 已启用且可路由的 skill */}
       {launchable.length > 0 && (
         <section className="mb-8">
-          <h2 className="text-base font-semibold text-gray-800 mb-3">
+          <h2 className="text-base font-semibold text-ink-2 mb-3">
             ⚡ 快速启动
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -112,7 +112,7 @@ export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
                 <Card
                   key={s.id}
                   variant="bordered"
-                  className="cursor-pointer hover:shadow-lg hover:border-brand-400 transition-all"
+                  className="cursor-pointer hover:shadow-lg hover:border-accent transition-all"
                   onClick={() => onNavigate?.(route)}
                 >
                   <div className="flex items-center gap-3">
@@ -120,14 +120,14 @@ export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
                       {SKILL_ICONS[s.id] ?? '✨'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-semibold text-gray-900">
+                      <div className="font-semibold text-ink">
                         {s.name || s.id}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-ink-2">
                         v{s.version} · 启用中
                       </div>
                     </div>
-                    <div className="text-brand-600 text-sm font-medium">
+                    <div className="text-accent-ink text-sm font-medium">
                       {label} →
                     </div>
                   </div>
@@ -141,7 +141,7 @@ export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
       {/* 已启用但无快捷入口的 skill */}
       {enabled.length > launchable.length && (
         <section className="mb-8">
-          <h2 className="text-base font-semibold text-gray-800 mb-3">
+          <h2 className="text-base font-semibold text-ink-2 mb-3">
             📂 已启用 ({enabled.length})
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -154,10 +154,10 @@ export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
                       {SKILL_ICONS[s.id] ?? '✨'}
                     </div>
                     <div className="flex-1 min-w-0">
-                      <div className="font-medium text-gray-900">
+                      <div className="font-medium text-ink">
                         {s.name || s.id}
                       </div>
-                      <div className="text-xs text-gray-500">
+                      <div className="text-xs text-ink-2">
                         v{s.version} · 通过 skill 接口调用
                       </div>
                     </div>
@@ -171,10 +171,10 @@ export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
       {/* 已禁用 */}
       {disabled.length > 0 && (
         <section className="mb-8">
-          <h2 className="text-base font-semibold text-gray-800 mb-3">
+          <h2 className="text-base font-semibold text-ink-2 mb-3">
             ⏸ 已禁用 ({disabled.length})
           </h2>
-          <p className="text-xs text-gray-500 mb-3">
+          <p className="text-xs text-ink-2 mb-3">
             在 Skill 市场可重新启用
           </p>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -185,10 +185,10 @@ export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
                     {SKILL_ICONS[s.id] ?? '✨'}
                   </div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-700">
+                    <div className="font-medium text-ink-2">
                       {s.name || s.id}
                     </div>
-                    <div className="text-xs text-gray-400">
+                    <div className="text-xs text-ink-3">
                       v{s.version} · 已禁用
                     </div>
                   </div>
@@ -201,25 +201,25 @@ export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
 
       {/* 加载中 */}
       {loadingInstalled && enabled.length === 0 && (
-        <div className="text-sm text-gray-500 text-center py-12">
+        <div className="text-sm text-ink-2 text-center py-12">
           加载 skill 列表…
         </div>
       )}
 
       {/* 空状态: 引导装第一个 skill */}
       {!loadingInstalled && installed.length === 0 && (
-        <Card className="mb-8 text-center py-12 bg-gradient-to-br from-brand-50 to-warm-50">
+        <Card className="mb-8 text-center py-12 bg-gradient-to-br from-accent-50 to-highlight/50">
           <div className="text-5xl mb-3">🎁</div>
-          <h2 className="text-lg font-semibold text-gray-900 mb-2">
+          <h2 className="text-lg font-semibold text-ink mb-2">
             还没有装任何 skill
           </h2>
-          <p className="text-sm text-gray-600 mb-4">
+          <p className="text-sm text-ink-2 mb-4">
             去 Skill 市场装第一个 skill, 让你的 Agent 拥有创作能力
           </p>
           <button
             type="button"
             onClick={() => onNavigate?.('marketplace')}
-            className="px-6 py-2.5 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors"
+            className="px-6 py-2.5 bg-accent text-bg rounded-lg hover:bg-accent-hover transition-colors"
           >
             📦 打开 Skill 市场
           </button>
@@ -229,7 +229,7 @@ export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
       {/* 推荐 */}
       {notInstalled.length > 0 && (
         <section className="mb-8">
-          <h2 className="text-base font-semibold text-gray-800 mb-3">
+          <h2 className="text-base font-semibold text-ink-2 mb-3">
             💡 推荐 ({notInstalled.length})
           </h2>
           <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
@@ -243,10 +243,10 @@ export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
                 <div className="flex items-center gap-3">
                   <div className="text-3xl">{SKILL_ICONS[s.id] ?? '✨'}</div>
                   <div className="flex-1 min-w-0">
-                    <div className="font-medium text-gray-900">
+                    <div className="font-medium text-ink">
                       {s.name}
                     </div>
-                    <div className="text-xs text-gray-500 truncate">
+                    <div className="text-xs text-ink-2 truncate">
                       {s.description ?? '去市场看看 →'}
                     </div>
                   </div>
@@ -258,20 +258,20 @@ export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
       )}
 
       {/* 底部入口 */}
-      <section className="border-t border-gray-200 pt-6 mt-8">
+      <section className="border-t border-line pt-6 mt-8">
         <div className="flex flex-wrap gap-3 justify-center text-sm">
           <button
             type="button"
             onClick={() => onNavigate?.('marketplace')}
-            className="text-brand-600 hover:underline"
+            className="text-accent-ink hover:underline"
           >
             📦 浏览完整 Skill 市场
           </button>
-          <span className="text-gray-300">·</span>
+          <span className="text-ink-3">·</span>
           <button
             type="button"
             onClick={() => onNavigate?.('settings')}
-            className="text-gray-600 hover:underline"
+            className="text-ink-2 hover:underline"
           >
             ⚙️ 家长设置
           </button>

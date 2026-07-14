@@ -26,19 +26,19 @@ export default function StoryWorkspace() {
   const projectName = idea.trim().slice(0, 12) || '我的小电影';
 
   return (
-    <div className="flex h-full w-full flex-col border-r border-gray-200 bg-warm-50/60">
+    <div className="flex h-full w-full flex-col border-r border-line bg-bg/60">
       {/* 项目头 */}
-      <div className="border-b border-gray-200 bg-white px-3 py-3">
+      <div className="border-b border-line bg-surface px-3 py-3">
         <div className="flex items-center gap-3">
           <div
-            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-brand-200 to-brand-400 text-lg font-bold text-white"
+            className="flex h-10 w-10 shrink-0 items-center justify-center rounded-xl bg-gradient-to-br from-accent-200 to-accent-400 text-lg font-bold text-bg"
             aria-label="项目缩略图"
           >
             🎬
           </div>
           <div className="min-w-0 flex-1">
-            <div className="truncate text-sm font-semibold text-gray-800">{projectName}</div>
-            <div className="flex items-center gap-2 text-[10px] text-gray-500">
+            <div className="truncate text-sm font-semibold text-ink-2">{projectName}</div>
+            <div className="flex items-center gap-2 text-[10px] text-ink-2">
               <span>进度 {progress}%</span>
               <span>·</span>
               <span>{sessionCredits} 学币</span>
@@ -46,9 +46,9 @@ export default function StoryWorkspace() {
           </div>
         </div>
         {/* 进度条 */}
-        <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-gray-100">
+        <div className="mt-2 h-1 w-full overflow-hidden rounded-full bg-surface-2">
           <div
-            className="h-full bg-gradient-to-r from-brand-400 to-brand-600 transition-all"
+            className="h-full bg-gradient-to-r from-accent-400 to-accent-600 transition-all"
             style={{ width: `${progress}%` }}
           />
         </div>
@@ -57,13 +57,13 @@ export default function StoryWorkspace() {
       {/* 故事状态网格 */}
       <div className="flex-1 overflow-auto px-3 py-3">
         <div className="mb-2 flex items-center justify-between">
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-gray-500">
+          <h3 className="text-xs font-semibold uppercase tracking-wide text-ink-2">
             🎯 故事状态
           </h3>
           <button
             type="button"
             onClick={() => setAdvancedOpen((v) => !v)}
-            className="rounded-md px-2 py-0.5 text-[10px] text-gray-400 hover:bg-gray-100 hover:text-gray-600"
+            className="rounded-md px-2 py-0.5 text-[10px] text-ink-3 hover:bg-surface-2 hover:text-ink-2"
           >
             {advancedOpen ? '收起高级' : '⚙️ 高级'}
           </button>
@@ -71,10 +71,10 @@ export default function StoryWorkspace() {
         <StoryStateGrid />
 
         {advancedOpen && (
-          <div className="mt-4 space-y-3 border-t border-gray-200 pt-3">
+          <div className="mt-4 space-y-3 border-t border-line pt-3">
             {/* 多版本切换 */}
             <div>
-              <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+              <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-2">
                 🗂️ 版本
               </h4>
               <div className="space-y-1">
@@ -86,8 +86,8 @@ export default function StoryWorkspace() {
                     className={[
                       'flex w-full items-center justify-between rounded-md px-2 py-1 text-left text-xs',
                       v.id === activeVersionId
-                        ? 'bg-brand-100 text-brand-800'
-                        : 'bg-white text-gray-600 hover:bg-gray-50',
+                        ? 'bg-accent-soft-2 text-accent-ink'
+                        : 'bg-surface text-ink-2 hover:bg-surface-2',
                     ].join(' ')}
                   >
                     <span className="truncate">{v.name}</span>
@@ -100,7 +100,7 @@ export default function StoryWorkspace() {
                     const name = prompt('版本名', `版本 ${Object.keys(versions).length + 1}`);
                     if (name !== null) saveVersion(name);
                   }}
-                  className="w-full rounded-md border border-dashed border-gray-300 px-2 py-1 text-xs text-gray-500 hover:border-brand-300 hover:text-brand-600"
+                  className="w-full rounded-md border border-dashed border-line px-2 py-1 text-xs text-ink-2 hover:border-accent hover:text-accent-ink"
                 >
                   ＋ 保存当前为版本
                 </button>
@@ -109,10 +109,10 @@ export default function StoryWorkspace() {
 
             {/* JSON 视图占位 — B3 阶段实装 */}
             <div>
-              <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">
+              <h4 className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-2">
                 🔍 原始数据 (JSON)
               </h4>
-              <pre className="max-h-48 overflow-auto rounded-md bg-gray-900 p-2 text-[10px] text-gray-100">
+              <pre className="max-h-48 overflow-auto rounded-md bg-code p-2 text-[10px] text-ink-3">
 {JSON.stringify({
   idea,
   shots: shots.length,

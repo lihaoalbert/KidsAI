@@ -11,11 +11,12 @@ interface CardProps extends Omit<HTMLAttributes<HTMLDivElement>, 'title'> {
   children?: ReactNode;
 }
 
+// Mode-aware 自动通过 :root[data-mode] 翻转
 const variantClasses: Record<CardVariant, string> = {
-  default: 'bg-white border border-gray-200',
-  elevated: 'bg-white shadow-md border border-transparent',
-  filled: 'bg-brand-50 border border-transparent',
-  bordered: 'bg-white border-2 border-brand-200',
+  default: 'bg-surface border border-line',
+  elevated: 'bg-surface shadow-md border border-transparent',
+  filled: 'bg-accent-soft border border-transparent',
+  bordered: 'bg-surface border-2 border-accent-line',
 };
 
 export default function Card({
@@ -31,28 +32,28 @@ export default function Card({
   return (
     <div
       className={[
-        'rounded-lg overflow-hidden',
+        'rounded-card overflow-hidden text-ink',
         variantClasses[variant],
         className,
       ].join(' ')}
       {...rest}
     >
-      {cover && <div className="w-full aspect-video bg-gray-100">{cover}</div>}
+      {cover && <div className="w-full aspect-video bg-surface-2">{cover}</div>}
       <div className="p-4">
         {title && (
-          <h3 className="text-base font-semibold text-gray-900 mb-1">
+          <h3 className="text-base font-semibold text-ink mb-1">
             {title}
           </h3>
         )}
         {description && (
-          <p className="text-sm text-gray-600 line-clamp-2 mb-2">
+          <p className="text-sm text-ink-2 line-clamp-2 mb-2">
             {description}
           </p>
         )}
         {children}
       </div>
       {footer && (
-        <div className="px-4 py-3 border-t border-gray-100 bg-gray-50">
+        <div className="px-4 py-3 border-t border-line bg-surface-2">
           {footer}
         </div>
       )}

@@ -83,22 +83,22 @@ export default function NarrativeTab() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-gray-100 bg-white px-4 py-3">
+      <div className="border-b border-line bg-surface px-4 py-3">
         <div className="flex items-center justify-between">
-          <h2 className="text-sm font-semibold text-gray-700">📖 剧本 ({paragraphs.length} 段)</h2>
+          <h2 className="text-sm font-semibold text-ink-2">📖 剧本 ({paragraphs.length} 段)</h2>
           <div className="flex gap-2">
             <button
               type="button"
               onClick={enrichWithLLM}
               disabled={enriching}
-              className="rounded-md bg-brand-600 px-3 py-1 text-xs font-semibold text-white hover:bg-brand-700 disabled:opacity-50"
+              className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-bg hover:bg-accent-hover disabled:opacity-50"
             >
               {enriching ? '🧠 充实中...' : '✨ 让 AI 充实'}
             </button>
             <button
               type="button"
               onClick={addParagraph}
-              className="rounded-md border border-gray-300 px-3 py-1 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              className="rounded-md border border-line px-3 py-1 text-xs font-semibold text-ink-2 hover:bg-surface-2"
             >
               ＋ 段落
             </button>
@@ -108,19 +108,19 @@ export default function NarrativeTab() {
 
       <div className="flex-1 space-y-3 overflow-auto px-4 py-4">
         {paragraphs.length === 0 && (
-          <div className="rounded-xl border-2 border-dashed border-gray-200 bg-white px-4 py-8 text-center text-sm text-gray-500">
+          <div className="rounded-xl border-2 border-dashed border-line bg-surface px-4 py-8 text-center text-sm text-ink-2">
             <p className="mb-2">还没有剧本内容</p>
             <p>点 ✨ 让 AI 充实, 或 ＋ 段落 自己写</p>
           </div>
         )}
         {paragraphs.map((p, idx) => (
-          <div key={idx} className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+          <div key={idx} className="rounded-xl border border-line bg-surface p-4 shadow-sm">
             {editingIdx === idx ? (
               <div>
                 <textarea
                   value={draft}
                   onChange={(e) => setDraft(e.target.value)}
-                  className="h-32 w-full rounded-lg border border-gray-200 p-2 text-sm focus:border-brand-400 focus:outline-none"
+                  className="h-32 w-full rounded-lg border border-line p-2 text-sm focus:border-accent focus:outline-none"
                 />
                 <div className="mt-2 flex justify-end gap-2">
                   <button
@@ -129,14 +129,14 @@ export default function NarrativeTab() {
                       setEditingIdx(null);
                       setDraft('');
                     }}
-                    className="rounded-md px-3 py-1 text-xs text-gray-500 hover:bg-gray-100"
+                    className="rounded-md px-3 py-1 text-xs text-ink-2 hover:bg-surface-2"
                   >
                     取消
                   </button>
                   <button
                     type="button"
                     onClick={saveEdit}
-                    className="rounded-md bg-brand-600 px-3 py-1 text-xs font-semibold text-white hover:bg-brand-700"
+                    className="rounded-md bg-accent px-3 py-1 text-xs font-semibold text-bg hover:bg-accent-hover"
                   >
                     保存
                   </button>
@@ -145,25 +145,25 @@ export default function NarrativeTab() {
             ) : (
               <div>
                 <div className="mb-2 flex items-start justify-between gap-2">
-                  <span className="text-xs font-semibold text-gray-400">第 {idx + 1} 段</span>
+                  <span className="text-xs font-semibold text-ink-3">第 {idx + 1} 段</span>
                   <div className="flex gap-1">
                     <button
                       type="button"
                       onClick={() => startEdit(idx)}
-                      className="rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
+                      className="rounded px-2 py-0.5 text-xs text-ink-2 hover:bg-surface-2"
                     >
                       ✏️
                     </button>
                     <button
                       type="button"
                       onClick={() => deleteParagraph(idx)}
-                      className="rounded px-2 py-0.5 text-xs text-gray-500 hover:bg-gray-100"
+                      className="rounded px-2 py-0.5 text-xs text-ink-2 hover:bg-surface-2"
                     >
                       🗑️
                     </button>
                   </div>
                 </div>
-                <p className="whitespace-pre-wrap text-sm leading-relaxed text-gray-700">{p}</p>
+                <p className="whitespace-pre-wrap text-sm leading-relaxed text-ink-2">{p}</p>
               </div>
             )}
           </div>

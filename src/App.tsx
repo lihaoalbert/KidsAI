@@ -90,6 +90,7 @@ import { useAssetStore } from './stores/assetStore';
 import { initializeProjectPersistence, useProjectStore } from './stores/projectStore';
 import { useAgentStore } from './stores/agentStore';
 import { useTokenStore } from './stores/tokenStore';
+import { useUserModeStore } from './stores/userModeStore';
 import { getBalance } from './api/tauri';
 import ToastHost from './components/ui/ToastHost';
 
@@ -107,6 +108,7 @@ function App() {
   const [activated, setActivated] = useState<boolean | null>(null); // null = 探测中
   const [currentPage, setCurrentPage] = useState<PageKey>('home');
   const [selectedLevelId, setSelectedLevelId] = useState<string>('L1');
+  const mode = useUserModeStore((s) => s.mode);
 
   useEffect(() => {
     let cancelled = false;
@@ -200,7 +202,10 @@ function App() {
   if (activated === null) {
     // 探测中, 简单 loader (生产可以加 spinner)
     return (
-      <div className="flex h-full items-center justify-center bg-warm-50 text-gray-500">
+      <div
+        data-mode={mode === 'adult' ? 'adult' : 'child'}
+        className="flex h-full items-center justify-center bg-bg text-ink-2"
+      >
         加载中...
       </div>
     );
@@ -262,7 +267,10 @@ function App() {
   };
 
   return (
-    <div className="flex h-full bg-warm-50">
+    <div
+      data-mode={mode === 'adult' ? 'adult' : 'child'}
+      className="flex h-full bg-bg text-ink"
+    >
       <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
       <main className="flex-1 overflow-auto">{renderPage()}</main>
       <PetCorner onNavigate={(p) => setCurrentPage(p === 'home' ? 'home' : 'library')} />

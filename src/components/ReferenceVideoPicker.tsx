@@ -178,31 +178,31 @@ export function ReferenceVideoPicker({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-gray-900">🎞️ 上传参考视频</h4>
-        <span className="text-[11px] text-gray-500">
+        <h4 className="text-sm font-semibold text-ink">🎞️ 上传参考视频</h4>
+        <span className="text-[11px] text-ink-2">
           支持 mp4 / webm,≤ {maxSizeMb}MB,≤ {maxDurationSec}s
         </span>
       </div>
 
       {/* 文件选择 */}
-      <div className="border-2 border-dashed border-gray-200 rounded-lg p-4 bg-gray-50">
+      <div className="border-2 border-dashed border-line rounded-lg p-4 bg-surface-2">
         <input
           ref={fileInputRef}
           type="file"
           accept="video/mp4,video/webm"
           onChange={handleFileChange}
-          className="block w-full text-xs text-gray-700 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-brand-100 file:text-brand-700 hover:file:bg-brand-200"
+          className="block w-full text-xs text-ink-2 file:mr-3 file:py-1.5 file:px-3 file:rounded-md file:border-0 file:text-xs file:font-medium file:bg-accent-soft-2 file:text-accent-ink hover:file:bg-accent-line"
           data-testid="reference-video-file-input"
         />
         {summary && (
-          <div className="mt-2 text-[11px] text-gray-600 font-mono">{summary}</div>
+          <div className="mt-2 text-[11px] text-ink-2 font-mono">{summary}</div>
         )}
       </div>
 
       {/* 帧数滑块 + 重抽 */}
       {videoMeta && (
         <div className="flex items-center gap-3">
-          <label className="text-xs text-gray-600">抽帧数</label>
+          <label className="text-xs text-ink-2">抽帧数</label>
           <input
             type="range"
             min={MIN_COUNT}
@@ -212,12 +212,12 @@ export function ReferenceVideoPicker({
             className="flex-1"
             data-testid="frame-count-slider"
           />
-          <span className="text-xs font-mono text-gray-700 w-6 text-right">{count}</span>
+          <span className="text-xs font-mono text-ink-2 w-6 text-right">{count}</span>
         </div>
       )}
 
       {errorMsg && (
-        <div className="text-xs px-3 py-2 rounded bg-red-50 text-red-700 border border-red-200">
+        <div className="text-xs px-3 py-2 rounded bg-danger-soft text-danger border border-danger-soft">
           {errorMsg}
         </div>
       )}
@@ -225,7 +225,7 @@ export function ReferenceVideoPicker({
       {/* 帧预览 */}
       {frames.length > 0 && (
         <div>
-          <div className="text-xs text-gray-600 mb-1">
+          <div className="text-xs text-ink-2 mb-1">
             {isExtracting ? '⏳ 抽帧中…' : `✅ 已抽 ${frames.length} 帧`}
           </div>
           <div className="grid grid-cols-5 gap-2">
@@ -235,9 +235,9 @@ export function ReferenceVideoPicker({
                 <img
                   src={f.dataUrl}
                   alt={`frame ${i + 1}`}
-                  className="w-full aspect-video object-cover rounded border border-gray-200"
+                  className="w-full aspect-video object-cover rounded border border-line"
                 />
-                <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 py-0.5 text-center font-mono">
+                <div className="absolute bottom-0 left-0 right-0 bg-ink/60 text-bg text-[10px] px-1 py-0.5 text-center font-mono">
                   {((f.timestampMs ?? 0) / 1000).toFixed(1)}s
                 </div>
               </div>

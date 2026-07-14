@@ -45,9 +45,9 @@ export default function PetCorner(_props: PetCornerProps) {
 
   // 根据心情选择呼吸色
   const moodColor: Record<string, string> = {
-    happy: 'from-orange-400 to-yellow-400',
-    sleepy: 'from-orange-300 to-amber-200',
-    thinking: 'from-blue-300 to-orange-300',
+    happy: 'from-highlight to-yellow-400',
+    sleepy: 'from-highlight/80 to-highlight-soft',
+    thinking: 'from-accent-soft to-highlight/80',
   };
   const gradient = moodColor[mood] ?? moodColor.happy;
 
@@ -55,10 +55,10 @@ export default function PetCorner(_props: PetCornerProps) {
     <div className="fixed bottom-4 right-4 z-40 select-none">
       {/* Bubble */}
       {showBubble && (
-        <div className="absolute bottom-20 right-0 w-44 rounded-2xl bg-white px-3 py-2 text-xs text-gray-700 shadow-lg border border-orange-200 animate-fade-in">
-          <div className="font-semibold text-orange-600 mb-1">{name}</div>
+        <div className="absolute bottom-20 right-0 w-44 rounded-2xl bg-surface px-3 py-2 text-xs text-ink-2 shadow-lg border border-highlight-soft animate-fade-in">
+          <div className="font-semibold text-highlight mb-1">{name}</div>
           <div>{PET_MESSAGES[petId]?.[0] ?? '咿呀~'}</div>
-          <div className="absolute -bottom-2 right-6 h-3 w-3 rotate-45 border-r border-b border-orange-200 bg-white" />
+          <div className="absolute -bottom-2 right-6 h-3 w-3 rotate-45 border-r border-b border-highlight-soft bg-surface" />
         </div>
       )}
 
@@ -84,7 +84,7 @@ export default function PetCorner(_props: PetCornerProps) {
           {emoji}
         </span>
         {/* 名字标签 */}
-        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-bold text-orange-700 bg-white/90 px-1.5 py-0.5 rounded-full">
+        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-bold text-highlight bg-surface/90 px-1.5 py-0.5 rounded-full">
           {name}
         </span>
       </button>

@@ -39,7 +39,7 @@ export default function StudioPage({ onBackHome }: StudioPageProps) {
     <>
       {/* P0 fix: ProjectsPane 移到 studio 页面内部, Sidebar 永远显示完整导航 */}
       <div className="flex h-full w-full">
-        <aside className="w-56 shrink-0 border-r border-gray-200 bg-white">
+        <aside className="w-56 shrink-0 border-r border-line bg-surface">
           <ProjectsPane onBackHome={() => onBackHome?.()} />
         </aside>
         <div className="flex-1 min-w-0">

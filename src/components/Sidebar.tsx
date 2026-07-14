@@ -27,16 +27,16 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
   // P0 fix: Sidebar 永远显示完整导航, 不再在 studio 路由时替换为 ProjectsPane.
   // ProjectsPane 现在作为 StudioPage 内部组件渲染.
   return (
-    <aside className="w-60 bg-white border-r border-gray-200 flex flex-col">
+    <aside className="w-60 bg-surface border-r border-line flex flex-col">
       {/* Logo */}
-      <div className="px-6 py-5 border-b border-gray-200">
+      <div className="px-6 py-5 border-b border-line">
         <div className="flex items-center gap-2">
-          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-brand-500 to-warm-500 flex items-center justify-center text-white text-lg font-bold">
+          <div className="w-9 h-9 rounded-lg bg-gradient-to-br from-accent to-highlight flex items-center justify-center text-bg text-lg font-bold">
             K
           </div>
           <div>
-            <div className="font-semibold text-sm text-gray-900">KidsAI</div>
-            <div className="text-xs text-gray-500">Studio</div>
+            <div className="font-semibold text-sm text-ink">KidsAI</div>
+            <div className="text-xs text-ink-3">Studio</div>
           </div>
         </div>
       </div>
@@ -52,8 +52,8 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
               className={[
                 'w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',
                 isActive
-                  ? 'bg-brand-50 text-brand-700'
-                  : 'text-gray-700 hover:bg-gray-50',
+                  ? 'bg-accent-soft text-accent-ink'
+                  : 'text-ink-2 hover:bg-surface-2 hover:text-ink',
               ].join(' ')}
             >
               <span className="text-base">{item.icon}</span>
@@ -64,10 +64,10 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
       </nav>
 
       {/* 底部 Token 余额 + Mode 徽章 */}
-      <div className="px-3 py-3 border-t border-gray-200 space-y-2">
-        <div className="bg-gradient-to-br from-warm-50 to-brand-50 rounded-md px-3 py-2.5">
-          <div className="text-xs text-gray-600">学币余额</div>
-          <div className="text-lg font-bold text-brand-700 mt-0.5">
+      <div className="px-3 py-3 border-t border-line space-y-2">
+        <div className="bg-gradient-to-br from-highlight/20 to-accent-soft rounded-md px-3 py-2.5">
+          <div className="text-xs text-ink-2">学币余额</div>
+          <div className="text-lg font-bold text-accent-ink mt-0.5">
             💎 {balance}
           </div>
         </div>

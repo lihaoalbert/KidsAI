@@ -26,9 +26,9 @@ export default function StudioCenter({ initialTab = 'conversation' }: StudioCent
   const [tab, setTab] = useState<StudioTab>(initialTab);
 
   return (
-    <div className="flex h-full w-full flex-col bg-warm-50/40">
+    <div className="flex h-full w-full flex-col bg-bg/40">
       {/* Tab bar */}
-      <div className="flex items-center gap-1 border-b border-gray-100 bg-white/80 px-2 py-1.5 backdrop-blur">
+      <div className="flex items-center gap-1 border-b border-line bg-surface/80 px-2 py-1.5 backdrop-blur">
         {TABS.map((t) => (
           <button
             key={t.id}
@@ -38,8 +38,8 @@ export default function StudioCenter({ initialTab = 'conversation' }: StudioCent
             className={[
               'flex items-center gap-1 rounded-lg px-3 py-1.5 text-xs font-medium transition-colors',
               tab === t.id
-                ? 'bg-brand-100 text-brand-800'
-                : 'text-gray-500 hover:bg-gray-100 hover:text-gray-700',
+                ? 'bg-accent-soft-2 text-accent-ink'
+                : 'text-ink-2 hover:bg-surface-2 hover:text-ink-2',
             ].join(' ')}
           >
             <span>{t.emoji}</span>

@@ -71,26 +71,26 @@ export default function AdvancedTab() {
 
   return (
     <div className="flex h-full flex-col">
-      <div className="border-b border-gray-100 bg-white px-4 py-3">
-        <h2 className="text-sm font-semibold text-gray-700">⚙️ 高级</h2>
+      <div className="border-b border-line bg-surface px-4 py-3">
+        <h2 className="text-sm font-semibold text-ink-2">⚙️ 高级</h2>
       </div>
 
       <div className="flex-1 space-y-4 overflow-auto px-4 py-4">
         {/* 导出 */}
-        <section className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
-          <h3 className="mb-2 text-xs font-semibold text-gray-600">📤 导出</h3>
+        <section className="rounded-xl border border-line bg-surface p-4 shadow-sm">
+          <h3 className="mb-2 text-xs font-semibold text-ink-2">📤 导出</h3>
           <div className="flex flex-wrap gap-2">
             <button
               type="button"
               onClick={exportJSON}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              className="rounded-md border border-line px-3 py-1.5 text-xs font-semibold text-ink-2 hover:bg-surface-2"
             >
               📄 JSON 原始数据
             </button>
             <button
               type="button"
               onClick={exportScript}
-              className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+              className="rounded-md border border-line px-3 py-1.5 text-xs font-semibold text-ink-2 hover:bg-surface-2"
             >
               📖 剧本 Markdown
             </button>
@@ -98,7 +98,7 @@ export default function AdvancedTab() {
               <a
                 href={state.finalVideoUrl}
                 download={`final-${Date.now()}.mp4`}
-                className="rounded-md border border-gray-300 px-3 py-1.5 text-xs font-semibold text-gray-700 hover:bg-gray-50"
+                className="rounded-md border border-line px-3 py-1.5 text-xs font-semibold text-ink-2 hover:bg-surface-2"
               >
                 🎞️ 下载成片视频
               </a>
@@ -106,7 +106,7 @@ export default function AdvancedTab() {
             <button
               type="button"
               onClick={() => void reFinalize()}
-              className="rounded-md bg-brand-600 px-3 py-1.5 text-xs font-semibold text-white hover:bg-brand-700"
+              className="rounded-md bg-accent px-3 py-1.5 text-xs font-semibold text-bg hover:bg-accent-hover"
               disabled={state.shots.length === 0}
             >
               🔄 重新合成
@@ -115,16 +115,16 @@ export default function AdvancedTab() {
         </section>
 
         {/* 多版本 */}
-        <section className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <section className="rounded-xl border border-line bg-surface p-4 shadow-sm">
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-gray-600">🗂️ 版本 ({Object.keys(versions).length})</h3>
+            <h3 className="text-xs font-semibold text-ink-2">🗂️ 版本 ({Object.keys(versions).length})</h3>
             <button
               type="button"
               onClick={() => {
                 const name = prompt('版本名', `版本 ${Object.keys(versions).length + 1}`);
                 if (name !== null) saveVersion(name);
               }}
-              className="rounded-md bg-brand-600 px-2 py-1 text-xs font-semibold text-white hover:bg-brand-700"
+              className="rounded-md bg-accent px-2 py-1 text-xs font-semibold text-bg hover:bg-accent-hover"
             >
               ＋ 保存当前
             </button>
@@ -138,17 +138,17 @@ export default function AdvancedTab() {
                   className={[
                     'flex w-full items-center justify-between rounded-md px-3 py-2 text-left text-xs',
                     v.id === activeVersionId
-                      ? 'bg-brand-100 text-brand-800'
-                      : 'bg-gray-50 text-gray-700 hover:bg-gray-100',
+                      ? 'bg-accent-soft-2 text-accent-ink'
+                      : 'bg-surface-2 text-ink-2 hover:bg-surface-2',
                   ].join(' ')}
                 >
                   <span>
                     <span className="font-semibold">{v.name}</span>
-                    <span className="ml-2 text-[10px] text-gray-500">
+                    <span className="ml-2 text-[10px] text-ink-2">
                       {new Date(v.createdAt).toLocaleString('zh-CN')}
                     </span>
                   </span>
-                  {v.id === activeVersionId && <span className="text-brand-600">● 当前</span>}
+                  {v.id === activeVersionId && <span className="text-accent-ink">● 当前</span>}
                 </button>
               </li>
             ))}
@@ -156,9 +156,9 @@ export default function AdvancedTab() {
         </section>
 
         {/* JSON 视图 */}
-        <section className="rounded-xl border border-gray-100 bg-white p-4 shadow-sm">
+        <section className="rounded-xl border border-line bg-surface p-4 shadow-sm">
           <div className="mb-2 flex items-center justify-between">
-            <h3 className="text-xs font-semibold text-gray-600">🔍 原始数据 (只读)</h3>
+            <h3 className="text-xs font-semibold text-ink-2">🔍 原始数据 (只读)</h3>
             <button
               type="button"
               onClick={() => {
@@ -166,12 +166,12 @@ export default function AdvancedTab() {
                 setCopyState('copied');
                 setTimeout(() => setCopyState('idle'), 1500);
               }}
-              className="rounded-md border border-gray-300 px-2 py-1 text-xs text-gray-700 hover:bg-gray-50"
+              className="rounded-md border border-line px-2 py-1 text-xs text-ink-2 hover:bg-surface-2"
             >
               {copyState === 'copied' ? '✅ 已复制' : '📋 复制'}
             </button>
           </div>
-          <pre className="max-h-96 overflow-auto rounded-md bg-gray-900 p-3 text-[10px] text-gray-100">
+          <pre className="max-h-96 overflow-auto rounded-md bg-code p-3 text-[10px] text-ink-3">
 {JSON.stringify(state, null, 2)}
           </pre>
         </section>

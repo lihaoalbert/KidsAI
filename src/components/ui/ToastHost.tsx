@@ -3,10 +3,10 @@
 import { useToastStore } from '../../stores/toastStore';
 
 const LEVEL_STYLE: Record<string, string> = {
-  info: 'bg-gray-800 text-white',
-  success: 'bg-emerald-600 text-white',
-  warn: 'bg-amber-500 text-white',
-  error: 'bg-rose-600 text-white',
+  info: 'bg-ink text-bg',
+  success: 'bg-success text-bg',
+  warn: 'bg-warning text-bg',
+  error: 'bg-danger text-bg',
 };
 
 const LEVEL_GLYPH: Record<string, string> = {

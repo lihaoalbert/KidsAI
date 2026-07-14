@@ -30,7 +30,7 @@ export default function Input({
   return (
     <div className="w-full">
       {label && (
-        <label className="block text-sm font-medium text-gray-800 mb-1.5">
+        <label className="block text-sm font-medium text-ink mb-1.5">
           {label}
         </label>
       )}
@@ -44,23 +44,23 @@ export default function Input({
         }}
         className={[
           'w-full h-10 px-3 rounded-md text-sm transition-colors',
-          'bg-white border',
+          'bg-surface border text-ink',
           isError
-            ? 'border-red-500 focus:border-red-500 focus:ring-2 focus:ring-red-200'
-            : 'border-gray-300 focus:border-brand-500 focus:ring-2 focus:ring-brand-100',
+            ? 'border-danger focus:border-danger focus:ring-2 focus:ring-danger-soft'
+            : 'border-line focus:border-accent focus:ring-2 focus:ring-accent-soft',
           'focus:outline-none',
-          'placeholder:text-gray-400',
-          'disabled:bg-gray-50 disabled:text-gray-500',
+          'placeholder:text-ink-3',
+          'disabled:bg-surface-2 disabled:text-ink-3',
           className,
         ].join(' ')}
         {...rest}
       />
       <div className="mt-1.5 flex justify-between text-xs">
-        <span className={isError ? 'text-red-600' : 'text-gray-500'}>
+        <span className={isError ? 'text-danger' : 'text-ink-2'}>
           {errorMessage || helperText || ''}
         </span>
         {showCount && maxLength && (
-          <span className="text-gray-400">
+          <span className="text-ink-3">
             {current.length} / {maxLength}
           </span>
         )}

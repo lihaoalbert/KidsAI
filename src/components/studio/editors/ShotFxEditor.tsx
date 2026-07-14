@@ -34,13 +34,13 @@ export default function ShotFxEditor({ shotId }: { shotId: string }) {
   const undo = () => setShotFx(shotId, { speed: undefined, sound: undefined, filter: undefined });
 
   return (
-    <div className="border-t border-gray-100 bg-white/60 px-4 py-3 text-xs">
+    <div className="border-t border-line bg-surface/60 px-4 py-3 text-xs">
       <div className="mb-2 flex items-center justify-between">
-        <span className="font-semibold text-gray-700">✨ 给这一镜加点魔法</span>
+        <span className="font-semibold text-ink-2">✨ 给这一镜加点魔法</span>
         <button
           type="button"
           onClick={undo}
-          className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500 hover:bg-gray-200"
+          className="rounded-full bg-surface-2 px-2 py-0.5 text-[10px] text-ink-2 hover:bg-surface-2"
         >
           ↺ 还原
         </button>
@@ -48,7 +48,7 @@ export default function ShotFxEditor({ shotId }: { shotId: string }) {
 
       {/* 速度 */}
       <div className="mb-2.5">
-        <div className="mb-1 text-[10px] text-gray-500">⏩ 速度</div>
+        <div className="mb-1 text-[10px] text-ink-2">⏩ 速度</div>
         <div className="flex gap-1.5">
           {SPEEDS.map((sp) => {
             const active = fx.speed === sp.id;
@@ -59,8 +59,8 @@ export default function ShotFxEditor({ shotId }: { shotId: string }) {
                 onClick={() => setShotFx(shotId, { speed: sp.id })}
                 className={`flex flex-1 items-center justify-center gap-1 rounded-xl border px-2 py-1.5 text-[11px] transition-all ${
                   active
-                    ? 'border-brand-500 bg-brand-50 text-brand-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-brand-200'
+                    ? 'border-accent bg-accent-soft text-accent-ink'
+                    : 'border-line bg-surface text-ink-2 hover:border-accent-line'
                 }`}
               >
                 <span>{sp.emoji}</span>
@@ -73,7 +73,7 @@ export default function ShotFxEditor({ shotId }: { shotId: string }) {
 
       {/* 音效 */}
       <div className="mb-2.5">
-        <div className="mb-1 text-[10px] text-gray-500">🔊 声音</div>
+        <div className="mb-1 text-[10px] text-ink-2">🔊 声音</div>
         <div className="flex flex-wrap gap-1.5">
           {SOUNDS.map((sd) => {
             const active = fx.sound === sd.id;
@@ -84,8 +84,8 @@ export default function ShotFxEditor({ shotId }: { shotId: string }) {
                 onClick={() => setShotFx(shotId, { sound: sd.id })}
                 className={`flex items-center gap-1 rounded-xl border px-2 py-1 text-[11px] transition-all ${
                   active
-                    ? 'border-brand-500 bg-brand-50 text-brand-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-brand-200'
+                    ? 'border-accent bg-accent-soft text-accent-ink'
+                    : 'border-line bg-surface text-ink-2 hover:border-accent-line'
                 }`}
               >
                 <span>{sd.emoji}</span>
@@ -98,7 +98,7 @@ export default function ShotFxEditor({ shotId }: { shotId: string }) {
 
       {/* 滤镜 */}
       <div>
-        <div className="mb-1 text-[10px] text-gray-500">✨ 滤镜</div>
+        <div className="mb-1 text-[10px] text-ink-2">✨ 滤镜</div>
         <div className="flex flex-wrap gap-1.5">
           {FILTERS.map((f) => {
             const active = fx.filter === f.id;
@@ -109,8 +109,8 @@ export default function ShotFxEditor({ shotId }: { shotId: string }) {
                 onClick={() => setShotFx(shotId, { filter: f.id })}
                 className={`flex items-center gap-1 rounded-xl border px-2 py-1 text-[11px] transition-all ${
                   active
-                    ? 'border-brand-500 bg-brand-50 text-brand-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-brand-200'
+                    ? 'border-accent bg-accent-soft text-accent-ink'
+                    : 'border-line bg-surface text-ink-2 hover:border-accent-line'
                 }`}
               >
                 <span>{f.emoji}</span>
@@ -122,7 +122,7 @@ export default function ShotFxEditor({ shotId }: { shotId: string }) {
       </div>
 
       {(fx.speed || fx.sound || fx.filter) && (
-        <div className="mt-2 rounded-lg bg-brand-50 px-2 py-1 text-[10px] text-brand-700">
+        <div className="mt-2 rounded-lg bg-accent-soft px-2 py-1 text-[10px] text-accent-ink">
           {fx.speed && SPEEDS.find((sp) => sp.id === fx.speed)?.label}
           {fx.sound && ` · ${SOUNDS.find((sd) => sd.id === fx.sound)?.label}`}
           {fx.filter && ` · ${FILTERS.find((f) => f.id === fx.filter)?.label}`}

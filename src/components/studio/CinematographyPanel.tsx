@@ -76,7 +76,7 @@ function SegmentedControl<T extends string>({
 }) {
   return (
     <div>
-      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-gray-500">{label}</div>
+      <div className="mb-1 text-[10px] font-semibold uppercase tracking-wide text-ink-2">{label}</div>
       <div className="flex flex-wrap gap-1">
         {options.map((opt) => (
           <button
@@ -86,8 +86,8 @@ function SegmentedControl<T extends string>({
             className={[
               'rounded-md px-2 py-1 text-xs',
               value === opt.value
-                ? 'bg-brand-500 text-white'
-                : 'bg-white text-gray-600 hover:bg-gray-100 border border-gray-200',
+                ? 'bg-accent text-bg'
+                : 'bg-surface text-ink-2 hover:bg-surface-2 border border-line',
             ].join(' ')}
           >
             {opt.emoji && <span className="mr-0.5">{opt.emoji}</span>}
@@ -107,8 +107,8 @@ export default function CinematographyPanel({ value, onChange }: CinematographyP
   };
   return (
     <div>
-      <h4 className="mb-2 text-xs font-semibold text-gray-600">🎥 镜头语言 (6 维)</h4>
-      <div className="space-y-2 rounded-lg bg-white p-3">
+      <h4 className="mb-2 text-xs font-semibold text-ink-2">🎥 镜头语言 (6 维)</h4>
+      <div className="space-y-2 rounded-lg bg-surface p-3">
         <SegmentedControl label="景别" value={v.shot_type} options={SHOT_TYPE_OPTIONS} onChange={(c) => onChange({ shot_type: c })} />
         <SegmentedControl label="角度" value={v.angle} options={ANGLE_OPTIONS} onChange={(c) => onChange({ angle: c })} />
         <SegmentedControl label="运镜" value={v.movement} options={MOVEMENT_OPTIONS} onChange={(c) => onChange({ movement: c })} />

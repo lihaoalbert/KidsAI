@@ -52,7 +52,7 @@ export default function ResultPane() {
         return <PreviewVideoPlayer url={shot.previewUrl} />;
       }
       return (
-        <div className="text-center text-sm text-gray-400">
+        <div className="text-center text-sm text-ink-3">
           <div className="mb-2 text-4xl">🎬</div>
           第 {previewIndex + 1} 段还没拍<br />在左边点「开始拍」
         </div>
@@ -63,11 +63,11 @@ export default function ResultPane() {
         <div className="flex flex-wrap items-center justify-center gap-2">
           {shots.map((s, i) => (
             <div key={s.id} className="flex items-center gap-2">
-              <div className="w-24 rounded-lg border border-gray-200 bg-white p-2 text-center">
+              <div className="w-24 rounded-lg border border-line bg-surface p-2 text-center">
                 <div className="text-lg">🖼️</div>
-                <div className="mt-1 line-clamp-2 text-[10px] text-gray-500">{s.description}</div>
+                <div className="mt-1 line-clamp-2 text-[10px] text-ink-2">{s.description}</div>
               </div>
-              {i < shots.length - 1 && <span className="text-gray-300">→</span>}
+              {i < shots.length - 1 && <span className="text-ink-3">→</span>}
             </div>
           ))}
         </div>
@@ -78,20 +78,20 @@ export default function ResultPane() {
         <div className="w-full text-center">
           <div className="grid grid-cols-2 gap-2">
             {stylePreviews.map((preview) => (
-              <figure key={preview.label} className="overflow-hidden rounded-xl bg-white shadow-sm">
+              <figure key={preview.label} className="overflow-hidden rounded-xl bg-surface shadow-sm">
                 <img
                   src={preview.url}
                   alt={`${style.name}${preview.label}预览`}
                   className="h-32 w-full object-cover"
                 />
-                <figcaption className="py-1.5 text-[11px] font-semibold text-gray-500">
+                <figcaption className="py-1.5 text-[11px] font-semibold text-ink-2">
                   {preview.label}
                 </figcaption>
               </figure>
             ))}
           </div>
-          <div className="mt-3 text-sm font-bold text-gray-700">🎨 {style.name}</div>
-          <div className="mt-1 text-xs text-gray-400">四宫格画风参考</div>
+          <div className="mt-3 text-sm font-bold text-ink-2">🎨 {style.name}</div>
+          <div className="mt-1 text-xs text-ink-3">四宫格画风参考</div>
         </div>
       );
     }
@@ -107,12 +107,12 @@ export default function ResultPane() {
             }}
             className="mx-auto max-h-72 rounded-2xl border-4 border-white shadow-md"
           />
-          <div className="mt-3 text-sm font-bold text-gray-700">📸 {character?.name}标准照</div>
+          <div className="mt-3 text-sm font-bold text-ink-2">📸 {character?.name}标准照</div>
         </div>
       );
     }
     return (
-      <div className="text-center text-sm text-gray-400">
+      <div className="text-center text-sm text-ink-3">
         <div className="mb-2 text-5xl">✨</div>
         你的电影会出现在这里
       </div>
@@ -121,12 +121,12 @@ export default function ResultPane() {
 
   return (
     <div className="flex h-full flex-col bg-gradient-to-b from-gray-50 to-white">
-      <div className="flex items-center justify-between border-b border-gray-100 px-4 py-2.5">
-        <span className="text-sm font-bold text-gray-700">🎥 作品预览</span>
+      <div className="flex items-center justify-between border-b border-line px-4 py-2.5">
+        <span className="text-sm font-bold text-ink-2">🎥 作品预览</span>
         {(finalVideoUrl || shots[previewIndex]?.previewUrl) && (
           <button
             onClick={() => setFullscreen(true)}
-            className="rounded-lg bg-gray-100 px-2.5 py-1 text-xs font-semibold text-gray-600 hover:bg-gray-200"
+            className="rounded-lg bg-surface-2 px-2.5 py-1 text-xs font-semibold text-ink-2 hover:bg-surface-2"
           >
             ⛶ 全屏
           </button>
@@ -143,10 +143,10 @@ export default function ResultPane() {
 
       {fullscreen && (
         <div
-          className="fixed inset-0 z-50 flex items-center justify-center bg-black/80 p-8"
+          className="fixed inset-0 z-50 flex items-center justify-center bg-ink/80 p-8"
           onClick={() => setFullscreen(false)}
         >
-          <button className="absolute right-6 top-6 text-2xl text-white">✕</button>
+          <button className="absolute right-6 top-6 text-2xl text-bg">✕</button>
           <div className="max-h-full max-w-full" onClick={(e) => e.stopPropagation()}>
             {cursor >= 6 && finalVideoUrl ? (
               <FinalVideoPlayer url={finalVideoUrl} fullscreen />

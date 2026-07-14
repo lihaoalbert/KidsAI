@@ -35,8 +35,8 @@ export default function HomePage({ onOpenLevel, onOpenStudio }: HomePageProps) {
 
       {/* 欢迎区 */}
       <div className="mb-8">
-        <h1 className="text-2xl font-bold text-gray-900">👋 你好，小创作者！</h1>
-        <p className="text-base text-gray-600 mt-1">
+        <h1 className="text-2xl font-bold text-ink">👋 你好，小创作者！</h1>
+        <p className="text-base text-ink-2 mt-1">
           欢迎来到 AI 创作世界。今天想做点什么？
         </p>
       </div>
@@ -50,15 +50,15 @@ export default function HomePage({ onOpenLevel, onOpenStudio }: HomePageProps) {
         >
           <div className="text-center py-6">
             <div className="text-5xl mb-2">🎬</div>
-            <div className="font-semibold text-gray-900">视频创作</div>
-            <div className="text-xs text-gray-500 mt-1">让 AI 帮你做视频</div>
+            <div className="font-semibold text-ink">视频创作</div>
+            <div className="text-xs text-ink-2 mt-1">让 AI 帮你做视频</div>
           </div>
         </Card>
         <Card variant="elevated">
           <div className="text-center py-6">
             <div className="text-5xl mb-2">📚</div>
-            <div className="font-semibold text-gray-900">推荐关卡</div>
-            <div className="text-xs text-gray-500 mt-1">
+            <div className="font-semibold text-ink">推荐关卡</div>
+            <div className="text-xs text-ink-2 mt-1">
               7 个挑战等你探索（已解锁 {stats.unlocked}）
             </div>
           </div>
@@ -68,14 +68,14 @@ export default function HomePage({ onOpenLevel, onOpenStudio }: HomePageProps) {
       {/* 推荐关卡 */}
       <div className="mb-6">
         <div className="flex items-center justify-between mb-3">
-          <h2 className="text-lg font-semibold text-gray-900">
+          <h2 className="text-lg font-semibold text-ink">
             推荐关卡（已解锁 {stats.unlocked} / 共 {stats.total}）
           </h2>
-          {isLoading && <span className="text-xs text-gray-500">加载中…</span>}
+          {isLoading && <span className="text-xs text-ink-2">加载中…</span>}
         </div>
 
         {error && (
-          <div className="mb-3 p-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-800">
+          <div className="mb-3 p-3 rounded-md bg-danger-soft border border-danger-soft text-sm text-danger">
             ⚠️ 加载关卡失败：{error}
           </div>
         )}
@@ -96,7 +96,7 @@ export default function HomePage({ onOpenLevel, onOpenStudio }: HomePageProps) {
                   if (onOpenLevel && available) onOpenLevel(level.id);
                 }}
                 footer={
-                  <div className="flex items-center justify-between text-xs text-gray-600">
+                  <div className="flex items-center justify-between text-xs text-ink-2">
                     <span>💎 {level.rewardTokens} 学币</span>
                     <span>⏱ {level.estimatedMinutes} 分钟</span>
                   </div>
@@ -105,20 +105,20 @@ export default function HomePage({ onOpenLevel, onOpenStudio }: HomePageProps) {
                 <div
                   className={`aspect-video rounded-md flex items-center justify-center text-5xl mb-2 ${
                     available
-                      ? 'bg-gradient-to-br from-brand-100 to-warm-100'
-                      : 'bg-gray-100 grayscale'
+                      ? 'bg-gradient-to-br from-accent-100 to-highlight/100'
+                      : 'bg-surface-2 grayscale'
                   }`}
                 >
                   {available ? level.coverEmoji : '🔒'}
                 </div>
-                <div className="text-xs font-mono text-brand-600 mb-1">
+                <div className="text-xs font-mono text-accent-ink mb-1">
                   {level.id} · 难度{' '}
                   {'★'.repeat(level.difficulty)}
                 </div>
-                <div className="text-sm font-semibold text-gray-900 line-clamp-1">
+                <div className="text-sm font-semibold text-ink line-clamp-1">
                   {level.title}
                 </div>
-                <div className="text-xs text-gray-500 line-clamp-2 mt-1">
+                <div className="text-xs text-ink-2 line-clamp-2 mt-1">
                   {level.description}
                 </div>
               </Card>

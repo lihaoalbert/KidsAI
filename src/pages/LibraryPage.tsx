@@ -41,40 +41,40 @@ export default function LibraryPage() {
   return (
     <div className="p-8 max-w-6xl mx-auto">
       <div className="flex items-center justify-between mb-2">
-        <h1 className="text-2xl font-bold text-gray-900">📚 作品库</h1>
+        <h1 className="text-2xl font-bold text-ink">📚 作品库</h1>
         <button
           onClick={refresh}
-          className="text-sm text-brand-600 hover:underline"
+          className="text-sm text-accent-ink hover:underline"
         >
           刷新
         </button>
       </div>
-      <p className="text-sm text-gray-600 mb-8">
+      <p className="text-sm text-ink-2 mb-8">
         你创作的所有作品都会保存在这里（W2.3: 已接入本地 SQLite）
       </p>
 
       {error && (
-        <div className="mb-4 p-3 rounded-md bg-red-50 border border-red-200 text-sm text-red-800">
+        <div className="mb-4 p-3 rounded-md bg-danger-soft border border-danger-soft text-sm text-danger">
           ⚠️ {error}
         </div>
       )}
 
       {isLoading ? (
-        <div className="text-sm text-gray-500 py-12 text-center">加载中…</div>
+        <div className="text-sm text-ink-2 py-12 text-center">加载中…</div>
       ) : (
         <>
           {/* W8: 我的项目区 (源 = projectStore) */}
           <section className="mb-8">
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">我的项目</h2>
+            <h2 className="text-lg font-semibold text-ink mb-3">我的项目</h2>
             {projectsLoading && projects.length === 0 ? (
-              <div className="text-sm text-gray-500 py-6 text-center bg-white rounded-lg border border-dashed border-gray-200">
+              <div className="text-sm text-ink-2 py-6 text-center bg-surface rounded-lg border border-dashed border-line">
                 正在读取项目…
               </div>
             ) : projects.length === 0 ? (
-              <div className="rounded-lg bg-white border border-dashed border-gray-200 p-8 text-center">
+              <div className="rounded-lg bg-surface border border-dashed border-line p-8 text-center">
                 <div className="text-3xl mb-2">🎬</div>
-                <div className="text-sm font-semibold text-gray-700">还没有项目</div>
-                <div className="text-xs text-gray-400 mt-1">
+                <div className="text-sm font-semibold text-ink-2">还没有项目</div>
+                <div className="text-xs text-ink-3 mt-1">
                   进入「作品工坊」开始一个故事后，会在这里列出。
                 </div>
               </div>
@@ -83,9 +83,9 @@ export default function LibraryPage() {
                 {projects.map((p) => (
                   <div
                     key={p.id}
-                    className="rounded-xl border border-gray-200 bg-white p-3 hover:border-brand-300 hover:shadow-sm transition"
+                    className="rounded-xl border border-line bg-surface p-3 hover:border-accent hover:shadow-sm transition"
                   >
-                    <div className="aspect-video rounded-lg bg-gradient-to-br from-brand-50 to-warm-50 mb-2 overflow-hidden flex items-center justify-center">
+                    <div className="aspect-video rounded-lg bg-gradient-to-br from-accent-50 to-highlight/50 mb-2 overflow-hidden flex items-center justify-center">
                       {p.thumbPath ? (
                         <img
                           src={localThumb(p.thumbPath) ?? ''}
@@ -96,9 +96,9 @@ export default function LibraryPage() {
                         <span className="text-3xl">🎬</span>
                       )}
                     </div>
-                    <div className="text-sm font-semibold text-gray-900 truncate">{p.title}</div>
-                    <div className="mt-1 flex items-center justify-between text-[11px] text-gray-500">
-                      <span className="rounded-full bg-gray-100 px-1.5 py-0.5">
+                    <div className="text-sm font-semibold text-ink truncate">{p.title}</div>
+                    <div className="mt-1 flex items-center justify-between text-[11px] text-ink-2">
+                      <span className="rounded-full bg-surface-2 px-1.5 py-0.5">
                         {stageLabel(p.cursor)}
                       </span>
                       <span>已用 {p.totalCredits} 学币</span>
@@ -111,12 +111,12 @@ export default function LibraryPage() {
 
           {/* 老 W2.3 creations 区 (兼容历史数据) */}
           <section>
-            <h2 className="text-lg font-semibold text-gray-900 mb-3">历史作品（W2.3）</h2>
+            <h2 className="text-lg font-semibold text-ink mb-3">历史作品（W2.3）</h2>
             {creations.length === 0 ? (
-              <div className="rounded-lg bg-white border border-dashed border-gray-300 p-12 text-center">
+              <div className="rounded-lg bg-surface border border-dashed border-line p-12 text-center">
                 <div className="text-3xl mb-2">🎨</div>
-                <div className="text-sm font-semibold text-gray-700">还没有历史作品</div>
-                <div className="text-xs text-gray-400 mt-1">
+                <div className="text-sm font-semibold text-ink-2">还没有历史作品</div>
+                <div className="text-xs text-ink-3 mt-1">
                   完成旧版关卡后，作品会出现在这里。
                 </div>
               </div>
@@ -128,7 +128,7 @@ export default function LibraryPage() {
                     title={levelTitle(c.levelId)}
                     description={c.userInput}
                     footer={
-                      <div className="flex items-center justify-between text-xs text-gray-600">
+                      <div className="flex items-center justify-between text-xs text-ink-2">
                         <span>得分 {c.score ?? '-'}</span>
                         <span>{new Date(c.createdAt).toLocaleString()}</span>
                       </div>
@@ -140,7 +140,7 @@ export default function LibraryPage() {
                           {c.assets.map((a, i) => (
                             <div
                               key={i}
-                              className="aspect-video bg-gray-100 rounded-md flex items-center justify-center text-2xl"
+                              className="aspect-video bg-surface-2 rounded-md flex items-center justify-center text-2xl"
                             >
                               {a.kind === 'image' && '🖼️'}
                               {a.kind === 'video' && '🎬'}
@@ -149,12 +149,12 @@ export default function LibraryPage() {
                           ))}
                         </div>
                       ) : (
-                        <div className="aspect-video bg-gradient-to-br from-brand-50 to-warm-50 rounded-md flex items-center justify-center text-3xl">
+                        <div className="aspect-video bg-gradient-to-br from-accent-50 to-highlight/50 rounded-md flex items-center justify-center text-3xl">
                           🎨
                         </div>
                       )}
                       {c.feedback && (
-                        <div className="text-xs text-gray-600 bg-gray-50 rounded p-2">
+                        <div className="text-xs text-ink-2 bg-surface-2 rounded p-2">
                           {c.feedback}
                         </div>
                       )}

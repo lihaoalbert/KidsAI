@@ -43,8 +43,8 @@ export default function ConversationPane() {
   };
 
   return (
-    <div className="flex h-full flex-col bg-warm-50/40">
-      <div className="border-b border-gray-100 bg-white/80 backdrop-blur">
+    <div className="flex h-full flex-col bg-bg/40">
+      <div className="border-b border-line bg-surface/80 backdrop-blur">
         <ProgressMap />
       </div>
 
@@ -71,7 +71,7 @@ export default function ConversationPane() {
         })}
       </div>
 
-      <div className="border-t border-gray-100 bg-white px-4 py-3">
+      <div className="border-t border-line bg-surface px-4 py-3">
         <div className="flex items-center gap-2">
           <input
             ref={inputRef}
@@ -83,12 +83,12 @@ export default function ConversationPane() {
                 ? '打字告诉我，或按回车～'
                 : '随时告诉我你的想法，Agent 一直都在听 🎧'
             }
-            className="flex-1 rounded-2xl border-2 border-gray-200 bg-gray-50 px-4 py-2.5 text-sm focus:border-brand-400 focus:bg-white focus:outline-none"
+            className="flex-1 rounded-2xl border-2 border-line bg-surface-2 px-4 py-2.5 text-sm focus:border-accent focus:bg-surface focus:outline-none"
           />
           <button
             onClick={send}
             disabled={!draft.trim()}
-            className="rounded-2xl bg-brand-600 px-5 py-2.5 text-sm font-semibold text-white hover:bg-brand-700 disabled:opacity-40"
+            className="rounded-2xl bg-accent px-5 py-2.5 text-sm font-semibold text-bg hover:bg-accent-hover disabled:opacity-40"
           >
             发送
           </button>

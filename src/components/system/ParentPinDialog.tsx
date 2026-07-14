@@ -187,14 +187,14 @@ export function ParentPinDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       data-testid="parent-pin-dialog"
     >
-      <div className="bg-white rounded-2xl shadow-2xl p-6 w-[360px] max-w-[92vw]">
-        <h2 className="text-xl font-semibold text-gray-800 mb-2">{title}</h2>
-        <p className="text-sm text-gray-600 mb-4">
+      <div className="bg-surface rounded-2xl shadow-2xl p-6 w-[360px] max-w-[92vw]">
+        <h2 className="text-xl font-semibold text-ink-2 mb-2">{title}</h2>
+        <p className="text-sm text-ink-2 mb-4">
           {hint ??
             (mode === 'setup'
               ? '设置 4 位数字 PIN, 用于安装 skill 和切换模式'
@@ -208,8 +208,8 @@ export function ParentPinDialog({
               key={i}
               className={`w-12 h-14 rounded-lg border-2 flex items-center justify-center text-2xl font-bold ${
                 activePin.length > i
-                  ? 'border-blue-500 bg-blue-50 text-blue-700'
-                  : 'border-gray-300 bg-gray-50 text-gray-400'
+                  ? 'border-accent bg-accent-soft text-accent-ink'
+                  : 'border-line bg-surface-2 text-ink-3'
               }`}
             >
               {activePin.length > i ? '•' : ''}
@@ -218,17 +218,17 @@ export function ParentPinDialog({
         </div>
 
         {stage === 'confirm' && (
-          <p className="text-xs text-blue-600 text-center mb-2">
+          <p className="text-xs text-accent-ink text-center mb-2">
             再输入一次确认
           </p>
         )}
 
         {isLocked ? (
-          <p className="text-sm text-red-600 text-center mb-4" data-testid="lockout">
+          <p className="text-sm text-danger text-center mb-4" data-testid="lockout">
             已锁定, 请 {lockSecondsLeft} 秒后再试
           </p>
         ) : error ? (
-          <p className="text-sm text-red-600 text-center mb-4" data-testid="pin-error">
+          <p className="text-sm text-danger text-center mb-4" data-testid="pin-error">
             {error}
           </p>
         ) : (
@@ -241,7 +241,7 @@ export function ParentPinDialog({
             <button
               key={d}
               type="button"
-              className="h-12 rounded-lg bg-gray-100 hover:bg-gray-200 active:bg-gray-300 text-lg font-medium disabled:opacity-50"
+              className="h-12 rounded-lg bg-surface-2 hover:bg-surface-2 active:bg-line text-lg font-medium disabled:opacity-50"
               onClick={() => handleDigit(d.toString())}
               disabled={busy || isLocked}
               data-testid={`pin-key-${d}`}
@@ -251,7 +251,7 @@ export function ParentPinDialog({
           ))}
           <button
             type="button"
-            className="h-12 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm"
+            className="h-12 rounded-lg bg-surface-2 hover:bg-surface-2 text-sm"
             onClick={handleClear}
             disabled={busy || isLocked}
             data-testid="pin-clear"
@@ -260,7 +260,7 @@ export function ParentPinDialog({
           </button>
           <button
             type="button"
-            className="h-12 rounded-lg bg-gray-100 hover:bg-gray-200 text-lg font-medium disabled:opacity-50"
+            className="h-12 rounded-lg bg-surface-2 hover:bg-surface-2 text-lg font-medium disabled:opacity-50"
             onClick={() => handleDigit('0')}
             disabled={busy || isLocked}
             data-testid="pin-key-0"
@@ -269,7 +269,7 @@ export function ParentPinDialog({
           </button>
           <button
             type="button"
-            className="h-12 rounded-lg bg-gray-100 hover:bg-gray-200 text-sm"
+            className="h-12 rounded-lg bg-surface-2 hover:bg-surface-2 text-sm"
             onClick={handleBackspace}
             disabled={busy || isLocked}
             data-testid="pin-back"
@@ -281,7 +281,7 @@ export function ParentPinDialog({
         <div className="flex gap-2">
           <button
             type="button"
-            className="flex-1 h-10 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700"
+            className="flex-1 h-10 rounded-lg bg-surface-2 hover:bg-line text-ink-2"
             onClick={onCancel}
             disabled={busy}
           >
@@ -289,7 +289,7 @@ export function ParentPinDialog({
           </button>
           <button
             type="button"
-            className="flex-1 h-10 rounded-lg bg-blue-600 hover:bg-blue-700 text-white disabled:opacity-50"
+            className="flex-1 h-10 rounded-lg bg-accent hover:bg-accent-hover text-bg disabled:opacity-50"
             onClick={handleContinue}
             disabled={!canContinue}
             data-testid="pin-submit"

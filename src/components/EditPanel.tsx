@@ -53,24 +53,24 @@ export function EditPanel({
     <>
       {/* 半透明 backdrop — 点击关闭 */}
       <div
-        className="fixed inset-0 bg-black/30 z-40"
+        className="fixed inset-0 bg-ink/30 z-40"
         onClick={onCancel}
         aria-label="关闭编辑面板"
       />
 
       {/* 右侧抽屉 */}
       <div
-        className="fixed right-0 top-0 bottom-0 w-[360px] bg-white shadow-2xl z-50 flex flex-col"
+        className="fixed right-0 top-0 bottom-0 w-[360px] bg-surface shadow-2xl z-50 flex flex-col"
         role="dialog"
         aria-label="指哪打哪 — 修改这块图"
       >
         {/* 头部 */}
-        <div className="flex items-center justify-between px-4 py-3 border-b border-gray-100">
-          <h3 className="font-semibold text-gray-900 text-sm">✏️ 指哪打哪</h3>
+        <div className="flex items-center justify-between px-4 py-3 border-b border-line">
+          <h3 className="font-semibold text-ink text-sm">✏️ 指哪打哪</h3>
           <button
             type="button"
             onClick={onCancel}
-            className="text-gray-400 hover:text-gray-600 text-lg leading-none"
+            className="text-ink-3 hover:text-ink-2 text-lg leading-none"
             aria-label="关闭"
           >
             ×
@@ -78,8 +78,8 @@ export function EditPanel({
         </div>
 
         {/* 原图缩略 + 点击位置标记 */}
-        <div className="px-4 py-3 border-b border-gray-100">
-          <div className="relative w-full aspect-video bg-gray-100 rounded overflow-hidden">
+        <div className="px-4 py-3 border-b border-line">
+          <div className="relative w-full aspect-video bg-surface-2 rounded overflow-hidden">
             {asset.type === 'image' && (
               // eslint-disable-next-line @next/next/no-img-element
               <img
@@ -105,15 +105,15 @@ export function EditPanel({
                 transform: 'translate(-50%, -50%)',
               }}
             >
-              <div className="w-5 h-5 rounded-full border-2 border-red-500 bg-red-500/30 animate-pulse" />
+              <div className="w-5 h-5 rounded-full border-2 border-danger bg-danger/30 animate-pulse" />
             </div>
           </div>
-          <div className="mt-2 text-xs text-gray-500">
+          <div className="mt-2 text-xs text-ink-2">
             📍 你点的位置：<span className="font-mono">{xPercent}%</span> ·{' '}
             <span className="font-mono">{yPercent}%</span>
           </div>
           {asset.prompt && (
-            <div className="mt-1 text-xs text-gray-400 truncate">
+            <div className="mt-1 text-xs text-ink-3 truncate">
               原 prompt：{asset.prompt}
             </div>
           )}
@@ -121,7 +121,7 @@ export function EditPanel({
 
         {/* 输入区 */}
         <div className="flex-1 flex flex-col px-4 py-3 min-h-0">
-          <label className="text-xs font-medium text-gray-700 mb-1">
+          <label className="text-xs font-medium text-ink-2 mb-1">
             想怎么改这块？
           </label>
           <textarea
@@ -129,7 +129,7 @@ export function EditPanel({
             value={text}
             onChange={(e) => setText(e.target.value)}
             placeholder="例如：把这条裙子改成蓝色 / 加一顶帽子 / 表情更开心一点…"
-            className="flex-1 text-sm border border-gray-300 rounded-md p-2 resize-none focus:outline-none focus:border-brand-500 min-h-[80px]"
+            className="flex-1 text-sm border border-line rounded-md p-2 resize-none focus:outline-none focus:border-accent min-h-[80px]"
             disabled={disabled}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && (e.metaKey || e.ctrlKey)) {
@@ -138,17 +138,17 @@ export function EditPanel({
               }
             }}
           />
-          <div className="mt-1 text-[11px] text-gray-400">
+          <div className="mt-1 text-[11px] text-ink-3">
             提示：按 ⌘+Enter 提交
           </div>
         </div>
 
         {/* 操作按钮 */}
-        <div className="flex gap-2 px-4 py-3 border-t border-gray-100">
+        <div className="flex gap-2 px-4 py-3 border-t border-line">
           <button
             type="button"
             onClick={onCancel}
-            className="flex-1 px-3 py-2 text-sm text-gray-700 bg-gray-100 rounded-md hover:bg-gray-200"
+            className="flex-1 px-3 py-2 text-sm text-ink-2 bg-surface-2 rounded-md hover:bg-surface-2"
             disabled={disabled}
           >
             取消
@@ -156,7 +156,7 @@ export function EditPanel({
           <button
             type="button"
             onClick={handleSubmit}
-            className="flex-1 px-3 py-2 text-sm text-white bg-brand-600 rounded-md hover:bg-brand-700 disabled:bg-gray-300 disabled:cursor-not-allowed"
+            className="flex-1 px-3 py-2 text-sm text-bg bg-accent rounded-md hover:bg-accent-hover disabled:bg-surface-2 disabled:cursor-not-allowed"
             disabled={!text.trim() || disabled}
           >
             {disabled ? '生成中…' : '🚀 生成'}

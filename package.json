@@ -17,6 +17,8 @@
     "build-storybook": "storybook build"
   },
   "dependencies": {
+    "@fontsource/geist-mono": "^5.2.8",
+    "@fontsource/geist-sans": "^5.2.5",
     "@tauri-apps/api": "^2.0.0",
     "@tauri-apps/plugin-updater": "^2.0.0",
     "react": "^18.3.1",

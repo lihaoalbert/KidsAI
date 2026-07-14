@@ -31,13 +31,13 @@ export default function CharacterEditor() {
   const undo = () => setTweak({ color: undefined, size: undefined, expression: undefined });
 
   return (
-    <div className="border-t border-gray-100 bg-white/60 px-4 py-3 text-xs">
+    <div className="border-t border-line bg-surface/60 px-4 py-3 text-xs">
       <div className="mb-2 flex items-center justify-between">
-        <span className="font-semibold text-gray-700">🎨 给主角加点料</span>
+        <span className="font-semibold text-ink-2">🎨 给主角加点料</span>
         <button
           type="button"
           onClick={undo}
-          className="rounded-full bg-gray-100 px-2 py-0.5 text-[10px] text-gray-500 hover:bg-gray-200"
+          className="rounded-full bg-surface-2 px-2 py-0.5 text-[10px] text-ink-2 hover:bg-surface-2"
         >
           ↺ 还原
         </button>
@@ -45,7 +45,7 @@ export default function CharacterEditor() {
 
       {/* 颜色 */}
       <div className="mb-2.5">
-        <div className="mb-1 text-[10px] text-gray-500">🎨 颜色</div>
+        <div className="mb-1 text-[10px] text-ink-2">🎨 颜色</div>
         <div className="flex flex-wrap gap-1.5">
           {COLORS.map((c) => {
             const active = tweak.color === c.id;
@@ -57,12 +57,12 @@ export default function CharacterEditor() {
                 title={c.name}
                 className={`flex h-7 w-7 items-center justify-center rounded-full border-2 transition-all ${
                   active
-                    ? 'scale-110 border-brand-500 shadow-md'
+                    ? 'scale-110 border-accent shadow-md'
                     : 'border-white hover:scale-105'
                 }`}
                 style={{ backgroundColor: c.hex }}
               >
-                {active && <span className="text-[10px] text-white">✓</span>}
+                {active && <span className="text-[10px] text-bg">✓</span>}
               </button>
             );
           })}
@@ -71,7 +71,7 @@ export default function CharacterEditor() {
 
       {/* 大小 */}
       <div className="mb-2.5">
-        <div className="mb-1 text-[10px] text-gray-500">📏 大小</div>
+        <div className="mb-1 text-[10px] text-ink-2">📏 大小</div>
         <div className="flex gap-1.5">
           {SIZES.map((s) => {
             const active = tweak.size === s.id;
@@ -82,8 +82,8 @@ export default function CharacterEditor() {
                 onClick={() => setTweak({ size: s.id })}
                 className={`flex flex-1 items-center justify-center gap-1 rounded-xl border px-2 py-1.5 text-[11px] transition-all ${
                   active
-                    ? 'border-brand-500 bg-brand-50 text-brand-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-brand-200'
+                    ? 'border-accent bg-accent-soft text-accent-ink'
+                    : 'border-line bg-surface text-ink-2 hover:border-accent-line'
                 }`}
               >
                 <span>{s.emoji}</span>
@@ -96,7 +96,7 @@ export default function CharacterEditor() {
 
       {/* 表情 */}
       <div>
-        <div className="mb-1 text-[10px] text-gray-500">😊 表情</div>
+        <div className="mb-1 text-[10px] text-ink-2">😊 表情</div>
         <div className="flex flex-wrap gap-1.5">
           {EXPRESSIONS.map((e) => {
             const active = tweak.expression === e.id;
@@ -107,8 +107,8 @@ export default function CharacterEditor() {
                 onClick={() => setTweak({ expression: e.id })}
                 className={`flex items-center gap-1 rounded-xl border px-2 py-1 text-[11px] transition-all ${
                   active
-                    ? 'border-brand-500 bg-brand-50 text-brand-700'
-                    : 'border-gray-200 bg-white text-gray-600 hover:border-brand-200'
+                    ? 'border-accent bg-accent-soft text-accent-ink'
+                    : 'border-line bg-surface text-ink-2 hover:border-accent-line'
                 }`}
               >
                 <span>{e.emoji}</span>
@@ -121,7 +121,7 @@ export default function CharacterEditor() {
 
       {/* 已选摘要(给家长/孩子回看) */}
       {(tweak.color || tweak.size || tweak.expression) && (
-        <div className="mt-2 rounded-lg bg-brand-50 px-2 py-1 text-[10px] text-brand-700">
+        <div className="mt-2 rounded-lg bg-accent-soft px-2 py-1 text-[10px] text-accent-ink">
           {tweak.color && COLORS.find((c) => c.id === tweak.color)?.name}
           {tweak.size && ` · ${SIZES.find((s) => s.id === tweak.size)?.label}`}
           {tweak.expression &&

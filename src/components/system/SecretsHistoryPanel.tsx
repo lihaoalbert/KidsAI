@@ -64,7 +64,7 @@ export default function SecretsHistoryPanel({ profile }: Props) {
 
   if (!current) {
     return (
-      <div className="text-xs text-gray-400 mt-2">
+      <div className="text-xs text-ink-3 mt-2">
         {profile} 未安装 secret — 走源码 fallback
       </div>
     );
@@ -72,10 +72,10 @@ export default function SecretsHistoryPanel({ profile }: Props) {
 
   return (
     <div className="mt-2 space-y-1">
-      <div className="text-xs text-gray-500">
+      <div className="text-xs text-ink-2">
         当前 <span className="font-mono">{current}</span>
         {candidates.length > 0 && (
-          <span className="ml-2 text-gray-400">
+          <span className="ml-2 text-ink-3">
             (历史 {candidates.length} 个)
           </span>
         )}
@@ -85,9 +85,9 @@ export default function SecretsHistoryPanel({ profile }: Props) {
           {candidates.map((v) => (
             <div
               key={v}
-              className="flex items-center justify-between text-xs bg-gray-50 rounded px-2 py-1"
+              className="flex items-center justify-between text-xs bg-surface-2 rounded px-2 py-1"
             >
-              <span className="font-mono text-gray-700">{v}</span>
+              <span className="font-mono text-ink-2">{v}</span>
               <button
                 type="button"
                 disabled={busy}

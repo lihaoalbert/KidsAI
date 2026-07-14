@@ -2,13 +2,101 @@
 @tailwind components;
 @tailwind utilities;
 
+/* =============================================================
+ * 模式 token — Forest (child) / Coast (adult)
+ * 唯一真源在 CSS 变量;tailwind.config 用 rgb(var(--x) / <alpha-value>) 引用.
+ * 切换 data-mode 时由 * 元素的 400ms transition 平滑过渡.
+ * ============================================================= */
+
+:root[data-mode='child'],
+[data-mode='child'] {
+  /* 中性 */
+  --c-bg: 255 248 240;          /* Cream Canopy   #FFF8F0 */
+  --c-surface: 240 253 244;     /* Mint Whisper   #F0FDF4 */
+  --c-surface-2: 236 253 245;   /* 略深于 surface,卡片二底 */
+  --c-ink: 20 83 45;            /* Deep Forest Ink #14532D */
+  --c-ink-2: 100 116 139;       /* Fern Steel     #64748B */
+  --c-ink-3: 148 163 184;       /* Moss Mist      #94A3B8 */
+  --c-line: 187 247 208;        /* 1px 边 — 浅薄荷描边 */
+
+  /* 主色 */
+  --c-accent: 132 204 22;       /* Sapling Green  #84CC16 */
+  --c-accent-hover: 251 191 36; /* Honey Highlight #FBBF24 */
+  --c-accent-active: 101 163 13;/* 按下更深 */
+  --c-accent-soft: 236 252 203; /* accent @ 18% */
+  --c-accent-soft-2: 217 249 157;/* accent @ 30% */
+  --c-accent-line: 190 242 100; /* accent 浅边 */
+  --c-accent-ink: 77 124 15;    /* accent 配文(深) */
+
+  /* 点缀 + 状态 */
+  --c-highlight: 251 191 36;    /* Honey #FBBF24 */
+  --c-danger: 220 38 38;        /* Berry #DC2626 */
+  --c-danger-soft: 254 226 226; /* danger @ 18% */
+  --c-warning: 217 119 6;       /* Amber */
+  --c-warning-soft: 254 243 199; /* Amber @ 18% */
+  --c-success: 22 163 74;       /* Emerald */
+  --c-success-soft: 220 252 231; /* Emerald @ 18% */
+
+  /* 暗色背景 (代码块/暗预览 — Forest 下用深绿, Coast 下用近黑) */
+  --c-code-bg: 20 83 45;         /* Deep Forest Ink #14532D */
+  --c-code-ink: 240 253 244;     /* Mint Whisper */
+
+  /* 形态 */
+  --r-card: 1.25rem;            /* Forest 卡角 20px 更柔 */
+  --r-button: 0.625rem;         /* 10px */
+}
+
+:root[data-mode='adult'],
+[data-mode='adult'] {
+  /* 中性 */
+  --c-bg: 15 23 42;             /* Deep Dusk     #0F172A */
+  --c-surface: 30 41 59;        /* Tide Surface  #1E293B */
+  --c-surface-2: 51 65 85;      /* Tide 2        #334155 */
+  --c-ink: 241 245 249;         /* Lighthouse    #F1F5F9 */
+  --c-ink-2: 203 213 225;       /* Sand Steel    #CBD5E1 */
+  --c-ink-3: 148 163 184;       /* Driftwood     #94A3B8 */
+  --c-line: 51 65 85;           /* 1px 边 — slate 描边 */
+
+  /* 主色 */
+  --c-accent: 6 182 212;        /* Titanium Cyan #06B6D4 */
+  --c-accent-hover: 14 165 233; /* Ocean Pulse   #0EA5E9 */
+  --c-accent-active: 8 145 178; /* 按下更深 */
+  --c-accent-soft: 8 145 178;   /* accent @ 18% */
+  --c-accent-soft-2: 14 165 233;/* accent @ 30% */
+  --c-accent-line: 14 165 233;  /* accent 边 */
+  --c-accent-ink: 207 250 254;  /* accent 配文(浅) */
+
+  /* 点缀 + 状态 */
+  --c-highlight: 56 189 248;    /* Ocean #38BDF8 */
+  --c-danger: 244 63 94;        /* Coral #F43F5E */
+  --c-danger-soft: 76 5 25;     /* danger @ 18% */
+  --c-warning: 245 158 11;      /* Amber */
+  --c-warning-soft: 120 53 15; /* Amber @ 18% */
+  --c-success: 16 185 129;      /* Mint */
+  --c-success-soft: 6 78 59;    /* Mint @ 18% */
+
+  /* 暗色背景 (代码块 — Coast 用 Deep Dusk) */
+  --c-code-bg: 2 6 23;          /* Slate-950 */
+  --c-code-ink: 241 245 249;    /* Lighthouse */
+
+  /* 形态 */
+  --r-card: 1rem;               /* Coast 卡角 16px 更紧 */
+  --r-button: 0.5rem;           /* 8px */
+}
+
 :root {
-  font-family: -apple-system, BlinkMacSystemFont, 'PingFang SC', 'Hiragino Sans GB',
-    'Microsoft YaHei', sans-serif;
+  font-family:
+    'Geist', -apple-system, BlinkMacSystemFont, 'PingFang SC',
+    'Hiragino Sans GB', 'Microsoft YaHei', sans-serif;
   font-size: 16px;
   line-height: 1.5;
   -webkit-font-smoothing: antialiased;
   -moz-osx-font-smoothing: grayscale;
+
+  /* 模式切换 — DESIGN.md §8.1: 400ms cubic-bezier */
+  --mode-transition: background-color 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    color 400ms cubic-bezier(0.4, 0, 0.2, 1),
+    border-color 400ms cubic-bezier(0.4, 0, 0.2, 1);
 }
 
 html,
@@ -17,14 +105,22 @@ body,
   height: 100%;
   margin: 0;
   padding: 0;
-  background-color: #fafafa;
-  color: #1a1a1a;
+  background-color: rgb(var(--c-bg));
+  color: rgb(var(--c-ink));
   overflow: hidden;
+  transition: var(--mode-transition);
 }
 
 #root {
   display: flex;
   flex-direction: column;
+}
+
+/* 全局 transition — 任何元素的颜色属性都跟随模式切换平滑过渡 */
+*,
+*::before,
+*::after {
+  transition: var(--mode-transition);
 }
 
 /* 自定义滚动条 */
@@ -36,15 +132,27 @@ body,
   background: transparent;
 }
 ::-webkit-scrollbar-thumb {
-  background: #d1d5db;
+  background: rgb(var(--c-ink-3) / 0.5);
   border-radius: 4px;
 }
 ::-webkit-scrollbar-thumb:hover {
-  background: #9ca3af;
+  background: rgb(var(--c-ink-3) / 0.8);
 }
 
-/* 选中文字 */
+/* 选中文字 — 用 token */
 ::selection {
-  background-color: #ede9fe;
-  color: #4c1d95;
+  background-color: rgb(var(--c-accent) / 0.3);
+  color: rgb(var(--c-ink));
+}
+
+/* 尊重用户的 reduced-motion — 模式切换直接跳,不做过渡 */
+@media (prefers-reduced-motion: reduce) {
+  :root {
+    --mode-transition: none;
+  }
+  *,
+  *::before,
+  *::after {
+    transition: none;
+  }
 }

@@ -32,12 +32,12 @@ export default function ProgressMap() {
         const className = [
           'flex items-center gap-1.5 rounded-full px-3 py-1.5 text-xs font-semibold transition-colors',
           active
-            ? 'bg-brand-500 text-white shadow-sm'
+            ? 'bg-accent text-bg shadow-sm'
             : done
-              ? 'bg-green-100 text-green-700 hover:bg-green-200 cursor-pointer'
+              ? 'bg-success-soft text-success hover:bg-success-soft cursor-pointer'
               : stale
-                ? 'bg-amber-100 text-amber-700 hover:bg-amber-200 cursor-pointer'
-                : 'bg-gray-100 text-gray-400 cursor-not-allowed',
+                ? 'bg-warning-soft text-warning hover:bg-warning-soft cursor-pointer'
+                : 'bg-surface-2 text-ink-3 cursor-not-allowed',
         ].join(' ');
         const emoji = done ? '✅' : stale ? '⚪' : EMOJI[i];
         const title = active
@@ -62,7 +62,7 @@ export default function ProgressMap() {
                 <span className="hidden sm:inline">{label}</span>
               </button>
               {i < STAGES.length - 1 && (
-                <span className={done ? 'text-green-300' : 'text-amber-300'}>–</span>
+                <span className={done ? 'text-success-soft' : 'text-warning-soft'}>–</span>
               )}
             </div>
           );
@@ -74,7 +74,7 @@ export default function ProgressMap() {
               <span className="hidden sm:inline">{label}</span>
             </div>
             {i < STAGES.length - 1 && (
-              <span className={done ? 'text-green-300' : 'text-gray-200'}>–</span>
+              <span className={done ? 'text-success-soft' : 'text-ink-3'}>–</span>
             )}
           </div>
         );

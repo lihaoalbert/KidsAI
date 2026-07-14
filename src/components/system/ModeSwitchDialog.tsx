@@ -62,24 +62,24 @@ export function ModeSwitchDialog({
 
   return (
     <div
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 backdrop-blur-sm"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 backdrop-blur-sm"
       role="dialog"
       aria-modal="true"
       data-testid="mode-switch-dialog"
     >
-      <div className="bg-white rounded-2xl shadow-2xl p-6 w-[440px] max-w-[92vw]">
-        <h2 className="text-xl font-semibold text-gray-800 mb-2">
+      <div className="bg-surface rounded-2xl shadow-2xl p-6 w-[440px] max-w-[92vw] text-ink">
+        <h2 className="text-xl font-semibold text-ink mb-2">
           切换到「{isAdult ? '成人模式' : '儿童模式'}」
         </h2>
 
         {sameMode ? (
-          <p className="text-sm text-amber-600 mb-4">
+          <p className="text-sm text-warning mb-4">
             当前已是「{isAdult ? '成人模式' : '儿童模式'}」, 无需切换
           </p>
         ) : isAdult ? (
-          <div className="space-y-2 text-sm text-gray-700 mb-4">
-            <p className="font-medium text-amber-700">成人模式说明</p>
-            <ul className="list-disc list-inside space-y-1 text-gray-600">
+          <div className="space-y-2 text-sm text-ink-2 mb-4">
+            <p className="font-medium text-warning">成人模式说明</p>
+            <ul className="list-disc list-inside space-y-1 text-ink-2">
               <li>安全词过滤大幅放宽 (仅拦截极端违法内容)</li>
               <li>显示全部 skill (包括成人专属商业广告 / 纪录片模板)</li>
               <li>学币配额放宽, 适合专业创作</li>
@@ -87,9 +87,9 @@ export function ModeSwitchDialog({
             </ul>
           </div>
         ) : (
-          <div className="space-y-2 text-sm text-gray-700 mb-4">
-            <p className="font-medium text-green-700">儿童模式说明</p>
-            <ul className="list-disc list-inside space-y-1 text-gray-600">
+          <div className="space-y-2 text-sm text-ink-2 mb-4">
+            <p className="font-medium text-accent-ink">儿童模式说明</p>
+            <ul className="list-disc list-inside space-y-1 text-ink-2">
               <li>恢复严格安全词过滤 (黑名单 + 白名单)</li>
               <li>只显示儿童 / 全年龄 skill (隐藏成人专属)</li>
               <li>学币配额按日限制</li>
@@ -99,7 +99,7 @@ export function ModeSwitchDialog({
         )}
 
         {error && (
-          <p className="text-sm text-red-600 mb-3" data-testid="mode-switch-error">
+          <p className="text-sm text-danger mb-3" data-testid="mode-switch-error">
             {error}
           </p>
         )}
@@ -107,7 +107,7 @@ export function ModeSwitchDialog({
         <div className="flex gap-2">
           <button
             type="button"
-            className="flex-1 h-10 rounded-lg bg-gray-200 hover:bg-gray-300 text-gray-700"
+            className="flex-1 h-10 rounded-lg bg-surface-2 hover:bg-line text-ink-2"
             onClick={onClose}
             disabled={switching}
           >
@@ -115,11 +115,7 @@ export function ModeSwitchDialog({
           </button>
           <button
             type="button"
-            className={`flex-1 h-10 rounded-lg text-white ${
-              isAdult
-                ? 'bg-purple-600 hover:bg-purple-700'
-                : 'bg-green-600 hover:bg-green-700'
-            } disabled:opacity-50`}
+            className="flex-1 h-10 rounded-lg text-bg bg-accent hover:bg-accent-hover active:bg-accent-active disabled:opacity-50"
             onClick={() => setPinStage('pin')}
             disabled={sameMode || switching}
             data-testid="mode-switch-confirm"

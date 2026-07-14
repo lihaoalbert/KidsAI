@@ -50,28 +50,28 @@ export default function BalanceWidget({
   const lowBalance = balance < 10;
 
   return (
-    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-amber-50 border border-amber-200 rounded-full text-sm">
+    <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-warning-soft border border-warning-soft rounded-full text-sm">
       <span className="text-base">💎</span>
-      <span className="font-semibold text-amber-900">{balance}</span>
-      <span className="text-amber-700 text-xs">学币</span>
+      <span className="font-semibold text-warning">{balance}</span>
+      <span className="text-warning text-xs">学币</span>
       {demo && (
         <span
-          className="ml-1 text-[10px] text-amber-600 bg-amber-100 px-1.5 py-0.5 rounded"
+          className="ml-1 text-[10px] text-warning bg-warning-soft px-1.5 py-0.5 rounded"
           title="本地演示模式，未连接学币服务器"
         >
           演示
         </span>
       )}
       {info && (
-        <span className="text-amber-700 text-xs hidden sm:inline">
+        <span className="text-warning text-xs hidden sm:inline">
           · 今日剩 {info.dailyRemaining}
         </span>
       )}
       {error && (
-        <span className="text-red-500 text-xs hidden sm:inline">⚠ {error}</span>
+        <span className="text-danger text-xs hidden sm:inline">⚠ {error}</span>
       )}
       {lowBalance && (
-        <span className="ml-1 text-[10px] text-red-600 bg-red-50 px-1.5 py-0.5 rounded">
+        <span className="ml-1 text-[10px] text-danger bg-danger-soft px-1.5 py-0.5 rounded">
           学币不足，找管理员加
         </span>
       )}

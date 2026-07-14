@@ -69,10 +69,10 @@ export function FrameSelector({
   return (
     <div className="space-y-3">
       <div className="flex items-center justify-between">
-        <h4 className="text-sm font-semibold text-gray-900">
+        <h4 className="text-sm font-semibold text-ink">
           {mode === 'single' ? '🎯 选 1 帧复刻' : '🎬 整段分镜复刻'}
         </h4>
-        <span className="text-xs text-gray-500">
+        <span className="text-xs text-ink-2">
           {mode === 'single'
             ? '点 1 帧 — 只有它会被复刻'
             : `${frames.length} 帧都会按你的角色+风格统一复刻`}
@@ -100,9 +100,9 @@ export function FrameSelector({
                 'relative overflow-hidden rounded-md border-2 transition-all',
                 mode === 'single'
                   ? isSelected
-                    ? 'border-brand-500 ring-2 ring-brand-300'
-                    : 'border-gray-200 hover:border-brand-300'
-                  : 'border-gray-200',
+                    ? 'border-accent ring-2 ring-accent/40'
+                    : 'border-line hover:border-accent'
+                  : 'border-line',
                 isRunning ? 'opacity-60 cursor-not-allowed' : '',
               ].join(' ')}
             >
@@ -110,13 +110,13 @@ export function FrameSelector({
               <img
                 src={f.dataUrl}
                 alt={`frame ${i + 1}`}
-                className="w-full aspect-video object-cover bg-gray-100"
+                className="w-full aspect-video object-cover bg-surface-2"
               />
-              <div className="absolute bottom-0 left-0 right-0 bg-black/60 text-white text-[10px] px-1 py-0.5 text-center font-mono">
+              <div className="absolute bottom-0 left-0 right-0 bg-ink/60 text-bg text-[10px] px-1 py-0.5 text-center font-mono">
                 # {i + 1} · {((f.timestampMs ?? 0) / 1000).toFixed(1)}s
               </div>
               {isSelected && (
-                <div className="absolute top-1 right-1 bg-brand-600 text-white text-[10px] px-1.5 py-0.5 rounded">
+                <div className="absolute top-1 right-1 bg-accent text-bg text-[10px] px-1.5 py-0.5 rounded">
                   ✓ 已选
                 </div>
               )}
@@ -128,15 +128,15 @@ export function FrameSelector({
       {/* 进度条 (batch 模式 + 运行中) */}
       {mode === 'batch' && isRunning && progress && (
         <div>
-          <div className="flex items-center justify-between text-xs text-gray-600 mb-1">
+          <div className="flex items-center justify-between text-xs text-ink-2 mb-1">
             <span>复刻进度</span>
             <span className="font-mono">
               {progress.done} / {progress.total}
             </span>
           </div>
-          <div className="h-2 bg-gray-100 rounded overflow-hidden">
+          <div className="h-2 bg-surface-2 rounded overflow-hidden">
             <div
-              className="h-full bg-brand-500 transition-all"
+              className="h-full bg-accent transition-all"
               style={{ width: `${(progress.done / Math.max(progress.total, 1)) * 100}%` }}
             />
           </div>
@@ -145,7 +145,7 @@ export function FrameSelector({
 
       {/* 操作按钮 */}
       <div className="flex items-center justify-between">
-        <div className="text-xs text-gray-500">
+        <div className="text-xs text-ink-2">
           复刻时,系统会把当前帧的图像作为参考传给 AI,保留构图 + 迁移风格
         </div>
         <Button

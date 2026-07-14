@@ -44,13 +44,13 @@ export function ModeBadge({ onNavigate }: ModeBadgeProps = {}) {
   const isAdult = mode === 'adult';
   const badgeText = isAdult ? '成人模式' : '儿童模式';
   const badgeEmoji = isAdult ? '🧑' : '🧒';
-  const badgeColor = isAdult
-    ? 'bg-purple-100 text-purple-700 border-purple-300 hover:bg-purple-200'
-    : 'bg-green-100 text-green-700 border-green-300 hover:bg-green-200';
+  // Mode-aware 自动通过 :root[data-mode] 翻转; 不写分支条件.
+  const badgeColor =
+    'bg-accent-soft text-accent-ink border border-accent-line hover:bg-accent-soft-2';
 
   if (!loaded) {
     return (
-      <div className="px-3 py-1 rounded-full border border-gray-200 bg-gray-50 text-sm text-gray-400">
+      <div className="px-3 py-1 rounded-full border border-line bg-surface-2 text-sm text-ink-3">
         ⋯
       </div>
     );
@@ -61,7 +61,7 @@ export function ModeBadge({ onNavigate }: ModeBadgeProps = {}) {
       <div className="relative" ref={menuRef}>
         <button
           type="button"
-          className={`flex items-center gap-1.5 px-3 py-1 rounded-full border text-sm font-medium transition-colors ${badgeColor}`}
+          className={`flex items-center gap-1.5 px-3 py-1 rounded-full text-sm font-medium transition-colors ${badgeColor}`}
           onClick={() => setMenuOpen((o) => !o)}
           data-testid="mode-badge"
         >
@@ -72,12 +72,12 @@ export function ModeBadge({ onNavigate }: ModeBadgeProps = {}) {
 
         {menuOpen && (
           <div
-            className="absolute right-0 top-full mt-1 w-48 bg-white border border-gray-200 rounded-lg shadow-lg py-1 z-40"
+            className="absolute right-0 top-full mt-1 w-48 bg-surface border border-line rounded-lg shadow-lg py-1 z-40"
             data-testid="mode-badge-menu"
           >
             <button
               type="button"
-              className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+              className="w-full text-left px-3 py-2 text-sm text-ink-2 hover:bg-surface-2"
               onClick={() => {
                 setMenuOpen(false);
                 setSwitchTo(isAdult ? 'child' : 'adult');
@@ -89,7 +89,7 @@ export function ModeBadge({ onNavigate }: ModeBadgeProps = {}) {
             {onNavigate && (
               <button
                 type="button"
-                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="w-full text-left px-3 py-2 text-sm text-ink-2 hover:bg-surface-2"
                 onClick={() => {
                   setMenuOpen(false);
                   onNavigate('marketplace');
@@ -102,7 +102,7 @@ export function ModeBadge({ onNavigate }: ModeBadgeProps = {}) {
             {onNavigate && (
               <button
                 type="button"
-                className="w-full text-left px-3 py-2 text-sm text-gray-700 hover:bg-gray-100"
+                className="w-full text-left px-3 py-2 text-sm text-ink-2 hover:bg-surface-2"
                 onClick={() => {
                   setMenuOpen(false);
                   onNavigate('settings');

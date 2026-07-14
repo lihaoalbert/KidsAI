@@ -98,18 +98,18 @@ export default function OnboardingPage({
   };
 
   return (
-    <div className="min-h-full flex items-center justify-center px-6 py-12 bg-gradient-to-b from-warm-50 to-warm-100">
-      <div className="max-w-md w-full bg-white rounded-2xl shadow-lg p-8">
+    <div className="min-h-full flex items-center justify-center px-6 py-12 bg-gradient-to-b from-highlight/50 to-highlight/100">
+      <div className="max-w-md w-full bg-surface rounded-2xl shadow-lg p-8">
         <div className="text-center mb-6">
           <div className="text-5xl mb-2">🦉</div>
-          <h1 className="text-2xl font-bold text-gray-900">欢迎来到 KidsAI</h1>
-          <p className="text-sm text-gray-600 mt-1">
+          <h1 className="text-2xl font-bold text-ink">欢迎来到 KidsAI</h1>
+          <p className="text-sm text-ink-2 mt-1">
             先认识一下你，我们就可以开始创作啦～
           </p>
         </div>
 
         <label className="block mb-5">
-          <span className="text-sm font-medium text-gray-700 mb-1 block">
+          <span className="text-sm font-medium text-ink-2 mb-1 block">
             你的昵称
           </span>
           <input
@@ -118,7 +118,7 @@ export default function OnboardingPage({
             onChange={(e) => setNickname(e.target.value)}
             placeholder="比如 小明"
             maxLength={16}
-            className="w-full px-4 py-2 border border-gray-300 rounded-lg focus:outline-none focus:border-brand-400 text-base"
+            className="w-full px-4 py-2 border border-line rounded-lg focus:outline-none focus:border-accent text-base"
             disabled={submitting}
             onKeyDown={(e) => {
               if (e.key === 'Enter' && !submitting) handleSubmit();
@@ -127,7 +127,7 @@ export default function OnboardingPage({
         </label>
 
         <div className="mb-6">
-          <span className="text-sm font-medium text-gray-700 mb-2 block">
+          <span className="text-sm font-medium text-ink-2 mb-2 block">
             你多大了？
           </span>
           <div className="grid grid-cols-3 gap-2">
@@ -139,8 +139,8 @@ export default function OnboardingPage({
                 disabled={submitting}
                 className={`py-3 px-2 rounded-lg border-2 text-center transition-all ${
                   ageTier === tier.value
-                    ? 'border-brand-500 bg-brand-50'
-                    : 'border-gray-200 hover:border-gray-300'
+                    ? 'border-accent bg-accent-soft'
+                    : 'border-line hover:border-line'
                 }`}
               >
                 <div className="text-2xl">{tier.emoji}</div>
@@ -151,7 +151,7 @@ export default function OnboardingPage({
         </div>
 
         {error && (
-          <div className="mb-4 p-3 bg-red-50 border border-red-200 rounded-lg text-sm text-red-700">
+          <div className="mb-4 p-3 bg-danger-soft border border-danger-soft rounded-lg text-sm text-danger">
             {error}
           </div>
         )}
@@ -160,7 +160,7 @@ export default function OnboardingPage({
           type="button"
           onClick={handleSubmit}
           disabled={submitting || !nickname.trim()}
-          className="w-full py-3 bg-brand-500 hover:bg-brand-600 text-white font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
+          className="w-full py-3 bg-accent hover:bg-accent text-bg font-semibold rounded-lg disabled:opacity-50 disabled:cursor-not-allowed transition-colors"
         >
           {submitting ? '正在准备你的工作室...' : '开始创作 🎨'}
         </button>
@@ -169,13 +169,13 @@ export default function OnboardingPage({
           <button
             type="button"
             onClick={handleResetAndSkip}
-            className="mt-3 text-xs text-gray-400 hover:text-gray-600 underline block w-full text-center"
+            className="mt-3 text-xs text-ink-3 hover:text-ink-2 underline block w-full text-center"
           >
             调试: 跳过激活
           </button>
         )}
 
-        <p className="text-xs text-gray-400 text-center mt-4">
+        <p className="text-xs text-ink-3 text-center mt-4">
           首次激活会获得 <span className="font-semibold">100 学币</span>，
           每天可生成 30 学币的 AI 作品
         </p>

@@ -33,38 +33,38 @@ function PendingDialog({
   const labels = formatInvalidates(pending.invalidates);
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/40">
-      <div className="w-96 rounded-2xl bg-white p-5 shadow-2xl">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40">
+      <div className="w-96 rounded-2xl bg-surface p-5 shadow-2xl">
         <div className="mb-3 flex items-center gap-2">
           <span className="text-2xl">⚠️</span>
-          <h3 className="text-base font-semibold text-gray-800">{pending.description}</h3>
+          <h3 className="text-base font-semibold text-ink-2">{pending.description}</h3>
         </div>
-        <p className="mb-3 text-sm text-gray-700">{pending.rationale}</p>
+        <p className="mb-3 text-sm text-ink-2">{pending.rationale}</p>
         {labels.length > 0 && (
-          <div className="mb-3 space-y-1 rounded-lg bg-gray-50 p-3">
-            <p className="text-xs font-semibold text-gray-600">下游影响:</p>
+          <div className="mb-3 space-y-1 rounded-lg bg-surface-2 p-3">
+            <p className="text-xs font-semibold text-ink-2">下游影响:</p>
             <ul className="space-y-0.5">
               {labels.map((l, i) => (
-                <li key={i} className="text-xs text-gray-700">• {l}</li>
+                <li key={i} className="text-xs text-ink-2">• {l}</li>
               ))}
             </ul>
           </div>
         )}
-        <div className="mb-4 rounded-lg bg-amber-50 px-3 py-2 text-sm font-semibold text-amber-800">
+        <div className="mb-4 rounded-lg bg-warning-soft px-3 py-2 text-sm font-semibold text-warning">
           {formatCost({ invalidates: pending.invalidates, credits: pending.credits, seconds: pending.seconds, requiresConfirm: pending.credits > 5, rationale: pending.rationale })}
         </div>
         <div className="flex justify-end gap-2">
           <button
             type="button"
             onClick={onCancel}
-            className="rounded-md px-4 py-1.5 text-sm text-gray-600 hover:bg-gray-100"
+            className="rounded-md px-4 py-1.5 text-sm text-ink-2 hover:bg-surface-2"
           >
             取消
           </button>
           <button
             type="button"
             onClick={onConfirm}
-            className="rounded-md bg-brand-600 px-4 py-1.5 text-sm font-semibold text-white hover:bg-brand-700"
+            className="rounded-md bg-accent px-4 py-1.5 text-sm font-semibold text-bg hover:bg-accent-hover"
           >
             继续
           </button>

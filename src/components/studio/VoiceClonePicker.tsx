@@ -57,33 +57,33 @@ export default function VoiceClonePicker({ onClose }: VoiceClonePickerProps) {
     <div
       role="dialog"
       aria-modal="true"
-      className="fixed inset-0 z-50 flex items-center justify-center bg-black/40 p-4"
+      className="fixed inset-0 z-50 flex items-center justify-center bg-ink/40 p-4"
       onClick={onClose}
     >
       <div
-        className="w-full max-w-sm rounded-2xl bg-white p-5 shadow-xl"
+        className="w-full max-w-sm rounded-2xl bg-surface p-5 shadow-xl"
         onClick={(e) => e.stopPropagation()}
       >
         <div className="mb-3 flex items-center justify-between">
-          <h3 className="text-base font-semibold text-gray-800">
+          <h3 className="text-base font-semibold text-ink-2">
             🎤 给主角录个声音
           </h3>
-          <span className="rounded-full bg-amber-100 px-2 py-0.5 text-[10px] font-medium text-amber-700">
+          <span className="rounded-full bg-warning-soft px-2 py-0.5 text-[10px] font-medium text-warning">
             10 学币 / 次
           </span>
         </div>
 
         {character && (
-          <div className="mb-4 rounded-xl bg-gray-50 p-3 text-xs text-gray-600">
-            <span className="font-medium text-gray-800">{character.name}</span> 的声音会变成主角的"专属配音",
+          <div className="mb-4 rounded-xl bg-surface-2 p-3 text-xs text-ink-2">
+            <span className="font-medium text-ink-2">{character.name}</span> 的声音会变成主角的"专属配音",
             后续每个分镜的旁白都用这个声音读.
           </div>
         )}
 
         {voiceId ? (
-          <div className="mb-4 rounded-xl border border-emerald-200 bg-emerald-50 p-3">
-            <div className="text-sm font-medium text-emerald-800">✓ 主角有了专属声音</div>
-            <div className="mt-1 text-[10px] text-emerald-600">voice_id: {voiceId}</div>
+          <div className="mb-4 rounded-xl border border-success-soft bg-success-soft p-3">
+            <div className="text-sm font-medium text-success">✓ 主角有了专属声音</div>
+            <div className="mt-1 text-[10px] text-success">voice_id: {voiceId}</div>
           </div>
         ) : status === 'success' ? null : (
           <div className="space-y-2">
@@ -91,7 +91,7 @@ export default function VoiceClonePicker({ onClose }: VoiceClonePickerProps) {
               type="button"
               onClick={handleStartRecord}
               disabled={status === 'recording' || status === 'uploading'}
-              className="flex w-full items-center justify-center gap-2 rounded-xl bg-brand-500 px-4 py-3 text-sm font-medium text-white hover:bg-brand-600 disabled:opacity-50"
+              className="flex w-full items-center justify-center gap-2 rounded-xl bg-accent px-4 py-3 text-sm font-medium text-bg hover:bg-accent disabled:opacity-50"
             >
               {status === 'recording' && <span>🎙️ 录音中...</span>}
               {status === 'uploading' && <span>📤 训练中...</span>}
@@ -105,7 +105,7 @@ export default function VoiceClonePicker({ onClose }: VoiceClonePickerProps) {
             <button
               type="button"
               disabled
-              className="flex w-full items-center justify-center gap-2 rounded-xl border border-gray-200 px-4 py-2 text-sm text-gray-500 opacity-60"
+              className="flex w-full items-center justify-center gap-2 rounded-xl border border-line px-4 py-2 text-sm text-ink-2 opacity-60"
               title="W6.5+ 上线"
             >
               📁 上传音频文件 (即将开放)
@@ -121,7 +121,7 @@ export default function VoiceClonePicker({ onClose }: VoiceClonePickerProps) {
           <button
             type="button"
             onClick={handleSkip}
-            className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200"
+            className="rounded-xl bg-surface-2 px-3 py-1.5 text-xs text-ink-2 hover:bg-surface-2"
           >
             {voiceId ? '完成 →' : '跳过, 用系统声音'}
           </button>
@@ -132,7 +132,7 @@ export default function VoiceClonePicker({ onClose }: VoiceClonePickerProps) {
                 setVoiceId(null);
                 setStatus('idle');
               }}
-              className="rounded-xl bg-gray-100 px-3 py-1.5 text-xs text-gray-600 hover:bg-gray-200"
+              className="rounded-xl bg-surface-2 px-3 py-1.5 text-xs text-ink-2 hover:bg-surface-2"
             >
               ↺ 重新录
             </button>

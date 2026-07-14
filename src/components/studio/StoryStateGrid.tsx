@@ -166,12 +166,12 @@ export default function StoryStateGrid() {
             className={[
               'rounded-lg border px-2 py-1.5 text-left text-xs transition-all',
               cell.filled
-                ? 'border-brand-200 bg-white text-gray-700 hover:border-brand-400 hover:bg-brand-50'
-                : 'border-dashed border-gray-200 bg-gray-50 text-gray-400',
+                ? 'border-accent-line bg-surface text-ink-2 hover:border-accent hover:bg-accent-soft'
+                : 'border-dashed border-line bg-surface-2 text-ink-3',
               cell.onClick ? 'cursor-pointer' : 'cursor-default',
             ].join(' ')}
           >
-            <div className="flex items-center gap-1 text-[10px] text-gray-500">
+            <div className="flex items-center gap-1 text-[10px] text-ink-2">
               <span>{cell.emoji}</span>
               <span>{cell.label}</span>
             </div>
@@ -184,9 +184,9 @@ export default function StoryStateGrid() {
       <button
         type="button"
         onClick={() => setEditTarget({ kind: 'narrative' })}
-        className="block w-full rounded-lg border border-gray-100 bg-white px-3 py-2 text-left text-xs text-gray-600 hover:border-brand-200 hover:bg-brand-50"
+        className="block w-full rounded-lg border border-line bg-surface px-3 py-2 text-left text-xs text-ink-2 hover:border-accent-line hover:bg-accent-soft"
       >
-        <div className="mb-0.5 text-[10px] font-semibold text-gray-500">📖 剧本</div>
+        <div className="mb-0.5 text-[10px] font-semibold text-ink-2">📖 剧本</div>
         <div className="line-clamp-3 leading-relaxed">{narrativeSummary}</div>
       </button>
 

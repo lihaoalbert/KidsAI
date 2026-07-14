@@ -85,7 +85,7 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
       <div className="p-8 max-w-3xl mx-auto">
         <Card>
           <div className="text-center py-12">
-            <p className="text-gray-700">找不到关卡：{resolvedId}</p>
+            <p className="text-ink-2">找不到关卡：{resolvedId}</p>
             {onBack && (
               <div className="mt-4">
                 <Button variant="secondary" onClick={onBack}>返回</Button>
@@ -163,13 +163,13 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
     <div key={level.id} className="p-6 max-w-5xl mx-auto h-full flex flex-col">
       {/* Header */}
       <div className="mb-3 flex items-center justify-between">
-        <div className="flex items-center gap-3 text-sm text-gray-500">
-          <button onClick={onBack} className="hover:text-brand-600">← 返回</button>
+        <div className="flex items-center gap-3 text-sm text-ink-2">
+          <button onClick={onBack} className="hover:text-accent-ink">← 返回</button>
           <span>/</span>
-          <span className="font-mono text-brand-600">{level.id}</span>
-          <span className="font-semibold text-gray-900">{level.title}</span>
+          <span className="font-mono text-accent-ink">{level.id}</span>
+          <span className="font-semibold text-ink">{level.title}</span>
         </div>
-        <div className="text-xs text-gray-500 flex items-center gap-2">
+        <div className="text-xs text-ink-2 flex items-center gap-2">
           {level.aiAvatar} <span>AI 老师：{level.aiName}</span>
         </div>
       </div>
@@ -178,10 +178,10 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
         {/* 左：关卡指令 + 角色选择 + 评分维度 */}
         <div className="col-span-1 space-y-3 overflow-auto">
           <Card variant="bordered">
-            <h3 className="font-semibold text-gray-900 mb-2">📋 任务</h3>
-            <p className="text-sm text-gray-700 mb-2">{level.description}</p>
+            <h3 className="font-semibold text-ink mb-2">📋 任务</h3>
+            <p className="text-sm text-ink-2 mb-2">{level.description}</p>
             {inputStep && (
-              <div className="text-xs text-gray-600 bg-brand-50 rounded p-2">
+              <div className="text-xs text-ink-2 bg-accent-soft rounded p-2">
                 💡 {inputStep.hint ?? inputStep.instruction}
               </div>
             )}
@@ -189,8 +189,8 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
 
           {/* W3.4: 角色一致性 — 让小朋友选一个角色，同一会话生图会保持形象一致 */}
           <Card variant="bordered">
-            <h3 className="font-semibold text-gray-900 mb-2">🎭 选一个角色</h3>
-            <p className="text-xs text-gray-500 mb-3">
+            <h3 className="font-semibold text-ink mb-2">🎭 选一个角色</h3>
+            <p className="text-xs text-ink-2 mb-3">
               选好后，本关多次生成的图片都会是这位主角～
             </p>
             <div className="space-y-1.5">
@@ -202,8 +202,8 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                 className={[
                   'w-full text-left text-xs px-2.5 py-2 rounded-md border transition-colors',
                   character === null
-                    ? 'bg-brand-50 border-brand-400 text-brand-900 font-medium'
-                    : 'border-gray-200 hover:border-gray-300 text-gray-700',
+                    ? 'bg-accent-soft border-accent text-accent-ink font-medium'
+                    : 'border-line hover:border-line text-ink-2',
                   isRunning ? 'opacity-50 cursor-not-allowed' : '',
                 ].join(' ')}
               >
@@ -220,20 +220,20 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                     className={[
                       'w-full text-left text-xs px-2.5 py-2 rounded-md border transition-colors',
                       selected
-                        ? 'bg-brand-50 border-brand-400 text-brand-900 font-medium'
-                        : 'border-gray-200 hover:border-gray-300 text-gray-700',
+                        ? 'bg-accent-soft border-accent text-accent-ink font-medium'
+                        : 'border-line hover:border-line text-ink-2',
                       isRunning ? 'opacity-50 cursor-not-allowed' : '',
                     ].join(' ')}
                   >
                     <div className="font-semibold">{c.name}</div>
-                    <div className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">
+                    <div className="text-[11px] text-ink-2 mt-0.5 line-clamp-2">
                       {c.description}
                     </div>
                   </button>
                 );
               })}
               {characters.length === 0 && (
-                <div className="text-[11px] text-gray-400 italic px-1 py-1">
+                <div className="text-[11px] text-ink-3 italic px-1 py-1">
                   （暂无角色，模型默认按关卡指令生成）
                 </div>
               )}
@@ -242,8 +242,8 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
 
           {/* W3.6: 风格模板切换 — 选一种视觉风格，与角色独立可叠加 */}
           <Card variant="bordered">
-            <h3 className="font-semibold text-gray-900 mb-2">🎨 选一种风格</h3>
-            <p className="text-xs text-gray-500 mb-3">
+            <h3 className="font-semibold text-ink mb-2">🎨 选一种风格</h3>
+            <p className="text-xs text-ink-2 mb-3">
               比如把「水墨」加到「小启」上，会得到水墨风的小启～
             </p>
             <div className="space-y-1.5">
@@ -254,8 +254,8 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                 className={[
                   'w-full text-left text-xs px-2.5 py-2 rounded-md border transition-colors',
                   style === null
-                    ? 'bg-brand-50 border-brand-400 text-brand-900 font-medium'
-                    : 'border-gray-200 hover:border-gray-300 text-gray-700',
+                    ? 'bg-accent-soft border-accent text-accent-ink font-medium'
+                    : 'border-line hover:border-line text-ink-2',
                   isRunning ? 'opacity-50 cursor-not-allowed' : '',
                 ].join(' ')}
               >
@@ -272,20 +272,20 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                     className={[
                       'w-full text-left text-xs px-2.5 py-2 rounded-md border transition-colors',
                       selected
-                        ? 'bg-brand-50 border-brand-400 text-brand-900 font-medium'
-                        : 'border-gray-200 hover:border-gray-300 text-gray-700',
+                        ? 'bg-accent-soft border-accent text-accent-ink font-medium'
+                        : 'border-line hover:border-line text-ink-2',
                       isRunning ? 'opacity-50 cursor-not-allowed' : '',
                     ].join(' ')}
                   >
                     <div className="font-semibold">{s.name}</div>
-                    <div className="text-[11px] text-gray-500 mt-0.5 line-clamp-2">
+                    <div className="text-[11px] text-ink-2 mt-0.5 line-clamp-2">
                       {s.description}
                     </div>
                   </button>
                 );
               })}
               {styles.length === 0 && (
-                <div className="text-[11px] text-gray-400 italic px-1 py-1">
+                <div className="text-[11px] text-ink-3 italic px-1 py-1">
                   （暂无风格，模型默认按关卡指令生成）
                 </div>
               )}
@@ -293,17 +293,17 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
           </Card>
 
           <Card>
-            <h3 className="font-semibold text-gray-900 mb-2">🎯 评分维度</h3>
+            <h3 className="font-semibold text-ink mb-2">🎯 评分维度</h3>
             <div className="space-y-1 text-xs">
               {Object.entries(level.scoringCriteria).map(([k, v]) => (
                 <div key={k} className="flex justify-between">
-                  <span className="text-gray-600">
+                  <span className="text-ink-2">
                     {k === 'creativity' ? '创意' :
                      k === 'technical' ? '技术' :
                      k === 'narrative' ? '叙事' :
                      k === 'aesthetic' ? '美感' : '合规'}
                   </span>
-                  <span className="text-brand-600 font-mono">{v} 分</span>
+                  <span className="text-accent-ink font-mono">{v} 分</span>
                 </div>
               ))}
             </div>
@@ -315,12 +315,12 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
           <Card className="flex-1 flex flex-col min-h-0">
             {/* W3.4 + W3.6: 当前角色 + 风格 banner — 一眼能看到是不是自己选的那个 */}
             {(character || style) && (
-              <div className="flex items-center justify-between mb-2 pb-2 border-b border-gray-100 gap-3 flex-wrap">
-                <div className="flex items-center gap-4 text-xs text-gray-600 flex-wrap">
+              <div className="flex items-center justify-between mb-2 pb-2 border-b border-line gap-3 flex-wrap">
+                <div className="flex items-center gap-4 text-xs text-ink-2 flex-wrap">
                   {character && (
                     <span>
                       🎭 当前角色：
-                      <span className="font-semibold text-brand-700 ml-1">
+                      <span className="font-semibold text-accent-ink ml-1">
                         {character.name}
                       </span>
                     </span>
@@ -328,12 +328,12 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                   {style && (
                     <span>
                       🎨 当前风格：
-                      <span className="font-semibold text-brand-700 ml-1">
+                      <span className="font-semibold text-accent-ink ml-1">
                         {style.name}
                       </span>
                     </span>
                   )}
-                  <span className="text-gray-400 text-[11px]">
+                  <span className="text-ink-3 text-[11px]">
                     （本次生成的图片都会保持这个形象 + 风格）
                   </span>
                 </div>
@@ -343,7 +343,7 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                       type="button"
                       onClick={() => setCharacter(null)}
                       disabled={isRunning}
-                      className="text-[11px] text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                      className="text-[11px] text-ink-3 hover:text-ink-2 disabled:opacity-50"
                     >
                       清除角色
                     </button>
@@ -353,7 +353,7 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                       type="button"
                       onClick={() => setStyle(null)}
                       disabled={isRunning}
-                      className="text-[11px] text-gray-400 hover:text-gray-600 disabled:opacity-50"
+                      className="text-[11px] text-ink-3 hover:text-ink-2 disabled:opacity-50"
                     >
                       清除风格
                     </button>
@@ -363,7 +363,7 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
             )}
             <div className="flex-1 overflow-auto space-y-3 pr-1">
               {messages.length === 0 && (
-                <div className="text-sm text-gray-400 text-center py-8">
+                <div className="text-sm text-ink-3 text-center py-8">
                   {level.aiAvatar} {level.aiName} 准备好了，输入你的想法开始吧～
                 </div>
               )}
@@ -373,17 +373,17 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                   className={[
                     'rounded-lg p-3 text-sm',
                     m.role === 'user'
-                      ? 'bg-brand-50 ml-8'
+                      ? 'bg-accent-soft ml-8'
                       : m.role === 'assistant'
-                      ? 'bg-warm-50 mr-8'
+                      ? 'bg-bg mr-8'
                       : m.role === 'thought'
-                      ? 'bg-gray-50 text-gray-600 text-xs italic'
+                      ? 'bg-surface-2 text-ink-2 text-xs italic'
                       : m.role === 'tool'
-                      ? 'bg-blue-50 text-blue-900 text-xs'
+                      ? 'bg-accent-soft text-accent-ink text-xs'
                       : 'bg-yellow-50 text-yellow-900 text-xs',
                   ].join(' ')}
                 >
-                  <div className="text-xs text-gray-500 mb-1">
+                  <div className="text-xs text-ink-2 mb-1">
                     {m.role === 'user' ? '🧒 你' :
                      m.role === 'assistant' ? `${level.aiAvatar} ${level.aiName}` :
                      m.role === 'thought' ? `💭 思考 ${m.meta?.step ? `#${m.meta.step}` : ''}` :
@@ -393,12 +393,12 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                 </div>
               ))}
               {isRunning && (
-                <div className="text-xs text-gray-500 italic px-3">
+                <div className="text-xs text-ink-2 italic px-3">
                   {level.aiAvatar} {level.aiName} 正在思考…
                 </div>
               )}
               {error && !isRunning && (
-                <div className="text-xs px-3 py-1 rounded bg-red-50 text-red-700 border border-red-200">
+                <div className="text-xs px-3 py-1 rounded bg-danger-soft text-danger border border-danger-soft">
                   {error}
                 </div>
               )}
@@ -406,9 +406,9 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
             </div>
 
             {/* 输入区 — 按 step type 分支(L1-L5 文本输入,L6/L7 抽帧 + 复刻) */}
-            <div className="mt-3 pt-3 border-t border-gray-100">
+            <div className="mt-3 pt-3 border-t border-line">
               {safetyWarning && (
-                <div className="mb-2 text-xs px-2 py-1 rounded bg-amber-50 text-amber-900 border border-amber-200">
+                <div className="mb-2 text-xs px-2 py-1 rounded bg-warning-soft text-warning border border-warning-soft">
                   {safetyWarning}
                 </div>
               )}
@@ -425,7 +425,7 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                   value={userInput}
                   onChange={(e) => setUserInput(e.target.value)}
                   placeholder={inputStep?.placeholder ?? '在这里输入你的想法…'}
-                  className="w-full text-sm border border-gray-300 rounded-md p-2 resize-none focus:outline-none focus:border-brand-500"
+                  className="w-full text-sm border border-line rounded-md p-2 resize-none focus:outline-none focus:border-accent"
                   rows={3}
                   disabled={isRunning}
                 />
@@ -433,7 +433,7 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
 
               {/* L6/L7 第二步:选帧复刻 — 仅在 extractedFrames 准备好之后渲染 */}
               {recreateStep && extractedFrames.length > 0 && (
-                <div className="mt-3 pt-3 border-t border-gray-100">
+                <div className="mt-3 pt-3 border-t border-line">
                   <FrameSelector
                     levelId={level.id}
                     frames={extractedFrames}
@@ -459,8 +459,8 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
               )}
 
               <div className="mt-2 flex items-center justify-between">
-                <div className="text-xs text-gray-500">
-                  {error && <span className="text-red-600">⚠️ {error}</span>}
+                <div className="text-xs text-ink-2">
+                  {error && <span className="text-danger">⚠️ {error}</span>}
                 </div>
                 <div className="flex gap-2">
                   {!isReferenceLevel && lastResponse && !isRunning && (
@@ -501,8 +501,8 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
           {/* 资产展示 */}
           {assets.length > 0 && (
             <Card className="mt-3">
-              <h3 className="font-semibold text-gray-900 mb-2 text-sm">🎁 生成的资产</h3>
-              <p className="text-[11px] text-gray-500 mb-2">
+              <h3 className="font-semibold text-ink mb-2 text-sm">🎁 生成的资产</h3>
+              <p className="text-[11px] text-ink-2 mb-2">
                 ✏️ 点击图片任意位置可"指哪打哪"精修
               </p>
               <div className="grid grid-cols-2 gap-2">
@@ -588,8 +588,8 @@ function AssetTile({
       className={[
         'border rounded-md overflow-hidden transition-colors',
         hasSource
-          ? 'border-brand-400 ring-1 ring-brand-200'
-          : 'border-gray-200 hover:border-brand-300',
+          ? 'border-accent ring-1 ring-accent-line'
+          : 'border-line hover:border-accent',
       ].join(' ')}
     >
       {/* Main image (clickable for image type) */}
@@ -599,7 +599,7 @@ function AssetTile({
             src={asset.url}
             alt={asset.prompt}
             className={[
-              'w-full aspect-video object-cover bg-gray-100',
+              'w-full aspect-video object-cover bg-surface-2',
               !isRunning ? 'cursor-crosshair' : 'cursor-not-allowed',
             ].join(' ')}
             loading="lazy"
@@ -611,17 +611,17 @@ function AssetTile({
             src={asset.url}
             poster={asset.thumbnailUrl}
             controls
-            className="w-full aspect-video bg-black"
+            className="w-full aspect-video bg-ink"
           />
         )}
         {asset.type === 'audio' && (
-          <div className="p-3 bg-gray-50">
+          <div className="p-3 bg-surface-2">
             <audio src={asset.url} controls className="w-full" />
           </div>
         )}
         {/* 编辑产物角标 */}
         {hasSource && (
-          <div className="absolute top-1 right-1 bg-brand-600 text-white text-[10px] px-1.5 py-0.5 rounded">
+          <div className="absolute top-1 right-1 bg-accent text-bg text-[10px] px-1.5 py-0.5 rounded">
             ✏️ 精修
           </div>
         )}
@@ -629,18 +629,18 @@ function AssetTile({
 
       {/* 编辑历史缩略（仅 edit 后的图） */}
       {hasSource && asset.sourceAssetUrl && (
-        <div className="px-2 py-1.5 bg-brand-50 flex items-center gap-2">
+        <div className="px-2 py-1.5 bg-accent-soft flex items-center gap-2">
           {/* eslint-disable-next-line @next/next/no-img-element */}
           <img
             src={asset.sourceAssetUrl}
             alt="原图"
-            className="w-10 h-6 object-cover rounded border border-gray-200"
+            className="w-10 h-6 object-cover rounded border border-line"
           />
-          <span className="text-[10px] text-brand-700">← 原图</span>
+          <span className="text-[10px] text-accent-ink">← 原图</span>
         </div>
       )}
 
-      <div className="p-2 text-xs text-gray-600 truncate" title={asset.prompt}>
+      <div className="p-2 text-xs text-ink-2 truncate" title={asset.prompt}>
         {asset.tool} · {asset.prompt}
       </div>
     </div>

@@ -5,8 +5,8 @@
 // W4.5 B2: 完成后向 server 上报学币 spend (llm 按 token, video 按次)
 //         demo 模式 (KIDSAI_SERVER_URL 未设) → 不上报, 不影响现有测试
 
-use std::sync::Arc;
 use std::sync::atomic::{AtomicBool, Ordering};
+use std::sync::Arc;
 
 use serde::{Deserialize, Serialize};
 use tauri::{AppHandle, Emitter, Manager};
@@ -184,6 +184,9 @@ pub async fn run_agent(
         .style_id
         .as_ref()
         .and_then(|sid| app.state::<crate::style::StyleRegistry>().get(sid));
+    // W11 Day 8: 在 move 进 run_loop 之前保留 user_input (上报 telemetry 用)
+    let user_input_for_telemetry = request.user_input.clone();
+    let level_id_for_telemetry = request.level_id.clone();
     let response = run_loop(&sink, registry.inner(), &router, request, character, style).await?;
 
     // W4.5 B2: 上报学币 spend (fire-and-forget)
@@ -191,11 +194,52 @@ pub async fn run_agent(
     // - video: 计数, 每个按 draft 9 / final 19 学币
     // demo 模式 (无 server) → noop, 不影响开发
     let license_client = app.state::<LicenseClient>().inner().clone();
-    let license_file = app
-        .state::<crate::license_store::LicenseStore>()
-        .load();
-    if let Some(lf) = license_file {
-        spawn_spend_report(license_client, lf.license_token, response.tokens_used, response.assets.clone());
+    let license_file = app.state::<crate::license_store::LicenseStore>().load();
+    if let Some(ref lf) = license_file {
+        spawn_spend_report(
+            license_client,
+            lf.license_token.clone(),
+            response.tokens_used,
+            response.assets.clone(),
+        );
+    }
+
+    // W11 Day 8: 上报 telemetry — AgentRun. 仅在 server 模式下有意义,
+    // 失败 eprintln 而不阻塞. Child mode 含 input/output hash; Adult mode 强制 None.
+    {
+        let marketplace = app
+            .state::<crate::marketplace_client::MarketplaceClient>()
+            .inner()
+            .clone();
+        let device_id = license_file.as_ref().map(|lf| lf.device_id.clone());
+        let level_id = response.level_id.clone();
+        let final_answer = response.final_answer.clone();
+        let outcome = if response.cancelled {
+            "cancelled"
+        } else if response.final_answer.is_empty() {
+            "err"
+        } else {
+            "ok"
+        };
+        let _ = level_id_for_telemetry; // currently unused; keep for parity
+        crate::telemetry::report(
+            &marketplace,
+            crate::telemetry::TelemetryEvent::AgentRun {
+                call_id: response.session_id.clone(),
+                level_id,
+                agent_kind: "agent".to_string(),
+                outcome: outcome.to_string(),
+                latency_ms: response.duration_ms,
+                // Child mode 全填; Adult mode 会被 wrap() 强制置 None
+                input_hash: Some(short_hash(&user_input_for_telemetry)),
+                output_hash: Some(short_hash(&final_answer)),
+                satisfaction_signal: None,
+                secret_version: None,
+                skill_versions: None,
+            },
+            device_id,
+        )
+        .await;
     }
 
     Ok(response)
@@ -227,22 +271,21 @@ fn spawn_spend_report(
                 ("video", "image_to_video") => {
                     // video 按 model 区分 draft/final/hailuo
                     let m = a.model.as_deref().unwrap_or("");
-                    if m.contains("mini") { "video_draft" }
-                    else if m.contains("hailuo") { "hailuo_video" }
-                    else { "video_final" }
+                    if m.contains("mini") {
+                        "video_draft"
+                    } else if m.contains("hailuo") {
+                        "hailuo_video"
+                    } else {
+                        "video_final"
+                    }
                 }
                 ("image", "generate_image") => "image_gen",
                 ("image", "edit_image") => "image_gen",
-                ("audio", "synthesize_speech") => "tts",  // 暂归 llm cost, 留 tts 单独 kind 后续
+                ("audio", "synthesize_speech") => "tts", // 暂归 llm cost, 留 tts 单独 kind 后续
                 ("audio", "music_gen") => "music_gen",
-                _ => continue,  // 其他资产不计费 (subtitle / bgm placeholder)
+                _ => continue, // 其他资产不计费 (subtitle / bgm placeholder)
             };
-            let call_id = format!(
-                "{}-{}-{}",
-                spend_kind,
-                now_millis(),
-                short_hash(&a.url)
-            );
+            let call_id = format!("{}-{}-{}", spend_kind, now_millis(), short_hash(&a.url));
             if let Err(e) = client
                 .record_spend(&license_token, &call_id, spend_kind, 1)
                 .await
@@ -351,7 +394,8 @@ pub async fn run_loop(
     let tools_desc = tool_registry.describe(&request.tools);
     let level_id_tag = format!("LEVEL_ID: {}", request.level_id);
     // W3.4: 角色 + W3.6: 风格 — 两个独立维度叠加，模型能稳定看到
-    let with_character = build_system_prompt_with_character(&request.system_prompt, character.as_ref());
+    let with_character =
+        build_system_prompt_with_character(&request.system_prompt, character.as_ref());
     let base_prompt = build_system_prompt_with_style(&with_character, style.as_ref());
     let system_prompt = format!(
         "{}\n\n[可用工具]\n{}\n[{}]\n",
@@ -425,7 +469,10 @@ pub async fn run_loop(
                 .tool_call_id
                 .clone()
                 .unwrap_or_else(|| format!("call_{}", now_millis()));
-            let args_str = decision.tool_args.clone().unwrap_or_else(|| "{}".to_string());
+            let args_str = decision
+                .tool_args
+                .clone()
+                .unwrap_or_else(|| "{}".to_string());
             let tool_calls_struct = vec![ModelToolCall {
                 id: tool_call_id,
                 name: t.clone(),
@@ -433,9 +480,7 @@ pub async fn run_loop(
             }];
             let assistant_msg = format!(
                 "[thought] {}\n[action] {}({})",
-                decision.thought,
-                t,
-                args_str
+                decision.thought, t, args_str
             );
             history.push(ModelMessage {
                 role: "assistant".to_string(),
@@ -460,7 +505,10 @@ pub async fn run_loop(
         }
 
         if let Some(tool_name) = &decision.tool {
-            let args_str = decision.tool_args.clone().unwrap_or_else(|| "{}".to_string());
+            let args_str = decision
+                .tool_args
+                .clone()
+                .unwrap_or_else(|| "{}".to_string());
             // W3.4 + W3.6: 角色 + 风格 可独立叠加 — 4 种组合都覆盖到
             // v1 导演流程:同样扩到 image_to_video(自动填 image_url + image_role, 追加 motion 描述)
             let args_str = match (character.as_ref(), style.as_ref(), tool_name.as_str()) {
@@ -468,22 +516,14 @@ pub async fn run_loop(
                     let with_char = inject_character_into_image_args(&args_str, c);
                     inject_style_into_image_args(&with_char, s)
                 }
-                (Some(c), None, "generate_image") => {
-                    inject_character_into_image_args(&args_str, c)
-                }
-                (None, Some(s), "generate_image") => {
-                    inject_style_into_image_args(&args_str, s)
-                }
+                (Some(c), None, "generate_image") => inject_character_into_image_args(&args_str, c),
+                (None, Some(s), "generate_image") => inject_style_into_image_args(&args_str, s),
                 (Some(c), Some(s), "image_to_video") => {
                     let with_char = inject_character_into_video_args(&args_str, c);
                     inject_style_into_video_args(&with_char, s)
                 }
-                (Some(c), None, "image_to_video") => {
-                    inject_character_into_video_args(&args_str, c)
-                }
-                (None, Some(s), "image_to_video") => {
-                    inject_style_into_video_args(&args_str, s)
-                }
+                (Some(c), None, "image_to_video") => inject_character_into_video_args(&args_str, c),
+                (None, Some(s), "image_to_video") => inject_style_into_video_args(&args_str, s),
                 _ => args_str,
             };
             let args_val: serde_json::Value =
@@ -618,7 +658,8 @@ pub async fn run_loop(
         match filter.check(&final_answer) {
             SafetyVerdict::Block { reason } => {
                 eprintln!("[agent] exit block: {}", reason);
-                final_answer = "（小启想了一下，觉得这个回答不太合适，换个方向继续吧～）".to_string();
+                final_answer =
+                    "（小启想了一下，觉得这个回答不太合适，换个方向继续吧～）".to_string();
             }
             SafetyVerdict::Warn { reason } => {
                 eprintln!("[agent] exit warn: {}", reason);
@@ -773,7 +814,10 @@ mod registry_tests {
             assert!(flag.load(std::sync::atomic::Ordering::Relaxed));
         }
         // guard 离开作用域 → 自动 remove
-        assert!(!reg.cancel("guarded"), "guard should have removed the session");
+        assert!(
+            !reg.cancel("guarded"),
+            "guard should have removed the session"
+        );
     }
 
     #[test]
@@ -834,7 +878,10 @@ mod registry_tests {
 
         let v: serde_json::Value = serde_json::from_str(&final_args).unwrap();
         // 1) 自动填了 image_url
-        assert_eq!(v["image_url"], "https://picsum.photos/seed/xiaoqi-ref/512/512");
+        assert_eq!(
+            v["image_url"],
+            "https://picsum.photos/seed/xiaoqi-ref/512/512"
+        );
         // 2) 自动设了 image_role
         assert_eq!(v["image_role"], "reference_image");
         // 3) motion 包含 motion 原文 + 角色描述 + 风格描述

@@ -54,6 +54,28 @@ CREATE TABLE IF NOT EXISTS audit_log (
     created_at      INTEGER NOT NULL
 );
 
+-- W11 Day 8: telemetry_counts — 按 device + mode + kind 分桶计数
+-- 同时供 admin 端聚合 (mode 分桶看 adult mode 占比 / err 率)
+CREATE TABLE IF NOT EXISTS telemetry_counts (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    device_id       TEXT NOT NULL,
+    mode            TEXT NOT NULL,    -- child | adult
+    kind            TEXT NOT NULL,    -- agent_run | mode_switch | skill_install | secret_update | anti_debug
+    ts_ms           INTEGER NOT NULL
+);
+CREATE INDEX IF NOT EXISTS idx_telemetry_kind ON telemetry_counts(kind);
+CREATE INDEX IF NOT EXISTS idx_telemetry_device_mode ON telemetry_counts(device_id, mode);
+CREATE INDEX IF NOT EXISTS idx_telemetry_ts ON telemetry_counts(ts_ms);
+
+-- W11 Day 8: rollback_recommendations — server 自动回滚触发记录 (Day 8 stub, admin 端读取)
+-- 当某 kind 错误率异常 (如 agent_run err/总 > 0.5), 写一条 row 推给 admin 决策
+CREATE TABLE IF NOT EXISTS rollback_recommendations (
+    id              INTEGER PRIMARY KEY AUTOINCREMENT,
+    kind            TEXT NOT NULL,    -- agent_run_err_spike / mode_switch_abuse / ...
+    message         TEXT NOT NULL,
+    created_at      INTEGER NOT NULL
+);
+
 -- W6 A1: device_key_assignment — server 端 MiniMax key 池的粘性绑定
 -- 一台设备永远用同一个 MiniMax key (跨 refresh-license 保持一致),
 -- 由 keypool.pick_key_for_device() 在首次 activate / admin rotate 时写入.

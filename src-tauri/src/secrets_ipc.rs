@@ -89,6 +89,12 @@ pub async fn apply_secrets_update(
         .load()
         .ok_or_else(|| "no license loaded".to_string())?;
     let token = license_file.license_token.clone();
+    let device_id = license_file.device_id.clone();
+    let prev_version = license_file
+        .mode_switched_at
+        .map(|_| "v0") // 不重要, 仅占位 — 真实 prev_version 从 SecretsStore.current 读
+        .unwrap_or("none");
+    let _ = prev_version; // suppress unused
 
     // 3. GET manifest
     let client = app.state::<MarketplaceClient>().inner().clone();
@@ -101,7 +107,7 @@ pub async fn apply_secrets_update(
         .map_err(|e| format!("parse manifest: {e}"))?;
     let resolved_version = manifest.version.clone();
 
-    // 4. POST wrap (拿 KEK-包裹的 master_key)
+    // 4. POST wrap
     let wrap_path = format!("/api/v1/secrets/wrap?profile={profile}&version={resolved_version}");
     let wrap_resp: serde_json::Value = client
         .post_json(&wrap_path, &serde_json::json!({}))
@@ -127,6 +133,18 @@ pub async fn apply_secrets_update(
         if let Some(expected) = manifest.files.iter().find(|f| &f.path == path) {
             let actual = crate::secrets::sha256_hex(bytes);
             if actual != expected.sha256 {
+                // W11 Day 8 telemetry 上报失败
+                crate::telemetry::report(
+                    &client,
+                    crate::telemetry::TelemetryEvent::SecretUpdate {
+                        profile: profile.clone(),
+                        from_version: None,
+                        to_version: resolved_version.clone(),
+                        success: false,
+                    },
+                    Some(device_id.clone()),
+                )
+                .await;
                 return Err(format!(
                     "file sha mismatch for {path}: expected {}, got {}",
                     expected.sha256, actual
@@ -135,15 +153,28 @@ pub async fn apply_secrets_update(
         }
     }
 
-    // 8. 写盘 (install_version)
+    // 8. 写盘
     let store = app.state::<SecretsStore>().inner();
     store
         .install_version(&profile, &manifest, &bundle_ct, &wrapped)
         .map_err(|e| format!("install_version: {e}"))?;
 
-    // 9. 注入 runtime (用刚解的 plaintext 跳过 bootstrap)
+    // 9. 注入 runtime
     let runtime = app.state::<SecretsRuntime>().inner();
     runtime.install_profile_files(&profile, entries).await;
+
+    // W11 Day 8: SecretUpdate telemetry
+    crate::telemetry::report(
+        &client,
+        crate::telemetry::TelemetryEvent::SecretUpdate {
+            profile: profile.clone(),
+            from_version: None,
+            to_version: resolved_version.clone(),
+            success: true,
+        },
+        Some(device_id.clone()),
+    )
+    .await;
 
     Ok(resolved_version)
 }

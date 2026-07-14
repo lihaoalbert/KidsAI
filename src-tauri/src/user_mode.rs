@@ -125,6 +125,9 @@ pub async fn set_user_mode(
         .load()
         .ok_or_else(|| UserModeError::NoLicense.to_string())?;
 
+    // W11 Day 8: 捕获旧 mode, 供 telemetry 上报 from→to 用 (在覆盖 lf.mode 之前读).
+    let from_mode = lf.mode;
+
     // 3. 同步 server (server 当前 stub 接受任何 PIN; 后续会再校验 device.parent_pin_hash)
     let client = app.state::<MarketplaceClient>().inner().clone();
     let resp = client
@@ -150,6 +153,28 @@ pub async fn set_user_mode(
     // 5. 通知 secrets_runtime 模式切换 (下次 get() 路由到对应 profile)
     let runtime = app.state::<crate::secrets_runtime::SecretsRuntime>().inner().clone();
     runtime.set_mode(mode).await;
+
+    // 6. 通知 telemetry 当前 mode (影响后续 hash 脱敏)
+    crate::telemetry::set_mode(mode);
+
+    // 7. 上报 mode_switch 事件 (fire-and-forget, 失败只 eprintln)
+    let device_id = lf.device_id.clone();
+    crate::telemetry::report(
+        &client,
+        crate::telemetry::TelemetryEvent::ModeSwitch {
+            from_mode: match from_mode {
+                UserMode::Child => "child".to_string(),
+                UserMode::Adult => "adult".to_string(),
+            },
+            to_mode: match mode {
+                UserMode::Child => "child".to_string(),
+                UserMode::Adult => "adult".to_string(),
+            },
+            success: true,
+        },
+        Some(device_id),
+    )
+    .await;
 
     let _ = resp; // 当前不需要解析
     Ok(SetModeResponse {

@@ -1,6 +1,7 @@
 // Tauri 2.0 主入口
 
 pub mod agent;
+pub mod anti_tamper; // W11 Day 8 — 反调试 + 内存 zeroize + 周期校验
 pub mod assets_local;
 pub mod character;
 pub mod content;
@@ -30,6 +31,7 @@ pub mod secrets_store; // W11 Day 7 — TrustedStorage wrapper (manifest + bundl
 pub mod skills; // W10 — Skill Market (manifest schema + store + verifier + 5 IPC)
 pub mod skills_runtime; // W10 Day 5 — Skill mount 解释器 (system_prompt + characters)
 pub mod style;
+pub mod telemetry; // W11 Day 8 — 按 user_mode 分桶上报
 pub mod tools;
 pub mod trusted_storage; // W10/W11 共享底座 — 原子写 + chmod 600
 pub mod types;
@@ -324,6 +326,19 @@ pub fn run() {
             }
             app.manage(secrets_store);
             app.manage(secrets_runtime);
+
+            // W11 Day 8: Telemetry — init mode from license, 然后准备上报器.
+            {
+                let ls = crate::license_store::LicenseStore::new(&data_dir);
+                if let Some(lf) = ls.load() {
+                    crate::telemetry::set_mode(lf.mode);
+                }
+            }
+
+            // W11 Day 8: 反调试 — 启动期 check + 后台 30 min 周期校验.
+            crate::anti_tamper::startup_check();
+            let shutdown = std::sync::Arc::new(crate::anti_tamper::ArcShutdown::new());
+            crate::anti_tamper::spawn_periodic_check(shutdown.clone());
 
             let window = app.get_webview_window("main").unwrap();
             window.set_title("KidsAI Studio").ok();

@@ -34,7 +34,7 @@ from .config import Config, load_config
 from .db import open_db
 from .dependencies import get_cfg, get_conn
 from .models import HealthResponse
-from .routes import activate, admin, asset, me, secrets, skills
+from .routes import activate, admin, asset, me, secrets, skills, telemetry
 
 
 def _make_license_dep(secret: str):
@@ -124,6 +124,7 @@ def create_app(cfg: Config | None = None, db_path: str | None = None) -> FastAPI
     app.include_router(asset.router)
     app.include_router(skills.router)  # W10 — Skill market + user mode
     app.include_router(secrets.router)  # W11 Day 6 — Secrets manifest + bundle + wrap
+    app.include_router(telemetry.router)  # W11 Day 8 — Telemetry events
 
     return app
 

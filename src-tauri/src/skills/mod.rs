@@ -239,10 +239,44 @@ pub async fn install_skill(
         .await
         .map_err(|e| format!("server authorize: {e}"))?;
     // 3. 下载 manifest → 验签 → 逐文件下载 + sha256 校验
-    st.store
+    let result = st
+        .store
         .download_and_install(&skill_id, &st.client)
         .await
-        .map_err(|e| format!("install: {e}"))
+        .map_err(|e| format!("install: {e}"));
+
+    // W11 Day 8: telemetry — SkillInstall (success/fail 都报)
+    let audience = crate::license_store::UserMode::default(); // 计算 audience — 用当前 mode
+    let mode_now = app
+        .state::<crate::license_store::LicenseStore>()
+        .load()
+        .map(|lf| lf.mode);
+    let audience_label = match mode_now {
+        Some(crate::license_store::UserMode::Adult) => "adult",
+        _ => "child",
+    };
+    let _ = audience; // 当前无需直接用 audience, 留作后续按 mode 路由时用
+    let marketplace_clone = st.client.clone();
+    let device_id = app
+        .state::<crate::license_store::LicenseStore>()
+        .load()
+        .map(|lf| lf.device_id);
+    crate::telemetry::report(
+        &marketplace_clone,
+        crate::telemetry::TelemetryEvent::SkillInstall {
+            skill_id: skill_id.clone(),
+            skill_version: match &result {
+                Ok(r) => r.version.clone(),
+                Err(_) => "unknown".to_string(),
+            },
+            audience: audience_label.to_string(),
+            success: result.is_ok(),
+        },
+        device_id,
+    )
+    .await;
+
+    result
 }
 
 #[tauri::command]

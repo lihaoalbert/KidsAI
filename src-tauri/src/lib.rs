@@ -10,6 +10,7 @@ pub mod image_adapter; // W6 C1
 pub mod key_pool; // Token Plan task #31: MiniMax key pool + 失败转移
 pub mod levels;
 pub mod license_client;
+pub mod license_signer; // W10/W11 共享底座 — RSA-PSS 公钥验签
 pub mod license_store;
 pub mod model;
 pub mod model_factory;
@@ -21,6 +22,7 @@ pub mod prompt_builder; // W4.6 #1 — Seedance 翻译层
 pub mod safety;
 pub mod style;
 pub mod tools;
+pub mod trusted_storage; // W10/W11 共享底座 — 原子写 + chmod 600
 pub mod types;
 pub mod video_adapter;
 pub mod voice_adapter; // W6 C2
@@ -228,6 +230,18 @@ pub fn run() {
                 style_reg.register(s);
             }
             app.manage(style_reg);
+
+            // W10/W11: 加载 RSA-PSS 公钥 — skills/secrets manifest 验签用.
+            // 失败不阻塞启动 (demo 模式无 signing 也允许), 仅记日志.
+            match crate::license_signer::LicenseSigner::init_from_env() {
+                Ok(()) => elog!(
+                    "[signer] loaded pubkey id = {}",
+                    crate::license_signer::LicenseSigner::get()
+                        .map(|s| s.pubkey_id().to_string())
+                        .unwrap_or_default()
+                ),
+                Err(e) => eprintln!("[signer] init failed (will skip signature checks): {e}"),
+            }
 
             let window = app.get_webview_window("main").unwrap();
             window.set_title("KidsAI Studio").ok();

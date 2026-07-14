@@ -5,8 +5,10 @@ import ResultPane from '../components/studio/ResultPane';
 import StoryWorkspace from '../components/studio/StoryWorkspace';
 import ProjectsPane from '../components/studio/ProjectsPane';
 import PendingConfirmationBanner from '../components/studio/PendingConfirmationBanner';
+import AppHeader from '../components/layout/AppHeader';
 import { useProjectStore } from '../stores/projectStore';
 import { useStudioStore } from '../stores/studioStore';
+import { useUserModeStore } from '../stores/userModeStore';
 
 interface StudioPageProps {
   onBackHome?: () => void;
@@ -15,6 +17,8 @@ interface StudioPageProps {
 export default function StudioPage({ onBackHome }: StudioPageProps) {
   const started = useStudioStore((s) => s.started);
   const start = useStudioStore((s) => s.start);
+  const mode = useUserModeStore((s) => s.mode);
+  const isAdult = mode === 'adult';
 
   useEffect(() => {
     if (started) return;
@@ -36,9 +40,22 @@ export default function StudioPage({ onBackHome }: StudioPageProps) {
   }, [started, start]);
 
   return (
-    <>
+    <div className="flex flex-col h-full bg-bg">
+      <AppHeader
+        title={isAdult ? 'Studio' : '视频创作'}
+        breadcrumb={[isAdult ? 'Home' : '课程中心', isAdult ? 'Studio' : '视频创作']}
+        actions={
+          <button
+            type="button"
+            onClick={() => onBackHome?.()}
+            className="text-meta text-ink-2 hover:text-ink transition-colors"
+          >
+            {isAdult ? '← Home' : '← 返回首页'}
+          </button>
+        }
+      />
       {/* P0 fix: ProjectsPane 移到 studio 页面内部, Sidebar 永远显示完整导航 */}
-      <div className="flex h-full w-full">
+      <div className="flex flex-1 min-h-0 w-full">
         <aside className="w-56 shrink-0 border-r border-line bg-surface">
           <ProjectsPane onBackHome={() => onBackHome?.()} />
         </aside>
@@ -51,6 +68,6 @@ export default function StudioPage({ onBackHome }: StudioPageProps) {
         </div>
       </div>
       <PendingConfirmationBanner />
-    </>
+    </div>
   );
 }

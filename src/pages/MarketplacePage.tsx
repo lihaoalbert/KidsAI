@@ -10,6 +10,7 @@ import { useEffect, useMemo } from 'react';
 import { useSkillStore } from '../stores/skillStore';
 import { useUserModeStore } from '../stores/userModeStore';
 import { SkillCard } from '../components/marketplace/SkillCard';
+import AppHeader from '../components/layout/AppHeader';
 
 export default function MarketplacePage() {
   const installed = useSkillStore((s) => s.installed);
@@ -20,6 +21,7 @@ export default function MarketplacePage() {
   const refreshAll = useSkillStore((s) => s.refreshAll);
   const clearError = useSkillStore((s) => s.clearError);
   const mode = useUserModeStore((s) => s.mode);
+  const isAdult = mode === 'adult';
 
   useEffect(() => {
     refreshAll();
@@ -33,9 +35,14 @@ export default function MarketplacePage() {
   }, [available]);
 
   return (
-    <div className="max-w-5xl mx-auto p-6">
-      <header className="mb-6">
-        <h1 className="text-2xl font-bold text-ink-2 mb-1">📦 Skill 市场</h1>
+    <div className="flex flex-col h-full bg-bg">
+      <AppHeader
+        title={isAdult ? 'Skill Market' : 'Skill 市场'}
+        breadcrumb={[isAdult ? 'Home' : '课程中心', isAdult ? 'Market' : 'Skill 市场']}
+      />
+      <div className="max-w-5xl mx-auto p-6 flex-1 overflow-y-auto w-full">
+        <header className="mb-6">
+          <h1 className="text-2xl font-bold text-ink mb-1">📦 Skill 市场</h1>
         <p className="text-sm text-ink-2">
           {mode === 'child'
             ? '儿童模式: 仅显示儿童 / 通用 skill (隐藏成人专属). 安装需家长 PIN.'
@@ -138,6 +145,7 @@ export default function MarketplacePage() {
           )}
         </section>
       )}
+      </div>
     </div>
   );
 }

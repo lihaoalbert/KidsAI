@@ -14,6 +14,7 @@ import { useEffect, useMemo } from 'react';
 import { useSkillStore } from '../stores/skillStore';
 import { useUserModeStore } from '../stores/userModeStore';
 import Card from '../components/Card';
+import AppHeader from '../components/layout/AppHeader';
 
 type PageRoute =
   | 'home'
@@ -54,6 +55,7 @@ export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
   const loadingInstalled = useSkillStore((s) => s.loadingInstalled);
   const refreshAll = useSkillStore((s) => s.refreshAll);
   const mode = useUserModeStore((s) => s.mode);
+  const isAdult = mode === 'adult';
 
   useEffect(() => {
     refreshAll();
@@ -78,7 +80,12 @@ export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
   const launchable = enabled.filter((s) => SKILL_LAUNCH_ROUTES[s.id]);
 
   return (
-    <div className="p-8 max-w-6xl mx-auto">
+    <div className="flex flex-col h-full bg-bg">
+      <AppHeader
+        title={isAdult ? 'My Agent' : '我的 Agent'}
+        breadcrumb={[isAdult ? 'Home' : '课程中心', isAdult ? 'My Agent' : '我的 Agent']}
+      />
+      <div className="p-8 max-w-6xl mx-auto flex-1 overflow-y-auto w-full">
       {/* 顶部: 模式 + 问候 */}
       <header className="mb-8">
         <h1 className="text-2xl font-bold text-ink">🤖 我的 Agent</h1>
@@ -277,6 +284,7 @@ export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
           </button>
         </div>
       </section>
+      </div>
     </div>
   );
 }

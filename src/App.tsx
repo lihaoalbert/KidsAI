@@ -236,6 +236,7 @@ function App() {
           <HomePage
             onOpenLevel={handleOpenLevel}
             onOpenStudio={() => setCurrentPage('studio')}
+            onOpenLibrary={() => setCurrentPage('library')}
           />
         );
       case 'library':

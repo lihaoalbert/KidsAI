@@ -10,10 +10,13 @@ import { useTokenStore } from '../stores/tokenStore';
 interface BalanceWidgetProps {
   /// 测试钩: 禁用自动 fetch (用 prop 传值)
   initialBalance?: number;
+  /** 紧凑模式 — 只显示 💎 + 数字, 用于 bento 卡片 */
+  compact?: boolean;
 }
 
 export default function BalanceWidget({
   initialBalance,
+  compact = false,
 }: BalanceWidgetProps = {}) {
   const [info, setInfo] = useState<BalanceResponse | null>(null);
   const [error, setError] = useState<string | null>(null);
@@ -53,8 +56,8 @@ export default function BalanceWidget({
     <div className="inline-flex items-center gap-2 px-3 py-1.5 bg-warning-soft border border-warning-soft rounded-full text-sm">
       <span className="text-base">💎</span>
       <span className="font-semibold text-warning">{balance}</span>
-      <span className="text-warning text-xs">学币</span>
-      {demo && (
+      {!compact && <span className="text-warning text-xs">学币</span>}
+      {demo && !compact && (
         <span
           className="ml-1 text-[10px] text-warning bg-warning-soft px-1.5 py-0.5 rounded"
           title="本地演示模式，未连接学币服务器"
@@ -62,15 +65,15 @@ export default function BalanceWidget({
           演示
         </span>
       )}
-      {info && (
+      {info && !compact && (
         <span className="text-warning text-xs hidden sm:inline">
           · 今日剩 {info.dailyRemaining}
         </span>
       )}
-      {error && (
+      {error && !compact && (
         <span className="text-danger text-xs hidden sm:inline">⚠ {error}</span>
       )}
-      {lowBalance && (
+      {lowBalance && !compact && (
         <span className="ml-1 text-[10px] text-danger bg-danger-soft px-1.5 py-0.5 rounded">
           学币不足，找管理员加
         </span>

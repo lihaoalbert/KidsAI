@@ -830,6 +830,11 @@ export async function rollbackSecrets(
   return invoke<void>('rollback_secrets', { profile, toVersion });
 }
 
+// P1-5: 列出某 profile 所有已装 secret 版本 (含 history, 最多 3)
+export async function listSecretVersions(profile: string): Promise<string[]> {
+  return invoke<string[]>('list_secret_versions', { profile });
+}
+
 // ============ Kernel Pet Engine (Day 17 P0-1) ============
 
 export type PetTickResponse =

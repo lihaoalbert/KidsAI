@@ -33,6 +33,20 @@ pub async fn get_current_secret_version(
     Ok(cur.profiles)
 }
 
+/// P1-5: 列出某 profile 下所有已装 (含 history) 的 secret 版本,
+/// 供 SettingsPage 在 "Secrets 历史 / 回滚" 面板展示.
+/// profile 缺失时返空数组; 未知 profile 同.
+#[tauri::command]
+pub async fn list_secret_versions(
+    app: AppHandle,
+    profile: String,
+) -> Result<Vec<String>, String> {
+    let store = app.state::<SecretsStore>().inner();
+    store
+        .list_versions(&profile)
+        .map_err(|e| format!("list_versions: {e}"))
+}
+
 #[tauri::command]
 pub async fn check_secrets_update(
     app: AppHandle,

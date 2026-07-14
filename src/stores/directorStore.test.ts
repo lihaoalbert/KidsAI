@@ -9,6 +9,7 @@
 import { describe, it, expect, beforeEach, vi, type Mock } from 'vitest';
 import { useDirectorStore } from './directorStore';
 import { useTokenStore } from './tokenStore';
+import { useToastStore } from './toastStore';
 import type { AgentRunResponse, Character, StylePreset } from '../api/tauri';
 import { parseDirectorPlan } from '../api/tauri';
 
@@ -235,6 +236,10 @@ describe('directorStore.runPreviewShot', () => {
     await useDirectorStore.getState().runPreviewShot('s1');
     expect(runAgentMock).not.toHaveBeenCalled();
     expect(useDirectorStore.getState().error).toMatch(/学分不足/);
+    // P1-2: spend 失败也要弹 toast, 不让聊天流吞掉
+    const toasts = useToastStore.getState().toasts;
+    expect(toasts.some((t) => /学分不足/.test(t.text))).toBe(true);
+    useToastStore.setState({ toasts: [] });
   });
 
   it('成功 → 余额 -9, previewUrl 写入', async () => {

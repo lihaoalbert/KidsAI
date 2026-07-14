@@ -245,6 +245,40 @@ pub async fn install_skill(
     if parent_pin.trim().is_empty() {
         return Err("parent_pin 必填".into());
     }
+
+    // Day 17 P0-5: audience 校验 — 当前 mode 与 skill.audience 必须匹配.
+    //   - child mode 不允许装 audience=adult 的 skill (娃看不到/装不上成人 skill)
+    //   - adult mode 不允许装 audience=child 的 skill (成人专业用户不被儿童内容打扰)
+    //   - audience=both 任意 mode 都能装
+    // 校验来源: 优先从 marketplace index 缓存读 (免下载), 缓存 miss 走 fallback.
+    let current_mode = app
+        .state::<crate::license_store::LicenseStore>()
+        .load()
+        .map(|lf| lf.mode)
+        .unwrap_or_default();
+    if let Some(audience) = st
+        .store
+        .audience_for(&skill_id)
+        .map_err(|e| format!("audience lookup: {e}"))?
+    {
+        let mode_lc = match current_mode {
+            crate::license_store::UserMode::Adult => "adult",
+            crate::license_store::UserMode::Child => "child",
+        };
+        let allowed = match (audience.as_str(), mode_lc) {
+            ("both", _) => true,
+            ("child", "child") => true,
+            ("adult", "adult") => true,
+            _ => false,
+        };
+        if !allowed {
+            return Err(format!(
+                "skill {skill_id} (audience={audience}) 不能在 {mode_lc} 模式下安装; 请先切换到合适的模式"
+            ));
+        }
+    }
+    // audience_for 返 None = 缓存 miss, 留给后续 manifest 验签兜底
+
     // 2. Server 二次授权 (POST /api/v1/skills/install-authorize {skill_id})
     st.client
         .post_json::<serde_json::Value, serde_json::Value>(

@@ -13,6 +13,7 @@ import {
 } from '../api/tauri';
 import { ParentPinDialog } from '../components/system/ParentPinDialog';
 import { ModeSwitchDialog } from '../components/system/ModeSwitchDialog';
+import SecretsHistoryPanel from '../components/system/SecretsHistoryPanel';
 import type { UserMode } from '../api/tauri';
 
 export default function SettingsPage() {
@@ -133,7 +134,7 @@ export default function SettingsPage() {
         </Card>
       </section>
 
-      {/* Secret 版本 */}
+      {/* Secret 版本 + P1-5 多版本回滚 */}
       <section className="mb-6">
         <h2 className="text-sm font-semibold text-gray-500 uppercase tracking-wider mb-3">
           系统状态
@@ -150,15 +151,27 @@ export default function SettingsPage() {
                 {deviceId ? deviceId.slice(0, 12) + '…' : '…'}
               </span>
             </div>
-            <div className="flex justify-between">
-              <span className="text-gray-600">Secret 版本</span>
-              <span className="font-mono text-gray-900 text-xs">
-                {Object.keys(secretVersions).length === 0
-                  ? '未安装 / 走 fallback'
-                  : Object.entries(secretVersions)
-                      .map(([p, v]) => `${p}:${v}`)
-                      .join(' / ')}
-              </span>
+            <div>
+              <div className="flex justify-between mb-1">
+                <span className="text-gray-600">Secret 版本</span>
+                <span className="font-mono text-gray-900 text-xs">
+                  {Object.keys(secretVersions).length === 0
+                    ? '未安装 / 走 fallback'
+                    : Object.entries(secretVersions)
+                        .map(([p, v]) => `${p}:${v}`)
+                        .join(' / ')}
+                </span>
+              </div>
+              {/* P1-5: 列出 child / adult profile 的历史版本, 提供回滚入口.
+                  只在至少有一个 profile 已装 secret 时才展开, 避免空白. */}
+              {Object.keys(secretVersions).length > 0 && (
+                <div className="border-t pt-3 mt-2 space-y-3">
+                  <SecretsHistoryPanel profile="child" />
+                  {secretVersions.adult && (
+                    <SecretsHistoryPanel profile="adult" />
+                  )}
+                </div>
+              )}
             </div>
           </div>
         </Card>

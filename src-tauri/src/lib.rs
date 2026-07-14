@@ -411,6 +411,8 @@ pub fn run() {
             crate::secrets_ipc::check_secrets_update,
             crate::secrets_ipc::apply_secrets_update,
             crate::secrets_ipc::rollback_secrets,
+            // P1-5: 多版本回滚 UI 配套 — 列出 history
+            crate::secrets_ipc::list_secret_versions,
             // Kernel IPC (Day 17 P0-1: PetEngine 接通 + Identity)
             crate::kernel::ipc::pet_tick,
             crate::kernel::ipc::save_identity,

@@ -221,6 +221,37 @@ impl SkillsStore {
             .write_atomic(std::path::Path::new(INSTALLED_INDEX), &b)?;
         Ok(())
     }
+
+    /// Day 17 P0-5: 读 skill 缓存的 manifest, 拿 audience 字段.
+    /// 用于 install 前置校验 (cache miss 时返 None, 留给 manifest 验签兜底).
+    pub fn audience_for(&self, skill_id: &str) -> Result<Option<String>, SkillsStoreError> {
+        // 1. 已安装: 直接从 installed.json 拿 (最权威)
+        let idx = self.read_index()?;
+        if let Some(rec) = idx.skills.get(skill_id) {
+            return Ok(Some(audience_label(&rec.audience).to_string()));
+        }
+        // 2. 缓存的 manifest.json (W10 list_available_skills 写过)
+        let manifest_path = std::path::Path::new(skill_id).join("manifest.json");
+        match self.storage.read_bytes(&manifest_path)? {
+            Some(bytes) => {
+                let v: serde_json::Value = serde_json::from_slice(&bytes)?;
+                let audience = v
+                    .get("audience")
+                    .and_then(|a| a.as_str())
+                    .map(|s| s.to_string());
+                Ok(audience)
+            }
+            None => Ok(None),
+        }
+    }
+}
+
+fn audience_label(a: &Audience) -> &'static str {
+    match a {
+        Audience::Child => "child",
+        Audience::Adult => "adult",
+        Audience::Both => "both",
+    }
 }
 
 fn now_millis() -> i64 {
@@ -298,6 +329,57 @@ mod tests {
         let rec = r.skills.get("eng-adventure").unwrap();
         assert_eq!(rec.version, "v1.a3f9c2");
         assert_eq!(rec.audience, Audience::Child);
+    }
+
+    // Day 17 P0-5: audience_for — 拿已安装 skill 的 audience, 用于 install 前置校验
+    #[test]
+    fn audience_for_installed_returns_record_audience() {
+        let dir = tempdir().unwrap();
+        let store = SkillsStore::new(fixture(dir.path()));
+        let mut idx = InstalledIndex::default();
+        idx.skills.insert(
+            "commercial-ad".into(),
+            InstalledRecord {
+                version: "v1".into(),
+                enabled: true,
+                installed_at: 0,
+                audience: Audience::Adult,
+            },
+        );
+        store.write_index(&idx).unwrap();
+        let aud = store.audience_for("commercial-ad").unwrap();
+        assert_eq!(aud.as_deref(), Some("adult"));
+    }
+
+    // Day 17 P0-5: 未安装 + manifest.json 不存在 → 返 None (留给 manifest 验签兜底)
+    #[test]
+    fn audience_for_missing_manifest_returns_none() {
+        let dir = tempdir().unwrap();
+        let store = SkillsStore::new(fixture(dir.path()));
+        let aud = store.audience_for("not-cached-yet").unwrap();
+        assert_eq!(aud, None);
+    }
+
+    // Day 17 P0-5: 已下载但未安装的 manifest.json 也可读
+    #[test]
+    fn audience_for_cached_manifest_json() {
+        let dir = tempdir().unwrap();
+        let storage = fixture(dir.path());
+        // 模拟 list_available_skills 写过 manifest 缓存
+        let manifest_json = serde_json::json!({
+            "schema": "kidsai.skill/1",
+            "id": "doc-shortfilm",
+            "audience": "adult",
+        });
+        storage
+            .write_atomic(
+                std::path::Path::new("doc-shortfilm/manifest.json"),
+                &serde_json::to_vec(&manifest_json).unwrap(),
+            )
+            .unwrap();
+        let store = SkillsStore::new(storage);
+        let aud = store.audience_for("doc-shortfilm").unwrap();
+        assert_eq!(aud.as_deref(), Some("adult"));
     }
 
     #[test]

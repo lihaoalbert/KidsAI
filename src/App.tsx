@@ -91,6 +91,7 @@ import { initializeProjectPersistence, useProjectStore } from './stores/projectS
 import { useAgentStore } from './stores/agentStore';
 import { useTokenStore } from './stores/tokenStore';
 import { getBalance } from './api/tauri';
+import ToastHost from './components/ui/ToastHost';
 
 export type PageKey =
   | 'home'
@@ -155,9 +156,11 @@ function App() {
     const disposePersistence = initializeProjectPersistence();
     void useProjectStore.getState().refresh().then(async () => {
       if (cancelled) return;
-      const recent = useProjectStore
-        .getState()
-        .list.find((project) => project.cursor < 6);
+      // Day 17 P1-1: Studio 跨 session 自动续作 — 按 updatedAt 取最近一个项目
+      // (不再限制 cursor<6, 因为已完成项目用户也想回来再看)
+      const list = useProjectStore.getState().list;
+      if (list.length === 0) return;
+      const recent = [...list].sort((a, b) => b.updatedAt - a.updatedAt)[0];
       if (!recent) return;
       try {
         await useProjectStore.getState().open(recent.id);
@@ -263,6 +266,7 @@ function App() {
       <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
       <main className="flex-1 overflow-auto">{renderPage()}</main>
       <PetCorner onNavigate={(p) => setCurrentPage(p === 'home' ? 'home' : 'library')} />
+      <ToastHost />
     </div>
   );
 }

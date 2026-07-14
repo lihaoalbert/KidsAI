@@ -29,6 +29,7 @@ import {
 import { useAssetStore } from './assetStore';
 import { useTokenStore } from './tokenStore';
 import { useProjectStore } from './projectStore';
+import { useToastStore } from './toastStore';
 
 export type DirectorStage = 1 | 2 | 3 | 4 | 5 | 6;
 
@@ -1077,7 +1078,10 @@ ${shots
     const credits = CREDITS.PREVIEW_PER_SHOT;
     const ok = useTokenStore.getState().spendTokens(credits);
     if (!ok) {
-      set({ error: `学分不足, 拍这一镜需要 ${credits} 学分` });
+      const msg = `学分不足, 拍这一镜需要 ${credits} 学分`;
+      set({ error: msg });
+      // P1-2: 弹 toast, 不让用户在聊天流里错过
+      useToastStore.getState().push(msg, 'warn');
       return;
     }
 
@@ -1162,7 +1166,10 @@ ${shots
     const credits = CREDITS.FINALIZE;
     const ok = useTokenStore.getState().spendTokens(credits);
     if (!ok) {
-      set({ error: `学分不足, 定稿需要 ${credits} 学分` });
+      const msg = `学分不足, 定稿需要 ${credits} 学分`;
+      set({ error: msg });
+      // P1-2: 弹 toast, 不让用户在聊天流里错过
+      useToastStore.getState().push(msg, 'warn');
       return;
     }
 

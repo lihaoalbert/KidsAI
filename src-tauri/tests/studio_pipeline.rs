@@ -17,7 +17,6 @@ use kidsai_studio_lib::model_factory::select_model;
 use kidsai_studio_lib::style::builtin_styles;
 use kidsai_studio_lib::test_helpers::run_agent_with_model;
 
-
 fn key_available() -> bool {
     let _ = dotenvy::dotenv();
     std::env::var("MINIMAX_API_KEY")
@@ -37,7 +36,10 @@ fn builtin_assets_seeded_for_studio_dispatchers() {
     // 每个角色必须有 id + name 让前端 OptionCard 能拼
     for c in &chars {
         assert!(!c.id.is_empty(), "character id required");
-        assert!(!c.name.is_empty(), "character name required for OptionCard label");
+        assert!(
+            !c.name.is_empty(),
+            "character name required for OptionCard label"
+        );
     }
 
     // 阶段3 画风候选: studioStore.handleAction('style::...') 拉到风格卡
@@ -49,7 +51,10 @@ fn builtin_assets_seeded_for_studio_dispatchers() {
     );
     for s in &styles {
         assert!(!s.id.is_empty(), "style id required");
-        assert!(!s.name.is_empty(), "style name required for OptionCard label");
+        assert!(
+            !s.name.is_empty(),
+            "style name required for OptionCard label"
+        );
     }
 }
 
@@ -204,8 +209,7 @@ fn save_creation_round_trip_for_studio_completion() {
     // 直接走 Db insert（绕开 Tauri 命令的 State 入参）
     // 实际 production: save_creation 会用同样的 Db 调用, 只不过带着 State<'_, Db> 注入
     let agent_output_str =
-        serde_json::to_string(&serde_json::json!({"title":"喷火龙的冒险","shots":3}))
-            .unwrap();
+        serde_json::to_string(&serde_json::json!({"title":"喷火龙的冒险","shots":3})).unwrap();
     db.insert_creation(&InsertCreation {
         creation_id: "studio_smoke_001",
         level_id: "director",
@@ -232,9 +236,7 @@ fn save_creation_round_trip_for_studio_completion() {
     let rows = db.list_creations(Some("director")).expect("list creations");
     let found = rows.iter().find(|r| r.id == "studio_smoke_001");
     assert!(found.is_some(), "studio smoke creation should be listed");
-    let assets_back = db
-        .list_assets("studio_smoke_001")
-        .expect("list assets");
+    let assets_back = db.list_assets("studio_smoke_001").expect("list assets");
     assert_eq!(assets_back.len(), 1);
     assert_eq!(assets_back[0].kind, "video");
 

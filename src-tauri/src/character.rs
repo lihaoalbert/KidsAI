@@ -69,17 +69,14 @@ pub fn builtin_characters() -> Vec<Character> {
         Character {
             id: "xiaoqi".into(),
             name: "小启".into(),
-            description: "一个9岁的好奇小猫女孩，黄色短发、穿黄色T恤、戴小围巾、眼睛又大又亮".into(),
+            description: "一个9岁的好奇小猫女孩，黄色短发、穿黄色T恤、戴小围巾、眼睛又大又亮"
+                .into(),
             style_tags: vec!["cartoon".into(), "child_friendly".into()],
             reference_image_url: Some("https://picsum.photos/seed/xiaoqi-ref/512/512".into()),
             // W4.6 #2: 首进 studio 后, 后端检测 None 自动调 image-01 生成三视图并回填.
             standard_image_url: None,
             // W4.6 #2: 别名清单 (第 1 个基准, 后 2 个 LLM 应优先用, 防止 drift).
-            aliases: Some(vec![
-                "小启".into(),
-                "小启猫".into(),
-                "XiaoQi".into(),
-            ]),
+            aliases: Some(vec!["小启".into(), "小启猫".into(), "XiaoQi".into()]),
         },
         Character {
             id: "xiaoyue".into(),
@@ -88,11 +85,7 @@ pub fn builtin_characters() -> Vec<Character> {
             style_tags: vec!["cartoon".into(), "child_friendly".into()],
             reference_image_url: Some("https://picsum.photos/seed/xiaoyue-ref/512/512".into()),
             standard_image_url: None,
-            aliases: Some(vec![
-                "小月".into(),
-                "小月儿".into(),
-                "XiaoYue".into(),
-            ]),
+            aliases: Some(vec!["小月".into(), "小月儿".into(), "XiaoYue".into()]),
         },
         Character {
             id: "xiaoxing".into(),
@@ -101,11 +94,7 @@ pub fn builtin_characters() -> Vec<Character> {
             style_tags: vec!["cartoon".into(), "child_friendly".into()],
             reference_image_url: Some("https://picsum.photos/seed/xiaoxing-ref/512/512".into()),
             standard_image_url: None,
-            aliases: Some(vec![
-                "小星".into(),
-                "星仔".into(),
-                "XiaoXing".into(),
-            ]),
+            aliases: Some(vec!["小星".into(), "星仔".into(), "XiaoXing".into()]),
         },
     ]
 }
@@ -295,9 +284,21 @@ mod tests {
         let out = inject_character_into_image_args(args, &c);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let prompt = v["prompt"].as_str().unwrap();
-        assert!(prompt.contains("花园里玩"), "original prompt preserved: {}", prompt);
-        assert!(prompt.contains("小启"), "character name injected: {}", prompt);
-        assert!(prompt.contains("黄发女孩"), "character description injected: {}", prompt);
+        assert!(
+            prompt.contains("花园里玩"),
+            "original prompt preserved: {}",
+            prompt
+        );
+        assert!(
+            prompt.contains("小启"),
+            "character name injected: {}",
+            prompt
+        );
+        assert!(
+            prompt.contains("黄发女孩"),
+            "character description injected: {}",
+            prompt
+        );
         // 其他字段不动
         assert_eq!(v["style"], "cartoon");
     }
@@ -370,7 +371,10 @@ mod tests {
                 url.contains(&c.id),
                 "reference_image_url 应基于角色 id 命名,got: {url}"
             );
-            assert!(url.contains("picsum.photos/seed/"), "应为 picsum 占位 URL,got: {url}");
+            assert!(
+                url.contains("picsum.photos/seed/"),
+                "应为 picsum 占位 URL,got: {url}"
+            );
         }
     }
 
@@ -397,7 +401,10 @@ mod tests {
         let out = inject_character_into_video_args(args, &c);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         // 没有 ref_url → 不强写 image_url
-        assert!(v.get("image_url").is_none(), "无 ref_url 不应注入 image_url");
+        assert!(
+            v.get("image_url").is_none(),
+            "无 ref_url 不应注入 image_url"
+        );
         // motion 仍追加了角色描述
         let motion = v["motion"].as_str().unwrap();
         assert!(motion.contains("小猫跳跃"));
@@ -487,7 +494,8 @@ mod tests {
         // 初始 None
         assert!(reg.get("x").unwrap().standard_image_url.is_none());
         // 回填
-        reg.set_standard_image_url("x", "https://e/stand.png").unwrap();
+        reg.set_standard_image_url("x", "https://e/stand.png")
+            .unwrap();
         let updated = reg.get("x").unwrap();
         assert_eq!(
             updated.standard_image_url.as_deref(),

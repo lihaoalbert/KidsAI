@@ -1,8 +1,8 @@
 // Agent 流式 + 取消集成测试（W3.2）
 // 验证 SSE chunks 发射 + Arc<AtomicBool> 取消信号
 
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 use std::time::Duration;
 
 use kidsai_studio_lib::agent::{AgentRunRequest, SessionRegistry};
@@ -103,7 +103,11 @@ async fn cancel_mid_stream_emits_cancelled_event() {
         .expect("run should return Ok with cancelled=true");
 
     // 收到的 chunk 应该少于 5（被中途打断了）
-    let chunk_count = sink.kinds().iter().filter(|k| k.as_str() == "chunk").count();
+    let chunk_count = sink
+        .kinds()
+        .iter()
+        .filter(|k| k.as_str() == "chunk")
+        .count();
     assert!(
         chunk_count < 5,
         "expected cancel to interrupt stream, got {} chunks",
@@ -208,10 +212,18 @@ async fn tool_call_produces_no_chunks() {
         .await
         .expect("run should succeed");
 
-    let chunk_count = sink.kinds().iter().filter(|k| k.as_str() == "chunk").count();
+    let chunk_count = sink
+        .kinds()
+        .iter()
+        .filter(|k| k.as_str() == "chunk")
+        .count();
     assert_eq!(chunk_count, 0, "tool calls should not emit chunks");
     assert!(!result.cancelled);
     // 工具执行了，所以有 image 资产
     let kinds: Vec<&str> = result.assets.iter().map(|a| a.kind.as_str()).collect();
-    assert!(kinds.contains(&"image"), "should have image asset, got {:?}", kinds);
+    assert!(
+        kinds.contains(&"image"),
+        "should have image asset, got {:?}",
+        kinds
+    );
 }

@@ -71,8 +71,15 @@ async fn real_minimax_l1_full_loop() {
     // 2. 产出非空 final_answer
     // 3. 用真实 token（>100 = 至少调了一次推理）
     // 4. 调过至少一个工具（证明 tool calling 接通了）
-    assert!(result.steps >= 1, "should run at least 1 step (got {})", result.steps);
-    assert!(!result.final_answer.is_empty(), "should produce final answer");
+    assert!(
+        result.steps >= 1,
+        "should run at least 1 step (got {})",
+        result.steps
+    );
+    assert!(
+        !result.final_answer.is_empty(),
+        "should produce final answer"
+    );
     assert!(
         !result.tool_calls.is_empty(),
         "real LLM should call at least one tool, got 0"

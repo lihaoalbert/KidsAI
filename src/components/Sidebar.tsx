@@ -15,7 +15,6 @@ interface NavItem {
 
 const navItems: NavItem[] = [
   { key: 'home', label: '课程中心', icon: '🏠' },
-  { key: 'workshop', label: '作品工坊', icon: '🎨' },
   { key: 'library', label: '作品库', icon: '📚' },
   { key: 'studio', label: '视频创作', icon: '🎬' },
   { key: 'agent', label: '我的 Agent', icon: '🤖' },

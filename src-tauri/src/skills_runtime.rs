@@ -158,6 +158,7 @@ mod tests {
             size_bytes: 1000,
             publisher_signature: "sig".into(),
             publisher_pubkey_id: "kidsai-dev".into(),
+            stages: vec![],
         }
     }
 

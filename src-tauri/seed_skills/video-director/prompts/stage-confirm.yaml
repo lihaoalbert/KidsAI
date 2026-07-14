@@ -1,0 +1,66 @@
+# video-director / stage-confirm.yaml
+# 红线 7: Stage 确认协议
+# 每个 stage 转换前必须 publish KernelEvent::StageAwaitingConfirm,
+# UI 必须渲染"我确认"按钮. 内核不替用户决策.
+
+protocol:
+  version: 1
+  red_line: 7
+
+stages:
+  - id: stage-1-spine
+    confirm_message: "故事定下来了吗? 我们继续选角色?"
+    default_action: wait_for_user
+    ai_behavior:
+      on_no: 追问更多细节, 提供选项
+      on_yes: 保存到 MemoryBus + 进入 stage-2
+      forbidden: 替孩子决定核心冲突
+
+  - id: stage-2-character
+    confirm_message: "这个角色对吗?"
+    default_action: wait_for_user
+    ai_behavior:
+      on_no: 重新选
+      on_yes: 保存到 MemoryBus + 进入 stage-3
+      forbidden: 替孩子选角色
+
+  - id: stage-3-style
+    confirm_message: "画风定下来了吗?"
+    default_action: wait_for_user
+    ai_behavior:
+      on_no: 看更多预览
+      on_yes: 保存到 MemoryBus + 进入 stage-4
+      forbidden: AI 替孩子选画风
+
+  - id: stage-4-storyboard
+    confirm_message: "分镜可以了吗? 还是想改?"
+    default_action: wait_for_user
+    ai_behavior:
+      on_no: 帮孩子细化某个镜头
+      on_yes: 进入 stage-5 逐镜头生成
+      forbidden: 替孩子切镜头
+
+  - id: stage-5-preview
+    confirm_message: "这个镜头效果怎么样?"
+    default_action: wait_for_user
+    ai_behavior:
+      on_no: 调提示词重生成 (红线 9: 不能直接改图, 必须重生成)
+      on_yes: 进入下一个镜头 / stage-6
+      forbidden: 偷偷替孩子接受默认结果
+
+  - id: stage-6-render
+    confirm_message: "开始合成?"
+    default_action: wait_for_user
+    ai_behavior:
+      on_yes: 触发 render 工具
+      forbidden: 不自动触发
+
+events:
+  - on_stage_enter: KernelEvent::StageAwaitingConfirm { skill_id: "video-director", stage: "{stage_id}" }
+  - on_user_confirm: KernelEvent::UserMessage { text: "confirm {stage_id}", sender: "{user_id}" }
+  - on_render_done: KernelEvent::AssetCreated { asset_id: "{video_id}", kind: "video", url: "{url}" }
+
+ui_requirement: |
+  每个 stage 必须有"我确认"按钮 + "我想改"按钮.
+  没有确认按钮 = 红线违规 = 整个 skill 被 disable.
+  测试覆盖: kernel/skill_loader.test.rs 的 mode_switch_unmounts_child_skill_in_adult.

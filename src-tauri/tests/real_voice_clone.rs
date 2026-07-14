@@ -66,5 +66,9 @@ fn real_minimax_voice_clone_pipeline() {
 
     assert_eq!(asset.provider, "minimax");
     assert!(!asset.voice_id.is_empty(), "voice_id should be non-empty");
-    assert!(asset.voice_id.len() >= 8, "voice_id too short: {}", asset.voice_id);
+    assert!(
+        asset.voice_id.len() >= 8,
+        "voice_id too short: {}",
+        asset.voice_id
+    );
 }

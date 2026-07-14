@@ -1,0 +1,55 @@
+# video-director / spine.yaml
+# 7 维故事骨架 — 9 岁/16 岁/创作者 都用同一套骨架, 由内核把控,
+# skill 自己决定怎么呈现 (kid = 大色块 card, pro = 单字段 input)
+
+fields:
+  - key: core
+    label: 内核
+    emoji: "✨"
+    type: text
+    placeholder: "勇气 / 友情 / 成长..."
+    hint: "故事最想讲的东西"
+  - key: conflict
+    label: 冲突
+    emoji: "⚡"
+    type: text
+    placeholder: "主角 vs 什么"
+    hint: "故事的张力"
+  - key: world
+    label: 世界观
+    emoji: "🌍"
+    type: text
+    placeholder: "火山世界 / 现代都市 / 太空站..."
+  - key: tone
+    label: 调性
+    emoji: "🎭"
+    type: cycle
+    options:
+      - { value: playful,  label: "🎈 欢乐" }
+      - { value: epic,     label: "⚔️ 史诗" }
+      - { value: healing,  label: "🌸 治愈" }
+      - { value: comedy,   label: "😄 喜剧" }
+      - { value: mystery,  label: "🔮 神秘" }
+      - { value: serious,  label: "🎯 严肃" }
+      - { value: romantic, label: "💕 浪漫" }
+  - key: audience
+    label: 适龄
+    emoji: "👶"
+    type: text
+    placeholder: "6-9 / 10-13 / 14+"
+  - key: theme_color
+    label: 主色
+    emoji: "🎨"
+    type: text
+    placeholder: "暖橙 / 冷蓝 / 莫兰迪..."
+  - key: ending_moral
+    label: 寓意
+    emoji: "🌟"
+    type: text
+    placeholder: "结尾想留下什么"
+
+ui_renderer: StoryStateGrid
+red_line: 7
+note: |
+  每字段必须 inline 编辑, 不能用 window.prompt (4-persona 4/4 反对).
+  Stage 4 是 skill 自己的 UI 渲染, 内核不替 skill 决定怎么呈现.

@@ -20,7 +20,9 @@ pub fn list_levels() -> Vec<Level> {
 
 #[tauri::command]
 pub fn get_level(id: String) -> Option<Level> {
-    crate::content::builtin_levels().into_iter().find(|l| l.id == id)
+    crate::content::builtin_levels()
+        .into_iter()
+        .find(|l| l.id == id)
 }
 
 #[tauri::command]
@@ -30,7 +32,8 @@ pub fn list_progress(db: State<'_, Db>) -> Result<Vec<LevelProgress>, String> {
 
 #[tauri::command]
 pub fn start_level(id: String, db: State<'_, Db>) -> Result<LevelProgress, String> {
-    db.upsert_progress_in_progress(&id).map_err(|e| e.to_string())
+    db.upsert_progress_in_progress(&id)
+        .map_err(|e| e.to_string())
 }
 
 #[tauri::command]
@@ -44,7 +47,9 @@ pub fn submit_level(
     if score > 100 {
         return Err("score must be 0-100".to_string());
     }
-    let progress = db.mark_completed(&level_id, score).map_err(|e| e.to_string())?;
+    let progress = db
+        .mark_completed(&level_id, score)
+        .map_err(|e| e.to_string())?;
     eprintln!(
         "[submit_level] {} score={} rubric={:?} feedback={}",
         level_id, score, rubric, feedback

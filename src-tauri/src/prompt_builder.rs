@@ -144,8 +144,12 @@ pub fn camera_to_seedance(camera: &ShotCamera) -> &'static str {
 pub fn mood_to_motion(mood: &ShotMood) -> &'static str {
     match mood {
         ShotMood::Calm => "gentle motion, slow pace, subject moves less than half body length",
-        ShotMood::Tense => "deliberate motion, medium pace, micro-expressions emphasized, restrained gestures",
-        ShotMood::Joyful => "bouncy motion, energetic pace, subject moves freely with bouncy gestures",
+        ShotMood::Tense => {
+            "deliberate motion, medium pace, micro-expressions emphasized, restrained gestures"
+        }
+        ShotMood::Joyful => {
+            "bouncy motion, energetic pace, subject moves freely with bouncy gestures"
+        }
         ShotMood::Sad => "very slow motion, low energy, heavy gestures, downward head tilt",
         ShotMood::Epic => "dramatic motion, dynamic pace, action-driven with strong visual impact",
     }
@@ -155,7 +159,9 @@ pub fn mood_to_motion(mood: &ShotMood) -> &'static str {
 /// 借鉴工业版横屏短剧指令的"光影逻辑"维度, 简化版 (去掉 IRE/Hue/K 色温参数)
 pub fn lighting_for_time_of_day(time_of_day: &str) -> &'static str {
     match time_of_day {
-        "golden_hour" | "afternoon" => "golden hour warm rim light, long soft shadows, warm palette",
+        "golden_hour" | "afternoon" => {
+            "golden hour warm rim light, long soft shadows, warm palette"
+        }
         "morning" => "soft morning light, gentle warm fill, low contrast, pastel palette",
         "night" | "moonlit" => "moonlit cool blue rim light, soft volumetric fog, deep contrast",
         "rainy" | "cloudy" => "overcast diffused light, soft shadows, cool desaturated palette",
@@ -182,7 +188,14 @@ pub fn replace_pronouns(text: &str, full_name: &str) -> String {
 
     // 英文代词 (大小写不敏感简化处理)
     let lower = result.to_lowercase();
-    let en_pronouns = ["the character", "the protagonist", "she", "he", "they", "it"];
+    let en_pronouns = [
+        "the character",
+        "the protagonist",
+        "she",
+        "he",
+        "they",
+        "it",
+    ];
     for p in &en_pronouns {
         if lower.contains(p) {
             // 用 lowercase 找到后, 在原 result 里替换 (简化: 全局 lowercase replace)
@@ -322,11 +335,9 @@ mod tests {
     fn sample_character() -> CharacterAsset {
         CharacterAsset {
             id: "xiaolong".into(),
-            full_name: "小恐龙 (a green cartoon dinosaur with big eyes and a yellow scarf)"
-                .into(),
+            full_name: "小恐龙 (a green cartoon dinosaur with big eyes and a yellow scarf)".into(),
             style_tags: vec!["cartoon".into(), "child_friendly".into()],
-            standard_image_url: "https://assets.kids.ibi.ren/character/xiaolong.stand.png"
-                .into(),
+            standard_image_url: "https://assets.kids.ibi.ren/character/xiaolong.stand.png".into(),
             side_image_url: None,
             back_image_url: None,
         }
@@ -458,7 +469,10 @@ mod tests {
             12345,
             &PromptOptions::default(),
         );
-        assert!(!p.contains("[Negative]"), "Seedance 2.0 默认不应有 [Negative] 行");
+        assert!(
+            !p.contains("[Negative]"),
+            "Seedance 2.0 默认不应有 [Negative] 行"
+        );
         assert!(!p.contains("no camera shake"), "默认不注入负面关键词");
     }
 
@@ -500,7 +514,8 @@ mod tests {
         assert!(p.contains("Use seed: 12345"));
         // 标准图 URL 出现 2 次 (first_frame + reference_image)
         assert_eq!(
-            p.matches("https://assets.kids.ibi.ren/character/xiaolong.stand.png").count(),
+            p.matches("https://assets.kids.ibi.ren/character/xiaolong.stand.png")
+                .count(),
             2
         );
     }
@@ -634,16 +649,28 @@ mod tests {
             1,
             &opts,
         );
-        assert!(p.contains("[Duration] 10 seconds"), "duration_secs 应注入到 [Duration] 行");
+        assert!(
+            p.contains("[Duration] 10 seconds"),
+            "duration_secs 应注入到 [Duration] 行"
+        );
     }
 
     // ─── 12. PromptOptions::default 值符合预期 ────────────
     #[test]
     fn prompt_options_default_values() {
         let opts = PromptOptions::default();
-        assert_eq!(opts.negative_prompt, None, "Seedance 2.0 默认不输出 Negative");
-        assert_eq!(opts.duration_secs, DEFAULT_DURATION_SECS, "默认 5s 跟 video_adapter 对齐");
-        assert!(opts.hard_anchor, "默认开启硬锚, 调研证明对 Seedance 2.0 角色一致性至关重要");
+        assert_eq!(
+            opts.negative_prompt, None,
+            "Seedance 2.0 默认不输出 Negative"
+        );
+        assert_eq!(
+            opts.duration_secs, DEFAULT_DURATION_SECS,
+            "默认 5s 跟 video_adapter 对齐"
+        );
+        assert!(
+            opts.hard_anchor,
+            "默认开启硬锚, 调研证明对 Seedance 2.0 角色一致性至关重要"
+        );
     }
 
     // ─── 10. 时段 → 光影 ─────────────────────────────────
@@ -659,7 +686,6 @@ mod tests {
 
     #[test]
     fn lighting_unknown_is_default() {
-        assert!(lighting_for_time_of_day("never_heard_of_this")
-            .contains("natural soft daylight"));
+        assert!(lighting_for_time_of_day("never_heard_of_this").contains("natural soft daylight"));
     }
 }

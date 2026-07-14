@@ -16,10 +16,8 @@
 //
 // 需要时间: 30s - 3min (Seedance 轮询 + 视频生成).
 
-use kidsai_studio_lib::license_client::{
-    LicenseClient, RecordSpendResponse,
-};
-use kidsai_studio_lib::video_adapter::{VideoGenArgs, select_video_adapter};
+use kidsai_studio_lib::license_client::{LicenseClient, RecordSpendResponse};
+use kidsai_studio_lib::video_adapter::{select_video_adapter, VideoGenArgs};
 
 const FIXED_FP: &str = "fp-real-seedance-smoke-aaaaaaaa"; // 固定指纹 → activate 幂等
 const NICKNAME: &str = "seedance-smoke";
@@ -61,7 +59,11 @@ async fn real_seedance_end_to_end_via_license() {
         act.api_keys.video.len(),
     );
     assert!(!act.license_token.is_empty(), "license_token empty");
-    assert!(act.balance >= 19, "balance {} < 19 video_final cost", act.balance);
+    assert!(
+        act.balance >= 19,
+        "balance {} < 19 video_final cost",
+        act.balance
+    );
 
     // ---- 步骤 2: admin grant +50, 防止 daily_quota 用完 (90 学币) ----
     let grant: serde_json::Value = admin_http
@@ -130,14 +132,23 @@ async fn real_seedance_end_to_end_via_license() {
 
     // ---- 步骤 5: 上报 spend (cost video_final = 19 学币) ----
     let spend: RecordSpendResponse = license
-        .record_spend(&act.license_token, &format!("seedance-smoke-{}", video.provider_task_id), "video_final", 1)
+        .record_spend(
+            &act.license_token,
+            &format!("seedance-smoke-{}", video.provider_task_id),
+            "video_final",
+            1,
+        )
         .await
         .expect("record_spend http");
     eprintln!(
         "[5/6] record_spend → accepted={} cost={} balanceAfter={}",
         spend.accepted, spend.cost, spend.balance_after
     );
-    assert!(spend.accepted, "spend 应 accepted, rejected_reason={:?}", spend.rejected_reason);
+    assert!(
+        spend.accepted,
+        "spend 应 accepted, rejected_reason={:?}",
+        spend.rejected_reason
+    );
     assert_eq!(spend.cost, 19, "video_final cost=19");
     assert_eq!(spend.balance_after, balance_before - 19);
 

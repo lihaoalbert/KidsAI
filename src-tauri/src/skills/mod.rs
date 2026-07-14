@@ -90,6 +90,21 @@ pub struct SkillManifestFull {
     /// base64(RSA-PSS-SHA256 over canonical = manifest minus this field)
     pub publisher_signature: String,
     pub publisher_pubkey_id: String,
+    /// 内核 Day 9-10 扩展: stages (UI 阶段声明). 老的 manifest 没有这字段也能解析.
+    #[serde(default)]
+    pub stages: Vec<SkillStage>,
+}
+
+/// 内核 Day 9 第一刀: skill 声明的 UI 阶段 (Director 6 阶段等).
+/// 红线 7: requires_confirm=true 是必须的.
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct SkillStage {
+    pub id: String,
+    pub name: String,
+    pub ui: String,
+    /// 红线 7: 每阶段必须有"我确认"按钮.
+    #[serde(default)]
+    pub requires_confirm: bool,
 }
 
 #[derive(Debug, Clone, Serialize, Deserialize)]

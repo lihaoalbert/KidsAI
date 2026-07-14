@@ -4,9 +4,9 @@
 //
 // W3.2: 改 async streaming；支持 MockConfig 注入 chunks / 取消行为
 
+use std::sync::atomic::{AtomicBool, Ordering};
 use std::sync::Arc;
 use std::sync::Mutex;
-use std::sync::atomic::{AtomicBool, Ordering};
 use std::time::Duration;
 
 use async_trait::async_trait;
@@ -286,11 +286,7 @@ fn plan_step(
     )
 }
 
-fn build_final_answer(
-    level_id: Option<&str>,
-    user_input: &str,
-    asset_desc: &str,
-) -> String {
+fn build_final_answer(level_id: Option<&str>, user_input: &str, asset_desc: &str) -> String {
     let n = level_id.unwrap_or("关卡");
     format!(
         "🎉 太棒啦！你在「{}」做出了自己的「{}」！\n\n你写的：\"{}\"\n\n下次可以试试：让画面更具体（颜色 / 数量 / 场景），效果会更好哦～",

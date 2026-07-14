@@ -1,0 +1,3 @@
+blocked: ["csam", "cp", "child sexual", "real-world doxxing"]
+warn: []
+max_len: 20000

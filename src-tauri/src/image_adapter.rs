@@ -28,7 +28,7 @@ pub struct ImageGenArgs {
 #[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct ImageAsset {
     pub url: String,
-    pub provider: String,  // "minimax" | "mock"
+    pub provider: String, // "minimax" | "mock"
     pub provider_task_id: String,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
@@ -79,7 +79,12 @@ impl MiniMaxImageAdapter {
             .timeout(Duration::from_secs(HTTP_TIMEOUT_SECS))
             .build()
             .expect("reqwest client should build");
-        Self { base_url, api_key, model, client }
+        Self {
+            base_url,
+            api_key,
+            model,
+            client,
+        }
     }
 
     fn build_request_body(&self, args: &ImageGenArgs) -> serde_json::Value {
@@ -127,7 +132,12 @@ impl ImageAdapter for MiniMaxImageAdapter {
             .and_then(|arr| arr.first())
             .and_then(|item| item.get("url"))
             .and_then(|v| v.as_str())
-            .ok_or_else(|| format!("image_generation: missing data[0].url, body={}", truncate(&body_text, 200)))?;
+            .ok_or_else(|| {
+                format!(
+                    "image_generation: missing data[0].url, body={}",
+                    truncate(&body_text, 200)
+                )
+            })?;
         let task_id = parsed
             .get("created")
             .map(|v| v.to_string())
@@ -195,10 +205,12 @@ mod tests {
     #[test]
     fn mock_returns_picsum_url() {
         let a = MockImageAdapter;
-        let out = a.generate(&ImageGenArgs {
-            prompt: "hello".into(),
-            aspect_ratio: None,
-        }).unwrap();
+        let out = a
+            .generate(&ImageGenArgs {
+                prompt: "hello".into(),
+                aspect_ratio: None,
+            })
+            .unwrap();
         assert_eq!(out.provider, "mock");
         assert!(out.url.contains("picsum.photos/seed/"));
     }
@@ -220,11 +232,7 @@ mod tests {
 
     #[test]
     fn minimax_request_body_shape() {
-        let a = MiniMaxImageAdapter::new(
-            "http://unused".into(),
-            "k".into(),
-            "image-01".into(),
-        );
+        let a = MiniMaxImageAdapter::new("http://unused".into(), "k".into(), "image-01".into());
         let body = a.build_request_body(&ImageGenArgs {
             prompt: "kitten".into(),
             aspect_ratio: Some("16:9".into()),
@@ -238,11 +246,7 @@ mod tests {
 
     #[test]
     fn minimax_default_aspect_is_1x1() {
-        let a = MiniMaxImageAdapter::new(
-            "http://unused".into(),
-            "k".into(),
-            "image-01".into(),
-        );
+        let a = MiniMaxImageAdapter::new("http://unused".into(), "k".into(), "image-01".into());
         let body = a.build_request_body(&ImageGenArgs {
             prompt: "x".into(),
             aspect_ratio: None,
@@ -260,10 +264,12 @@ mod tests {
             .with_body(r#"{"data":[{"url":"https://cdn.example.com/abc.png"}],"created":1234567}"#)
             .create();
         let a = MiniMaxImageAdapter::new(server.url(), "k".into(), "image-01".into());
-        let out = a.generate(&ImageGenArgs {
-            prompt: "kitten".into(),
-            aspect_ratio: None,
-        }).expect("ok");
+        let out = a
+            .generate(&ImageGenArgs {
+                prompt: "kitten".into(),
+                aspect_ratio: None,
+            })
+            .expect("ok");
         m.assert();
         assert_eq!(out.url, "https://cdn.example.com/abc.png");
         assert_eq!(out.provider, "minimax");
@@ -278,15 +284,14 @@ mod tests {
             .with_status(401)
             .with_body(r#"{"error":{"code":"Authentication","message":"bad key"}}"#)
             .create();
-        let a = MiniMaxImageAdapter::new(
-            server.url(),
-            "super-secret-key".into(),
-            "image-01".into(),
-        );
-        let err = a.generate(&ImageGenArgs {
-            prompt: "x".into(),
-            aspect_ratio: None,
-        }).unwrap_err();
+        let a =
+            MiniMaxImageAdapter::new(server.url(), "super-secret-key".into(), "image-01".into());
+        let err = a
+            .generate(&ImageGenArgs {
+                prompt: "x".into(),
+                aspect_ratio: None,
+            })
+            .unwrap_err();
         assert!(err.contains("HTTP 401"));
         assert!(!err.contains("super-secret-key"), "key leaked: {err}");
     }
@@ -297,13 +302,15 @@ mod tests {
         server
             .mock("POST", "/image_generation")
             .with_status(200)
-            .with_body(r#"{"data":[]}"#)  // 空 data 数组
+            .with_body(r#"{"data":[]}"#) // 空 data 数组
             .create();
         let a = MiniMaxImageAdapter::new(server.url(), "k".into(), "image-01".into());
-        let err = a.generate(&ImageGenArgs {
-            prompt: "x".into(),
-            aspect_ratio: None,
-        }).unwrap_err();
+        let err = a
+            .generate(&ImageGenArgs {
+                prompt: "x".into(),
+                aspect_ratio: None,
+            })
+            .unwrap_err();
         assert!(err.contains("missing"), "got: {err}");
     }
 }

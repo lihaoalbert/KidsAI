@@ -1,0 +1,56 @@
+# video-director / camera.yaml
+# Seedance 七域镜头翻译 — 之前 hardcode 在 prompt_builder.rs,
+# Day 9 起注入到 skill.video-director, 内核不再硬编码这层.
+
+mappings:
+  - camera: Wide
+    seedance: "establishing shot, wide angle, full scene visible, deep depth of field"
+    description: "大全景, 交代环境"
+  - camera: Medium
+    seedance: "medium shot, character from waist up, balanced framing"
+    description: "中景, 人物半身"
+  - camera: Close
+    seedance: "close-up shot, character's face fills frame, shallow depth of field"
+    description: "特写, 人物脸部"
+  - camera: Extreme
+    seedance: "extreme close-up, macro detail, eyes or hands filling frame"
+    description: "极特写, 眼睛/手"
+  - camera: Follow
+    seedance: "tracking shot, camera follows subject in motion, smooth dolly"
+    description: "跟随, 主角运动"
+  - camera: POV
+    seedance: "first-person POV, subject's eye view, immersive"
+    description: "主观视角"
+  - camera: Aerial
+    seedance: "aerial drone shot, bird's eye view, sweeping landscape"
+    description: "俯视航拍"
+
+motion_mappings:
+  - mood: Calm
+    motion: "slow gentle drift, soft motion, peaceful pacing"
+  - mood: Action
+    motion: "dynamic action motion, fast-paced, energetic"
+  - mood: Dramatic
+    motion: "intense dramatic motion, slow build to climax"
+  - mood: Playful
+    motion: "bouncy playful motion, lighthearted, fun"
+  - mood: Mysterious
+    motion: "creeping mysterious motion, suspenseful, slow reveal"
+
+lighting_mappings:
+  - time: morning
+    lighting: "soft morning light, golden hour warmth, gentle shadows"
+  - time: noon
+    lighting: "bright midday sun, sharp shadows, high contrast"
+  - time: evening
+    lighting: "warm sunset glow, long shadows, orange-pink sky"
+  - time: night
+    lighting: "moonlit night, deep blues, soft ambient glow"
+  - time: default
+    lighting: "balanced natural lighting, neutral tones"
+
+negative_prompt: "no camera shake, no extra limbs, no extra digits, no text, no watermark, no logo, no sudden zoom, no color flicker, no facial distortion, no mirror flip, no anatomical deformity"
+
+# 红线 7 关联: 这些是 seedance 翻译结果, 由 skill.video-director 注入到 system_prompt.
+# 内核 (prompt_builder.rs) 不再 hardcode 这套表, 改查 skill.
+# 红线 9 关联: skill 装的版本变了 → camera 翻译自动变, 不需要重发版.

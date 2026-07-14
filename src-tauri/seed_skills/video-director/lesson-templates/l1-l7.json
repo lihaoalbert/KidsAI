@@ -1,0 +1,153 @@
+{
+  "$schema": "kidsai.lesson-template/1",
+  "_note": "Day 11-12 第一刀后续: L1-L7 关卡数据从 levelStore 删除, 转成 video-director skill 的提示词模板. 9 岁小月打开 director 时看到这 7 个模板, 选哪个就哪个的骨架.",
+  "_red_line": 8,
+  "_red_line_explanation": "删 L1-L7 必须立刻补 skill 钩子, 否则 16+/35+/28+ 同时流失. 这 7 个模板是钩子.",
+
+  "templates": [
+    {
+      "id": "L1",
+      "title": "我的第一个 AI 视频",
+      "emoji": "🎬",
+      "description": "一句话生成 5 秒视频, 认识 AI 视频创作",
+      "target_age": "8-10",
+      "core": "好奇心",
+      "spine_skeleton": {
+        "core": "探索",
+        "conflict": "我 vs 不了解",
+        "tone": "playful",
+        "ending_moral": "试一试就有可能"
+      },
+      "scene_prompts": [
+        "开场: 小主角拿起相机, 充满好奇",
+        "中间: 对着镜头说一句话, AI 生成对应的画面",
+        "结尾: 看到自己做的视频, 露出惊喜表情"
+      ],
+      "credits_per_use": 5,
+      "difficulty": 1
+    },
+    {
+      "id": "L2",
+      "title": "想一个故事",
+      "emoji": "📖",
+      "description": "用 AI 帮你写一段有趣的小故事",
+      "target_age": "8-10",
+      "core": "想象力",
+      "spine_skeleton": {
+        "core": "友情",
+        "conflict": "朋友间的误会",
+        "tone": "playful",
+        "ending_moral": "沟通能化解误会"
+      },
+      "scene_prompts": [
+        "开场: 两个小伙伴在公园相遇",
+        "中间: 因为一件小事产生误会",
+        "结尾: 他们互相说出心里话, 和好如初"
+      ],
+      "credits_per_use": 5,
+      "difficulty": 1
+    },
+    {
+      "id": "L3",
+      "title": "画一只小猫",
+      "emoji": "🎨",
+      "description": "用提示词生成一张专属小猫插画",
+      "target_age": "8-10",
+      "core": "审美表达",
+      "spine_skeleton": {
+        "core": "独一无二的伙伴",
+        "tone": "healing"
+      },
+      "scene_prompts": [
+        "开场: 小主角望着窗外, 想养一只小猫",
+        "中间: 描述自己想象中的小猫 (颜色/性格/动作)",
+        "结尾: AI 生成小猫图, 小主角抱起它"
+      ],
+      "credits_per_use": 5,
+      "difficulty": 2
+    },
+    {
+      "id": "L4",
+      "title": "小猫动起来",
+      "emoji": "🎬",
+      "description": "把静态图片变成 5 秒动画",
+      "target_age": "10-13",
+      "core": "让作品活起来",
+      "spine_skeleton": {
+        "core": "创造",
+        "tone": "playful"
+      },
+      "scene_prompts": [
+        "开场: 静止的小猫插画",
+        "中间: 小猫眨眼, 动一下尾巴",
+        "结尾: 小猫回头看镜头, 仿佛认识你"
+      ],
+      "credits_per_use": 8,
+      "difficulty": 2
+    },
+    {
+      "id": "L5",
+      "title": "故事配图",
+      "emoji": "📚",
+      "description": "用 AI 给故事自动配上 3 张插图",
+      "target_age": "10-13",
+      "core": "图文结合",
+      "spine_skeleton": {
+        "core": "故事感",
+        "tone": "epic"
+      },
+      "scene_prompts": [
+        "开场: 故事标题页",
+        "中间: 故事的三个关键时刻插图",
+        "结尾: 故事结局 + 寓意"
+      ],
+      "credits_per_use": 10,
+      "difficulty": 3
+    },
+    {
+      "id": "L6",
+      "title": "做一段预告片",
+      "emoji": "🎞️",
+      "description": "把视频片段 + 文字组合成预告片",
+      "target_age": "14-16",
+      "core": "剪辑感",
+      "spine_skeleton": {
+        "core": "节奏",
+        "tone": "epic"
+      },
+      "scene_prompts": [
+        "开场: 黑屏 + 标题字幕",
+        "中间: 3 个高潮片段快速切换",
+        "结尾: 主标题 + 上映日期"
+      ],
+      "credits_per_use": 15,
+      "difficulty": 3
+    },
+    {
+      "id": "L7",
+      "title": "拉片复刻",
+      "emoji": "🎥",
+      "description": "上传参考视频, 抽帧复刻整段",
+      "target_age": "14-16",
+      "core": "模仿学习",
+      "spine_skeleton": {
+        "core": "风格迁移",
+        "tone": "serious"
+      },
+      "scene_prompts": [
+        "开场: 孩子上传一段喜欢的视频",
+        "中间: 抽 3-8 帧 + AI 按顺序复刻",
+        "结尾: 对比原片和复刻片的差异"
+      ],
+      "credits_per_use": 20,
+      "difficulty": 3
+    }
+  ],
+
+  "_ui_integration": {
+    "shell_inject_into": "video-director Stage-1",
+    "presentation": "小月看到: 7 张彩色卡片, 每张代表一个故事模板. 选哪个就从哪个的骨架开始 (红线 7: 每步依然要她确认).",
+    "pro_skin_hide": false,
+    "_note": "即使在 pro 模式, 这 7 个模板也保留, 因为 9-16 岁都可能用到. pro 只是多了一个'空白开始'选项."
+  }
+}

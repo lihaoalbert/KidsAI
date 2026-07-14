@@ -35,19 +35,31 @@ fn real_minimax_image_01_one_shot() {
     let asset = sel
         .adapter
         .generate(&ImageGenArgs {
-            prompt: "a tiny cute robot child waving hello, kids illustration, white background".into(),
+            prompt: "a tiny cute robot child waving hello, kids illustration, white background"
+                .into(),
             aspect_ratio: Some("1:1".into()),
         })
         .expect("image-01 should succeed");
 
-    eprintln!("[INFO] provider={} task_id={} url={}", asset.provider, asset.provider_task_id, asset.url);
+    eprintln!(
+        "[INFO] provider={} task_id={} url={}",
+        asset.provider, asset.provider_task_id, asset.url
+    );
 
     assert_eq!(asset.provider, "minimax");
-    assert!(asset.url.starts_with("https://"), "url must be https: {}", asset.url);
+    assert!(
+        asset.url.starts_with("https://"),
+        "url must be https: {}",
+        asset.url
+    );
 
     // 二次 GET 验证 URL 真可下载
     let resp = reqwest::blocking::get(&asset.url).expect("download should succeed");
-    assert!(resp.status().is_success(), "download HTTP {}", resp.status());
+    assert!(
+        resp.status().is_success(),
+        "download HTTP {}",
+        resp.status()
+    );
     let bytes = resp.bytes().expect("body");
     assert!(bytes.len() > 1024, "image too small: {} bytes", bytes.len());
     eprintln!("[OK] image downloaded: {} bytes", bytes.len());

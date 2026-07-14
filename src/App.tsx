@@ -75,7 +75,6 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
 import { useEffect, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import HomePage from './pages/HomePage';
-import WorkshopPage from './pages/WorkshopPage';
 import LibraryPage from './pages/LibraryPage';
 import MyAgentPage from './pages/MyAgentPage';
 import LevelDetailPage from './pages/LevelDetailPage';
@@ -92,7 +91,6 @@ import { initializeProjectPersistence, useProjectStore } from './stores/projectS
 
 export type PageKey =
   | 'home'
-  | 'workshop'
   | 'library'
   | 'agent'
   | 'level'
@@ -194,14 +192,12 @@ function App() {
             onOpenStudio={() => setCurrentPage('studio')}
           />
         );
-      case 'workshop':
-        return <WorkshopPage onOpenStudio={() => setCurrentPage('studio')} />;
       case 'library':
         return <LibraryPage />;
       case 'studio':
         return <StudioPage onBackHome={handleBackToHome} />;
       case 'agent':
-        return <MyAgentPage />;
+        return <MyAgentPage onNavigate={setCurrentPage} />;
       case 'marketplace':
         return <MarketplacePage />;
       case 'settings':

@@ -32,14 +32,14 @@ fn db_start_and_complete_progress() {
     let path = fresh_db_path("start_complete");
     let db = kidsai_studio_lib::Db::open(&path).expect("open db");
 
-    let p1 = db
-        .upsert_progress_in_progress("L1")
-        .expect("start L1");
+    let p1 = db.upsert_progress_in_progress("L1").expect("start L1");
     assert_eq!(p1.level_id, "L1");
     assert_eq!(p1.attempts, 1);
     assert_eq!(p1.status, kidsai_studio_lib::LevelStatus::InProgress);
 
-    let p2 = db.upsert_progress_in_progress("L1").expect("start L1 again");
+    let p2 = db
+        .upsert_progress_in_progress("L1")
+        .expect("start L1 again");
     assert_eq!(p2.attempts, 2);
 
     let done = db.mark_completed("L1", 85).expect("complete L1");
@@ -77,7 +77,9 @@ fn db_creations_and_assets() {
         user_input: "一只小猫",
         agent_output_json: r#"{"thoughts":["a"],"finalAnswer":"b"}"#,
         score: Some(80),
-        rubric_json: Some(r#"{"creativity":30,"technical":25,"narrative":20,"aesthetic":15,"compliance":10}"#),
+        rubric_json: Some(
+            r#"{"creativity":30,"technical":25,"narrative":20,"aesthetic":15,"compliance":10}"#,
+        ),
         feedback: Some("good"),
     })
     .expect("insert creation");

@@ -46,6 +46,7 @@ pub use crate::db::Db;
 pub use crate::types::LevelStatus;
 
 pub mod crashlog;
+pub mod kernel; // Agent 内核骨架 (Day 1-2) — EventBus + MemoryBus + ToolBus
 
 use tauri::{AppHandle, Manager};
 

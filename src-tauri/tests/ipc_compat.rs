@@ -96,7 +96,10 @@ fn backend_serialization_emits_camelcase_for_frontend() {
     assert!(creation_json.get("created_at").is_none());
 
     let asset_json: Value = serde_json::to_value(&asset).expect("serialize asset");
-    assert_eq!(asset_json["kind"], "video", "kind 保持原名 (前端无 type → video)");
+    assert_eq!(
+        asset_json["kind"], "video",
+        "kind 保持原名 (前端无 type → video)"
+    );
     assert_eq!(asset_json["thumbnailUrl"], Value::Null);
     assert_eq!(asset_json["tokensCost"], 19);
     assert!(asset_json.get("thumbnail_url").is_none());

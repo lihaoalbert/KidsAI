@@ -265,10 +265,7 @@ impl VolcanoArkVideoAdapter {
             }
             let pval: serde_json::Value = serde_json::from_str(&pbody)
                 .map_err(|e| format!("seedance poll: invalid JSON: {e}"))?;
-            let task_status = pval
-                .get("status")
-                .and_then(|v| v.as_str())
-                .unwrap_or("");
+            let task_status = pval.get("status").and_then(|v| v.as_str()).unwrap_or("");
 
             match task_status {
                 "succeeded" => {
@@ -316,7 +313,11 @@ impl VolcanoArkVideoAdapter {
                     return Err(format!(
                         "seedance task failed (code={}): {}",
                         code,
-                        if msg.is_empty() { truncate(&pbody, 200) } else { msg.to_string() }
+                        if msg.is_empty() {
+                            truncate(&pbody, 200)
+                        } else {
+                            msg.to_string()
+                        }
                     ));
                 }
                 "cancelled" => {
@@ -361,7 +362,7 @@ impl VolcanoArkVideoAdapter {
 const DEFAULT_MINIMAX_BASE_URL: &str = "https://api.minimaxi.com/v1";
 const DEFAULT_HAILUO_MODEL: &str = "MiniMax-hailuo-02";
 const HAILUO_POLL_INTERVAL_MS: u64 = 2000;
-const HAILUO_POLL_MAX_ATTEMPTS: u32 = 90;  // ~3 分钟上限
+const HAILUO_POLL_MAX_ATTEMPTS: u32 = 90; // ~3 分钟上限
 const HAILUO_TIMEOUT_SECS: u64 = 30;
 
 pub struct HailuoVideoAdapter {
@@ -377,7 +378,12 @@ impl HailuoVideoAdapter {
             .timeout(Duration::from_secs(HAILUO_TIMEOUT_SECS))
             .build()
             .expect("reqwest client");
-        Self { base_url, api_key, model, client }
+        Self {
+            base_url,
+            api_key,
+            model,
+            client,
+        }
     }
 
     fn build_request_body(&self, args: &VideoGenArgs) -> serde_json::Value {
@@ -420,8 +426,8 @@ impl VideoAdapter for HailuoVideoAdapter {
                 truncate(&body_text, 240)
             ));
         }
-        let parsed: serde_json::Value = serde_json::from_str(&body_text)
-            .map_err(|e| format!("hailuo invalid JSON: {e}"))?;
+        let parsed: serde_json::Value =
+            serde_json::from_str(&body_text).map_err(|e| format!("hailuo invalid JSON: {e}"))?;
         let task_id = parsed
             .get("task_id")
             .and_then(|v| v.as_str())
@@ -432,8 +438,15 @@ impl VideoAdapter for HailuoVideoAdapter {
 }
 
 impl HailuoVideoAdapter {
-    fn poll_until_done(&self, task_id: &str, _image_url: Option<String>) -> Result<VideoAsset, String> {
-        let poll_url = format!("{}/query/video_generation?task_id={}", self.base_url, task_id);
+    fn poll_until_done(
+        &self,
+        task_id: &str,
+        _image_url: Option<String>,
+    ) -> Result<VideoAsset, String> {
+        let poll_url = format!(
+            "{}/query/video_generation?task_id={}",
+            self.base_url, task_id
+        );
         for attempt in 0..HAILUO_POLL_MAX_ATTEMPTS {
             std::thread::sleep(Duration::from_millis(HAILUO_POLL_INTERVAL_MS));
             let resp = self
@@ -445,7 +458,11 @@ impl HailuoVideoAdapter {
             let status = resp.status();
             let body_text = resp.text().unwrap_or_default();
             if !status.is_success() {
-                return Err(format!("hailuo poll HTTP {}: {}", status, truncate(&body_text, 240)));
+                return Err(format!(
+                    "hailuo poll HTTP {}: {}",
+                    status,
+                    truncate(&body_text, 240)
+                ));
             }
             let parsed: serde_json::Value = serde_json::from_str(&body_text)
                 .map_err(|e| format!("hailuo poll invalid JSON: {e}"))?;
@@ -457,7 +474,12 @@ impl HailuoVideoAdapter {
                         .or_else(|| parsed.pointer("/data/video_url"))
                         .or_else(|| parsed.pointer("/data/url"))
                         .and_then(|v| v.as_str())
-                        .ok_or_else(|| format!("hailuo succeeded but missing download_url: {}", truncate(&body_text, 200)))?;
+                        .ok_or_else(|| {
+                            format!(
+                                "hailuo succeeded but missing download_url: {}",
+                                truncate(&body_text, 200)
+                            )
+                        })?;
                     return Ok(VideoAsset {
                         url: url.to_string(),
                         thumbnail_url: None,
@@ -476,17 +498,26 @@ impl HailuoVideoAdapter {
                 }
                 "Queueing" | "Processing" | "Running" | "queued" | "running" => {
                     if attempt == HAILUO_POLL_MAX_ATTEMPTS - 1 {
-                        return Err(format!("hailuo still {} after {} polls", task_status, HAILUO_POLL_MAX_ATTEMPTS));
+                        return Err(format!(
+                            "hailuo still {} after {} polls",
+                            task_status, HAILUO_POLL_MAX_ATTEMPTS
+                        ));
                     }
                 }
                 _ => {
                     if attempt == HAILUO_POLL_MAX_ATTEMPTS - 1 {
-                        return Err(format!("hailuo unknown status '{}' after {} polls", task_status, HAILUO_POLL_MAX_ATTEMPTS));
+                        return Err(format!(
+                            "hailuo unknown status '{}' after {} polls",
+                            task_status, HAILUO_POLL_MAX_ATTEMPTS
+                        ));
                     }
                 }
             }
         }
-        Err(format!("hailuo did not complete in {} polls", HAILUO_POLL_MAX_ATTEMPTS))
+        Err(format!(
+            "hailuo did not complete in {} polls",
+            HAILUO_POLL_MAX_ATTEMPTS
+        ))
     }
 }
 
@@ -509,8 +540,8 @@ pub fn select_video_adapter() -> SelectedVideoAdapter {
         if !key.is_empty() {
             let base_url = std::env::var("SEEDANCE_BASE_URL")
                 .unwrap_or_else(|_| DEFAULT_ARK_BASE_URL.to_string());
-            let model = std::env::var("SEEDANCE_MODEL")
-                .unwrap_or_else(|_| DEFAULT_ARK_MODEL.to_string());
+            let model =
+                std::env::var("SEEDANCE_MODEL").unwrap_or_else(|_| DEFAULT_ARK_MODEL.to_string());
             return SelectedVideoAdapter {
                 adapter: Box::new(VolcanoArkVideoAdapter::new(base_url, key, model)),
                 source: "ark".to_string(),
@@ -661,8 +692,7 @@ mod tests {
             )
             .create();
 
-        let adapter =
-            VolcanoArkVideoAdapter::new(server.url(), "k".into(), "doubao-test".into());
+        let adapter = VolcanoArkVideoAdapter::new(server.url(), "k".into(), "doubao-test".into());
         let asset = adapter
             .generate(&VideoGenArgs {
                 prompt: "spin around".into(),
@@ -670,7 +700,7 @@ mod tests {
                 image_role: None, // ← 不写 role 字段
                 duration_seconds: Some(5),
                 ratio: Some("adaptive".into()),
-                resolution: None, // ← 不发 resolution
+                resolution: None,           // ← 不发 resolution
                 generate_audio: Some(true), // ← 发 generate_audio: true
                 model: None,
                 seed: None,
@@ -685,11 +715,8 @@ mod tests {
     #[test]
     fn ark_request_body_first_last_frame_adds_roles() {
         // 这个测试只检查 build_request_body，不实际发 HTTP
-        let adapter = VolcanoArkVideoAdapter::new(
-            "http://unused".into(),
-            "k".into(),
-            "doubao-test".into(),
-        );
+        let adapter =
+            VolcanoArkVideoAdapter::new("http://unused".into(), "k".into(), "doubao-test".into());
         // 用一个有 first_frame 的 args 测 build_request_body（通过镜像 adapter 字段）
         let body = adapter.build_request_body(&VideoGenArgs {
             prompt: "go around".into(),
@@ -699,8 +726,8 @@ mod tests {
             ratio: Some("adaptive".into()),
             resolution: None,
             generate_audio: None,
-                model: None,
-                seed: None,
+            model: None,
+            seed: None,
         });
         assert_eq!(body["content"][1]["role"], "first_frame");
         assert_eq!(body["content"][1]["type"], "image_url");
@@ -714,8 +741,8 @@ mod tests {
             ratio: None,
             resolution: None,
             generate_audio: None,
-                model: None,
-                seed: None,
+            model: None,
+            seed: None,
         });
         assert_eq!(body["content"][1]["role"], "last_frame");
 
@@ -728,8 +755,8 @@ mod tests {
             ratio: None,
             resolution: None,
             generate_audio: None,
-                model: None,
-                seed: None,
+            model: None,
+            seed: None,
         });
         assert_eq!(body["content"][1]["role"], "reference_image");
     }
@@ -739,11 +766,8 @@ mod tests {
     /// - generate_audio: None 不出现在 body
     #[test]
     fn ark_request_body_omits_optional_fields_when_none() {
-        let adapter = VolcanoArkVideoAdapter::new(
-            "http://unused".into(),
-            "k".into(),
-            "doubao-test".into(),
-        );
+        let adapter =
+            VolcanoArkVideoAdapter::new("http://unused".into(), "k".into(), "doubao-test".into());
         let body = adapter.build_request_body(&VideoGenArgs {
             prompt: "x".into(),
             image_url: None,
@@ -752,11 +776,17 @@ mod tests {
             ratio: None,
             resolution: None,
             generate_audio: None,
-                model: None,
-                seed: None,
+            model: None,
+            seed: None,
         });
-        assert!(body.get("resolution").is_none(), "resolution should be absent");
-        assert!(body.get("generate_audio").is_none(), "generate_audio should be absent");
+        assert!(
+            body.get("resolution").is_none(),
+            "resolution should be absent"
+        );
+        assert!(
+            body.get("generate_audio").is_none(),
+            "generate_audio should be absent"
+        );
         // ratio / duration 仍按默认值填
         assert_eq!(body["ratio"], "16:9");
         assert_eq!(body["duration"], 5);
@@ -787,8 +817,7 @@ mod tests {
             )
             .create();
 
-        let adapter =
-            VolcanoArkVideoAdapter::new(server.url(), "k".into(), "doubao-test".into());
+        let adapter = VolcanoArkVideoAdapter::new(server.url(), "k".into(), "doubao-test".into());
         let _ = adapter
             .generate(&VideoGenArgs {
                 prompt: "hello".into(),
@@ -831,8 +860,7 @@ mod tests {
             .expect(1)
             .create();
 
-        let adapter =
-            VolcanoArkVideoAdapter::new(server.url(), "k".into(), "doubao-test".into());
+        let adapter = VolcanoArkVideoAdapter::new(server.url(), "k".into(), "doubao-test".into());
         let asset = adapter
             .generate(&VideoGenArgs {
                 prompt: "dance".into(),
@@ -876,22 +904,19 @@ mod tests {
                 .with_body(r#"{"status":"succeeded","content":{"video_url":"https://e/v.mp4"}}"#)
                 .expect(1)
                 .create();
-            let adapter = VolcanoArkVideoAdapter::new(
-                server.url(),
-                "k".into(),
-                "doubao-test".into(),
-            );
+            let adapter =
+                VolcanoArkVideoAdapter::new(server.url(), "k".into(), "doubao-test".into());
             let a = adapter
                 .generate(&VideoGenArgs {
                     prompt: "x".into(),
                     image_url: None,
-                image_role: None,
+                    image_role: None,
                     duration_seconds: None,
                     ratio: None,
                     resolution: None,
                     generate_audio: None,
-                model: None,
-                seed: None,
+                    model: None,
+                    seed: None,
                 })
                 .expect("ok");
             assert_eq!(a.url, "https://e/v.mp4");
@@ -913,22 +938,19 @@ mod tests {
                     r#"{"status":"failed","error":{"code":"InvalidParameter","message":"ratio not supported"}}"#,
                 )
                 .create();
-            let adapter = VolcanoArkVideoAdapter::new(
-                server.url(),
-                "test-key".into(),
-                "doubao-test".into(),
-            );
+            let adapter =
+                VolcanoArkVideoAdapter::new(server.url(), "test-key".into(), "doubao-test".into());
             let err = adapter
                 .generate(&VideoGenArgs {
                     prompt: "x".into(),
                     image_url: None,
-                image_role: None,
+                    image_role: None,
                     duration_seconds: None,
                     ratio: None,
                     resolution: None,
                     generate_audio: None,
-                model: None,
-                seed: None,
+                    model: None,
+                    seed: None,
                 })
                 .unwrap_err();
             assert!(err.contains("InvalidParameter"), "got: {err}");
@@ -948,22 +970,19 @@ mod tests {
                 .with_status(200)
                 .with_body(r#"{"status":"cancelled"}"#)
                 .create();
-            let adapter = VolcanoArkVideoAdapter::new(
-                server.url(),
-                "k".into(),
-                "doubao-test".into(),
-            );
+            let adapter =
+                VolcanoArkVideoAdapter::new(server.url(), "k".into(), "doubao-test".into());
             let err = adapter
                 .generate(&VideoGenArgs {
                     prompt: "x".into(),
                     image_url: None,
-                image_role: None,
+                    image_role: None,
                     duration_seconds: None,
                     ratio: None,
                     resolution: None,
                     generate_audio: None,
-                model: None,
-                seed: None,
+                    model: None,
+                    seed: None,
                 })
                 .unwrap_err();
             assert!(err.contains("cancelled"), "got: {err}");
@@ -980,8 +999,7 @@ mod tests {
             .with_status(204)
             .create();
 
-        let adapter =
-            VolcanoArkVideoAdapter::new(server.url(), "k".into(), "doubao-test".into());
+        let adapter = VolcanoArkVideoAdapter::new(server.url(), "k".into(), "doubao-test".into());
         adapter.cancel("task_to_cancel").expect("cancel ok");
         m.assert();
     }
@@ -996,11 +1014,8 @@ mod tests {
             .with_body(r#"{"error":{"code":"Authentication","message":"bad key"}}"#)
             .create();
 
-        let adapter = VolcanoArkVideoAdapter::new(
-            server.url(),
-            "super-secret".into(),
-            "doubao-test".into(),
-        );
+        let adapter =
+            VolcanoArkVideoAdapter::new(server.url(), "super-secret".into(), "doubao-test".into());
         let err = adapter.cancel("task_x").unwrap_err();
         assert!(err.contains("HTTP 401"));
         assert!(!err.contains("super-secret"), "API key leaked: {err}");
@@ -1015,8 +1030,7 @@ mod tests {
             .with_status(404)
             .create();
 
-        let adapter =
-            VolcanoArkVideoAdapter::new(server.url(), "k".into(), "doubao-test".into());
+        let adapter = VolcanoArkVideoAdapter::new(server.url(), "k".into(), "doubao-test".into());
         adapter.cancel("task_gone").expect("cancel 404 ok");
     }
 
@@ -1098,11 +1112,8 @@ mod tests {
     /// seed 参数有值时出现在 POST body 顶层,无值时不出现(对照 resolution/generate_audio 的策略)。
     #[test]
     fn ark_request_body_seed_present_when_set_absent_when_none() {
-        let adapter = VolcanoArkVideoAdapter::new(
-            "http://unused".into(),
-            "k".into(),
-            "doubao-test".into(),
-        );
+        let adapter =
+            VolcanoArkVideoAdapter::new("http://unused".into(), "k".into(), "doubao-test".into());
         // 有 seed → 出现
         let body = adapter.build_request_body(&VideoGenArgs {
             prompt: "x".into(),
@@ -1128,14 +1139,21 @@ mod tests {
             model: None,
             seed: None,
         });
-        assert!(body.get("seed").is_none(), "seed should be absent when None");
+        assert!(
+            body.get("seed").is_none(),
+            "seed should be absent when None"
+        );
     }
 
     // ---- Hailuo adapter tests ----
 
     #[test]
     fn hailuo_request_body_shape() {
-        let a = HailuoVideoAdapter::new("http://unused".into(), "k".into(), "MiniMax-hailuo-02".into());
+        let a = HailuoVideoAdapter::new(
+            "http://unused".into(),
+            "k".into(),
+            "MiniMax-hailuo-02".into(),
+        );
         let body = a.build_request_body(&VideoGenArgs {
             prompt: "小猫跳跃".into(),
             image_url: Some("https://e/i.jpg".into()),
@@ -1170,7 +1188,10 @@ mod tests {
         });
         assert_eq!(body["duration"], 6);
         assert_eq!(body["ratio"], "16:9");
-        assert!(body.get("image_url").is_none(), "image_url absent when None");
+        assert!(
+            body.get("image_url").is_none(),
+            "image_url absent when None"
+        );
     }
 
     #[test]
@@ -1197,17 +1218,19 @@ mod tests {
             .expect(1)
             .create();
         let adapter = HailuoVideoAdapter::new(server.url(), "k".into(), "m".into());
-        let out = adapter.generate(&VideoGenArgs {
-            prompt: "x".into(),
-            image_url: None,
-            image_role: None,
-            duration_seconds: Some(6),
-            ratio: None,
-            resolution: None,
-            generate_audio: None,
-            model: None,
-            seed: None,
-        }).expect("ok");
+        let out = adapter
+            .generate(&VideoGenArgs {
+                prompt: "x".into(),
+                image_url: None,
+                image_role: None,
+                duration_seconds: Some(6),
+                ratio: None,
+                resolution: None,
+                generate_audio: None,
+                model: None,
+                seed: None,
+            })
+            .expect("ok");
         m1.assert();
         m2.assert();
         assert_eq!(out.provider, "hailuo");
@@ -1222,24 +1245,26 @@ mod tests {
             .with_status(401)
             .with_body(r#"{"error":{"message":"bad key"}}"#)
             .create();
-        let adapter = HailuoVideoAdapter::new(
-            server.url(),
-            "super-secret-hailuo-key".into(),
-            "m".into(),
-        );
-        let err = adapter.generate(&VideoGenArgs {
-            prompt: "x".into(),
-            image_url: None,
-            image_role: None,
-            duration_seconds: Some(6),
-            ratio: None,
-            resolution: None,
-            generate_audio: None,
-            model: None,
-            seed: None,
-        }).unwrap_err();
+        let adapter =
+            HailuoVideoAdapter::new(server.url(), "super-secret-hailuo-key".into(), "m".into());
+        let err = adapter
+            .generate(&VideoGenArgs {
+                prompt: "x".into(),
+                image_url: None,
+                image_role: None,
+                duration_seconds: Some(6),
+                ratio: None,
+                resolution: None,
+                generate_audio: None,
+                model: None,
+                seed: None,
+            })
+            .unwrap_err();
         assert!(err.contains("HTTP 401"));
-        assert!(!err.contains("super-secret-hailuo-key"), "key leaked: {err}");
+        assert!(
+            !err.contains("super-secret-hailuo-key"),
+            "key leaked: {err}"
+        );
     }
 
     #[test]

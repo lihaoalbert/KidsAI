@@ -1,0 +1,104 @@
+{
+  "schema": "kidsai.skill/1",
+  "id": "video-director",
+  "name": "视频导演",
+  "version": "v1.0.0",
+  "publisher": "kidsai-official",
+  "min_app_version": "0.4.0",
+  "age_tier": [1, 2, 3, 4],
+  "category": "video",
+  "audience": "both",
+  "description": "把孩子的模糊想法变成 5-30 秒视频. 6 阶段引导: 内核 → 角色 → 画风 → 分镜 → 预览 → 合成. 每步都有'我确认'按钮 (红线 7).",
+
+  "assets": [
+    { "path": "assets/cover.png", "sha256": "0000000000000000000000000000000000000000000000000000000000000000", "size": 0 }
+  ],
+
+  "prompts": [
+    {
+      "id": "system-director-v1",
+      "file": "prompts/system-director.yaml",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "purpose": "注入到 agent system_prompt 末尾, 定义 6 阶段流程"
+    },
+    {
+      "id": "spine-7-fields",
+      "file": "prompts/spine.yaml",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "purpose": "7 维故事骨架 (内核/冲突/世界观/调性/适龄/主色/寓意)"
+    },
+    {
+      "id": "camera-translate",
+      "file": "prompts/camera.yaml",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "purpose": "Seedance 七域镜头翻译 (Wide/Medium/Close/Extreme/Follow/POV/Aerial)"
+    },
+    {
+      "id": "stage-confirm-protocol",
+      "file": "prompts/stage-confirm.yaml",
+      "sha256": "0000000000000000000000000000000000000000000000000000000000000000",
+      "purpose": "红线 7: 每步 StageAwaitingConfirm 协议 — AI 不替孩子做镜头决策"
+    }
+  ],
+
+  "templates": {
+    "characters": [
+      { "id": "xiaoming", "name": "小明", "default_form_image": "assets/cover.png" },
+      { "id": "huomiao", "name": "火苗", "default_form_image": "assets/cover.png" }
+    ],
+    "story_arcs": [
+      {
+        "id": "hero-journey",
+        "name": "小英雄冒险",
+        "paragraphs": ["在很远的地方, 有一个小小英雄...", "它遇到了一个问题...", "它鼓起勇气, 解决了..."],
+        "scenes": ["scene-1", "scene-2", "scene-3"]
+      },
+      {
+        "id": "friendship",
+        "name": "交个朋友",
+        "paragraphs": ["小明在公园里玩...", "看到了一个新朋友...", "他们一起玩..."],
+        "scenes": ["scene-1", "scene-2", "scene-3"]
+      }
+    ]
+  },
+
+  "extends": {
+    "tabs": ["narrative", "storyboard"],
+    "tools": ["generate_image", "generate_video", "read_memory", "write_memory"],
+    "characters_inject_into": "directorStore.characterMetas"
+  },
+
+  "stages": [
+    { "id": "stage-1-spine", "name": "故事内核", "ui": "card-picker", "requires_confirm": true },
+    { "id": "stage-2-character", "name": "选角色", "ui": "card-picker", "requires_confirm": true },
+    { "id": "stage-3-style", "name": "选画风", "ui": "image-picker", "requires_confirm": true },
+    { "id": "stage-4-storyboard", "name": "分镜编辑", "ui": "inline-form", "requires_confirm": true },
+    { "id": "stage-5-preview", "name": "镜头预览", "ui": "video-tile", "requires_confirm": true },
+    { "id": "stage-6-render", "name": "合成视频", "ui": "render-progress", "requires_confirm": true }
+  ],
+
+  "ui_extensions": {
+    "stage-4-storyboard": {
+      "renderer": "StoryStateGrid",
+      "fields": [
+        { "key": "core", "label": "内核", "type": "text" },
+        { "key": "conflict", "label": "冲突", "type": "text" },
+        { "key": "world", "label": "世界观", "type": "text" },
+        { "key": "tone", "label": "调性", "type": "cycle", "options": ["playful", "epic", "healing", "comedy", "mystery", "serious", "romantic"] },
+        { "key": "audience", "label": "适龄", "type": "text" },
+        { "key": "theme_color", "label": "主色", "type": "text" },
+        { "key": "ending_moral", "label": "寓意", "type": "text" }
+      ],
+      "red_line": 7,
+      "note": "Stage 4 必须每字段都有 inline form, 不能用 window.prompt"
+    }
+  },
+
+  "credits_per_use": 5,
+  "daily_quota": 10,
+  "homepage": "https://kidsai.example/skill/video-director",
+  "size_bytes": 10240,
+
+  "publisher_signature": "dev-placeholder-skip-verify-in-mvp",
+  "publisher_pubkey_id": "kidsai-dev"
+}

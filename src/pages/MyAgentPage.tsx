@@ -1,111 +1,282 @@
-// P0 fix: MyAgentPage 从 placeholder 变成真实可用的"高级功能聚合页"
-// 提供 14-16 岁专属功能入口 + 高级 skill 入口 (为 M3 自习室 / 项目管理铺路)
+// Day 15-16: MyAgentPage 重写为 Skill Marketplace Launcher
+//
+// 设计: 这不再是"高级功能占位页", 而是 KidsAI Agent 内核的"skill 启动面板".
+//   - 顶部: 当前模式 (child/adult) + 用户问候
+//   - 已启用的 skill (来自 SkillStore.installed.filter(enabled)) → 一键启动
+//   - 推荐 skill (来自 SkillStore.available.filter(!installed)) → 跳去 marketplace
+//   - 底部: 跳到完整 marketplace / settings 入口
+//
+// 红线 8 体现: L1-L7 已删除, 这里就是新的"首页" — 进入 skill 才有创作能力.
+// 与 HomePage 的区别: HomePage 是"课程中心" (面向小月的关卡), 这里面向 14+ 用户和成人
+//   "我的 Agent" = 我装了哪些 skill, 我能用 AI 干什么.
 
-import { useNavigate } from 'react-router-dom';
+import { useEffect, useMemo } from 'react';
+import { useSkillStore } from '../stores/skillStore';
+import { useUserModeStore } from '../stores/userModeStore';
 import Card from '../components/Card';
 
-interface ShortcutCard {
-  emoji: string;
-  title: string;
-  desc: string;
-  badge?: string;
-  comingSoon?: boolean;
-  to?: string;
+type PageRoute =
+  | 'home'
+  | 'library'
+  | 'agent'
+  | 'level'
+  | 'runner'
+  | 'studio'
+  | 'marketplace'
+  | 'settings';
+
+interface MyAgentPageProps {
+  onNavigate?: (page: PageRoute) => void;
 }
 
-const shortcuts: ShortcutCard[] = [
-  {
-    emoji: '🛋️',
-    title: '自习室模式',
-    desc: '写作业时让 AI 安静陪着, 计时 + 答疑, 不打扰你',
-    badge: '即将上线',
-    comingSoon: true,
-  },
-  {
-    emoji: '📂',
-    title: '项目管理',
-    desc: '把多个作品归到同一个频道, 像 B 站 UP 主一样连载',
-    badge: '即将上线',
-    comingSoon: true,
-  },
-  {
-    emoji: '🔍',
-    title: '知识检索',
-    desc: '让 agent 帮你查物理公式 / 历史事件 / 英文单词',
-    badge: '即将上线',
-    comingSoon: true,
-  },
-  {
-    emoji: '🎬',
-    title: '高级导演',
-    desc: '跳过引导, 直接给 AI 提要求, 做更复杂的视频',
-    to: 'studio',
-  },
-  {
-    emoji: '📦',
-    title: 'Skill 市场',
-    desc: '官方 + 第三方 skill, 解锁更多创作能力',
-    to: 'marketplace',
-  },
-  {
-    emoji: '⚙️',
-    title: '家长设置',
-    desc: '学币详情, 模式切换, PIN 管理',
-    to: 'settings',
-  },
-];
+const SKILL_ICONS: Record<string, string> = {
+  'video-director': '🎬',
+  'eng-adventure': '🔤',
+  'guofeng-shuimo': '🎨',
+  'coding-starter': '💻',
+  'commercial-ad-director': '📺',
+  'doc-shortfilm': '🎥',
+  'resume-reel': '💼',
+};
 
-export default function MyAgentPage() {
-  const navigate = useNavigate();
+const SKILL_LAUNCH_ROUTES: Record<string, PageRoute> = {
+  'video-director': 'studio',
+};
+
+const SKILL_LAUNCH_LABELS: Record<string, string> = {
+  'video-director': '进入 Studio',
+  'eng-adventure': '开始冒险',
+};
+
+export default function MyAgentPage({ onNavigate }: MyAgentPageProps) {
+  const installed = useSkillStore((s) => s.installed);
+  const available = useSkillStore((s) => s.available);
+  const loadingInstalled = useSkillStore((s) => s.loadingInstalled);
+  const refreshAll = useSkillStore((s) => s.refreshAll);
+  const mode = useUserModeStore((s) => s.mode);
+
+  useEffect(() => {
+    refreshAll();
+  }, [refreshAll]);
+
+  const enabled = useMemo(
+    () => installed.filter((s) => s.enabled),
+    [installed],
+  );
+  const disabled = useMemo(
+    () => installed.filter((s) => !s.enabled),
+    [installed],
+  );
+  const notInstalled = useMemo(
+    () =>
+      available.filter(
+        (s) => !installed.some((i) => i.id === s.id),
+      ),
+    [available, installed],
+  );
+
+  const launchable = enabled.filter((s) => SKILL_LAUNCH_ROUTES[s.id]);
 
   return (
     <div className="p-8 max-w-6xl mx-auto">
-      <div className="mb-8">
+      {/* 顶部: 模式 + 问候 */}
+      <header className="mb-8">
         <h1 className="text-2xl font-bold text-gray-900">🤖 我的 Agent</h1>
-        <p className="text-base text-gray-600 mt-1">
-          14+ 专属功能：自习、项目、检索、创作增强
-        </p>
-      </div>
-
-      <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-        {shortcuts.map((s) => (
-          <Card
-            key={s.title}
-            variant={s.comingSoon ? 'default' : 'bordered'}
+        <p className="text-sm text-gray-600 mt-1">
+          当前模式:{' '}
+          <span
             className={
-              s.comingSoon
-                ? 'opacity-60'
-                : 'cursor-pointer hover:shadow-lg transition-shadow'
+              mode === 'adult' ? 'text-purple-700' : 'text-green-700'
             }
-            onClick={() => {
-              if (s.to === 'studio') navigate('/studio');
-              else if (s.to === 'marketplace') navigate('/marketplace');
-              else if (s.to === 'settings') navigate('/settings');
-            }}
           >
-            <div className="flex items-start gap-3">
-              <div className="text-3xl">{s.emoji}</div>
-              <div className="flex-1 min-w-0">
-                <div className="flex items-center gap-2 mb-1">
-                  <div className="font-semibold text-gray-900">{s.title}</div>
-                  {s.badge && (
-                    <span className="text-[10px] px-1.5 py-0.5 rounded bg-amber-100 text-amber-700">
-                      {s.badge}
-                    </span>
-                  )}
-                </div>
-                <div className="text-xs text-gray-500 leading-relaxed">
-                  {s.desc}
-                </div>
-              </div>
-            </div>
-          </Card>
-        ))}
-      </div>
+            {mode === 'adult' ? '🧑 成人模式' : '🧒 儿童模式'}
+          </span>
+          {' · '}
+          {enabled.length > 0
+            ? `${enabled.length} 个 skill 已就绪`
+            : '还没有启用的 skill'}
+        </p>
+      </header>
 
-      <div className="mt-8 text-xs text-gray-400 text-center">
-        💡 部分功能还在打磨中, 期待你的反馈
-      </div>
+      {/* 快速启动: 已启用且可路由的 skill */}
+      {launchable.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-base font-semibold text-gray-800 mb-3">
+            ⚡ 快速启动
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {launchable.map((s) => {
+              const route = SKILL_LAUNCH_ROUTES[s.id];
+              const label = SKILL_LAUNCH_LABELS[s.id] ?? '启动';
+              return (
+                <Card
+                  key={s.id}
+                  variant="bordered"
+                  className="cursor-pointer hover:shadow-lg hover:border-brand-400 transition-all"
+                  onClick={() => onNavigate?.(route)}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="text-3xl">
+                      {SKILL_ICONS[s.id] ?? '✨'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-semibold text-gray-900">
+                        {s.name || s.id}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        v{s.version} · 启用中
+                      </div>
+                    </div>
+                    <div className="text-brand-600 text-sm font-medium">
+                      {label} →
+                    </div>
+                  </div>
+                </Card>
+              );
+            })}
+          </div>
+        </section>
+      )}
+
+      {/* 已启用但无快捷入口的 skill */}
+      {enabled.length > launchable.length && (
+        <section className="mb-8">
+          <h2 className="text-base font-semibold text-gray-800 mb-3">
+            📂 已启用 ({enabled.length})
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {enabled
+              .filter((s) => !SKILL_LAUNCH_ROUTES[s.id])
+              .map((s) => (
+                <Card key={s.id} variant="bordered">
+                  <div className="flex items-center gap-3">
+                    <div className="text-3xl">
+                      {SKILL_ICONS[s.id] ?? '✨'}
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="font-medium text-gray-900">
+                        {s.name || s.id}
+                      </div>
+                      <div className="text-xs text-gray-500">
+                        v{s.version} · 通过 skill 接口调用
+                      </div>
+                    </div>
+                  </div>
+                </Card>
+              ))}
+          </div>
+        </section>
+      )}
+
+      {/* 已禁用 */}
+      {disabled.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-base font-semibold text-gray-800 mb-3">
+            ⏸ 已禁用 ({disabled.length})
+          </h2>
+          <p className="text-xs text-gray-500 mb-3">
+            在 Skill 市场可重新启用
+          </p>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {disabled.map((s) => (
+              <Card key={s.id} variant="default" className="opacity-60">
+                <div className="flex items-center gap-3">
+                  <div className="text-3xl grayscale">
+                    {SKILL_ICONS[s.id] ?? '✨'}
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-gray-700">
+                      {s.name || s.id}
+                    </div>
+                    <div className="text-xs text-gray-400">
+                      v{s.version} · 已禁用
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 加载中 */}
+      {loadingInstalled && enabled.length === 0 && (
+        <div className="text-sm text-gray-500 text-center py-12">
+          加载 skill 列表…
+        </div>
+      )}
+
+      {/* 空状态: 引导装第一个 skill */}
+      {!loadingInstalled && installed.length === 0 && (
+        <Card className="mb-8 text-center py-12 bg-gradient-to-br from-brand-50 to-warm-50">
+          <div className="text-5xl mb-3">🎁</div>
+          <h2 className="text-lg font-semibold text-gray-900 mb-2">
+            还没有装任何 skill
+          </h2>
+          <p className="text-sm text-gray-600 mb-4">
+            去 Skill 市场装第一个 skill, 让你的 Agent 拥有创作能力
+          </p>
+          <button
+            type="button"
+            onClick={() => onNavigate?.('marketplace')}
+            className="px-6 py-2.5 bg-brand-600 text-white rounded-lg hover:bg-brand-700 transition-colors"
+          >
+            📦 打开 Skill 市场
+          </button>
+        </Card>
+      )}
+
+      {/* 推荐 */}
+      {notInstalled.length > 0 && (
+        <section className="mb-8">
+          <h2 className="text-base font-semibold text-gray-800 mb-3">
+            💡 推荐 ({notInstalled.length})
+          </h2>
+          <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-3">
+            {notInstalled.slice(0, 3).map((s) => (
+              <Card
+                key={s.id}
+                variant="default"
+                className="cursor-pointer hover:shadow-md transition-shadow"
+                onClick={() => onNavigate?.('marketplace')}
+              >
+                <div className="flex items-center gap-3">
+                  <div className="text-3xl">{SKILL_ICONS[s.id] ?? '✨'}</div>
+                  <div className="flex-1 min-w-0">
+                    <div className="font-medium text-gray-900">
+                      {s.name}
+                    </div>
+                    <div className="text-xs text-gray-500 truncate">
+                      {s.description ?? '去市场看看 →'}
+                    </div>
+                  </div>
+                </div>
+              </Card>
+            ))}
+          </div>
+        </section>
+      )}
+
+      {/* 底部入口 */}
+      <section className="border-t border-gray-200 pt-6 mt-8">
+        <div className="flex flex-wrap gap-3 justify-center text-sm">
+          <button
+            type="button"
+            onClick={() => onNavigate?.('marketplace')}
+            className="text-brand-600 hover:underline"
+          >
+            📦 浏览完整 Skill 市场
+          </button>
+          <span className="text-gray-300">·</span>
+          <button
+            type="button"
+            onClick={() => onNavigate?.('settings')}
+            className="text-gray-600 hover:underline"
+          >
+            ⚙️ 家长设置
+          </button>
+        </div>
+      </section>
     </div>
   );
 }

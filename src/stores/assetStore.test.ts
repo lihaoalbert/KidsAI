@@ -7,7 +7,7 @@
 // - sessionStorage 缓存: 写入 → 下次读取用
 // - 并发 fetch 去重 (loading 时再次 fetch 立即返)
 import { afterEach, beforeEach, describe, expect, it, vi } from 'vitest';
-import { useAssetStore } from './assetStore';
+import { generatedAssetUrl, useAssetStore } from './assetStore';
 
 const SAMPLE_MANIFEST = {
   version: 1700000000,
@@ -25,6 +25,18 @@ beforeEach(() => {
 
 afterEach(() => {
   vi.restoreAllMocks();
+});
+
+
+describe('generatedAssetUrl', () => {
+  it('builds deterministic character and style URLs', () => {
+    expect(generatedAssetUrl('character', 'xiaoqi.stand')).toBe(
+      'https://assets.kids.ibi.ren/character/xiaoqi.stand.png',
+    );
+    expect(generatedAssetUrl('style', 'anime.full')).toBe(
+      'https://assets.kids.ibi.ren/style/anime.full.png',
+    );
+  });
 });
 
 describe('getUrl', () => {
@@ -82,7 +94,11 @@ describe('fetch', () => {
       vi.fn(async () => ({
         ok: true,
         status: 200,
-        json: async () => SAMPLE_MANIFEST,
+        json: async () => ({
+          version: SAMPLE_MANIFEST.version,
+          generated_count: SAMPLE_MANIFEST.generatedCount,
+          images: SAMPLE_MANIFEST.images,
+        }),
       })),
     );
     await useAssetStore.getState().fetch('https://api.kids.ibi.ren');

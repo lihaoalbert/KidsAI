@@ -46,7 +46,11 @@ fn real_minimax_music_01_one_shot() {
 
     assert_eq!(asset.provider, "minimax");
     assert_eq!(asset.duration_seconds, 30);
-    assert!(asset.url.starts_with("https://"), "url must be https: {}", asset.url);
+    assert!(
+        asset.url.starts_with("https://"),
+        "url must be https: {}",
+        asset.url
+    );
 
     // HEAD 验证音频 URL 可达 (MiniMax 返回临时 URL, 24h 内有效)
     let client = reqwest::blocking::Client::builder()
@@ -55,5 +59,8 @@ fn real_minimax_music_01_one_shot() {
         .unwrap();
     let head = client.head(&asset.url).send().expect("HEAD should succeed");
     assert!(head.status().is_success(), "HEAD HTTP {}", head.status());
-    eprintln!("[OK] music URL reachable, content-length={:?}", head.headers().get("content-length"));
+    eprintln!(
+        "[OK] music URL reachable, content-length={:?}",
+        head.headers().get("content-length")
+    );
 }

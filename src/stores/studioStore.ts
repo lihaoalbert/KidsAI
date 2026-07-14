@@ -18,6 +18,7 @@ import {
   type StylePreset,
 } from '../api/tauri';
 import { useDirectorStore, type StorySlot } from './directorStore';
+import { generatedAssetUrl } from './assetStore';
 import { useTokenStore } from './tokenStore';
 
 export type StudioPhase =
@@ -42,7 +43,7 @@ export type ChatItem =
     }
   | { id: string; kind: 'story' };
 
-interface StudioState {
+export interface StudioState {
   items: ChatItem[];
   currentBeatId: string | null; // 阶段1 beat 光标
   awaitingFree: boolean; // 🎤「我自己说」— 下一次输入写入当前 beat 的 slot
@@ -142,7 +143,8 @@ export const useStudioStore = create<StudioState>((set, get) => {
         id: `style_${st.id}`,
         label: st.name,
         value: `style::${st.id}`,
-        emoji: '🎨',
+        imageUrl: generatedAssetUrl('style', `${st.id}.full`),
+        imageAlt: `${st.name}画风预览`,
         kind: 'action' as const,
       })),
     );
@@ -237,7 +239,8 @@ export const useStudioStore = create<StudioState>((set, get) => {
             id: `char_${c.id}`,
             label: c.name,
             value: `char::${c.id}`,
-            emoji: '🐾',
+            imageUrl: generatedAssetUrl('character', `${c.id}.stand`),
+            imageAlt: `${c.name}标准照`,
             kind: 'action' as const,
           })),
         );

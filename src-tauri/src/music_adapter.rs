@@ -14,7 +14,7 @@ use std::time::Duration;
 const DEFAULT_BASE_URL: &str = "https://api.minimaxi.com/v1";
 const DEFAULT_MODEL: &str = "music-01";
 const POLL_INTERVAL_MS: u64 = 2000;
-const POLL_MAX_ATTEMPTS: u32 = 90;  // ~3 分钟上限 (比视频短, 音乐是 30s)
+const POLL_MAX_ATTEMPTS: u32 = 90; // ~3 分钟上限 (比视频短, 音乐是 30s)
 const HTTP_TIMEOUT_SECS: u64 = 30;
 
 #[derive(Debug, Clone)]
@@ -31,7 +31,7 @@ pub struct MusicGenArgs {
 pub struct MusicAsset {
     pub url: String,
     pub provider_task_id: String,
-    pub provider: String,  // "minimax" | "mock"
+    pub provider: String, // "minimax" | "mock"
     pub duration_seconds: u32,
     #[serde(skip_serializing_if = "Option::is_none")]
     pub model: Option<String>,
@@ -77,7 +77,12 @@ impl MiniMaxMusicAdapter {
             .timeout(Duration::from_secs(HTTP_TIMEOUT_SECS))
             .build()
             .expect("reqwest client");
-        Self { base_url, api_key, model, client }
+        Self {
+            base_url,
+            api_key,
+            model,
+            client,
+        }
     }
 
     fn post_create(&self, args: &MusicGenArgs) -> Result<String, String> {
@@ -99,7 +104,11 @@ impl MiniMaxMusicAdapter {
         let status = resp.status();
         let body_text = resp.text().unwrap_or_default();
         if !status.is_success() {
-            return Err(format!("music_generation HTTP {}: {}", status, truncate(&body_text, 240)));
+            return Err(format!(
+                "music_generation HTTP {}: {}",
+                status,
+                truncate(&body_text, 240)
+            ));
         }
         let parsed: serde_json::Value = serde_json::from_str(&body_text)
             .map_err(|e| format!("music_generation invalid JSON: {e}"))?;
@@ -107,7 +116,12 @@ impl MiniMaxMusicAdapter {
             .get("task_id")
             .and_then(|v| v.as_str())
             .map(|s| s.to_string())
-            .ok_or_else(|| format!("music_generation missing task_id: {}", truncate(&body_text, 200)))
+            .ok_or_else(|| {
+                format!(
+                    "music_generation missing task_id: {}",
+                    truncate(&body_text, 200)
+                )
+            })
     }
 
     fn poll_until_done(&self, task_id: &str, duration_seconds: u32) -> Result<MusicAsset, String> {
@@ -124,7 +138,11 @@ impl MiniMaxMusicAdapter {
             let status = resp.status();
             let body_text = resp.text().unwrap_or_default();
             if !status.is_success() {
-                return Err(format!("music poll HTTP {}: {}", status, truncate(&body_text, 240)));
+                return Err(format!(
+                    "music poll HTTP {}: {}",
+                    status,
+                    truncate(&body_text, 240)
+                ));
             }
             let parsed: serde_json::Value = serde_json::from_str(&body_text)
                 .map_err(|e| format!("music poll invalid JSON: {e}"))?;
@@ -135,7 +153,12 @@ impl MiniMaxMusicAdapter {
                         .pointer("/data/audio_url")
                         .and_then(|v| v.as_str())
                         .or_else(|| parsed.pointer("/data/url").and_then(|v| v.as_str()))
-                        .ok_or_else(|| format!("music succeeded but missing audio_url: {}", truncate(&body_text, 200)))?;
+                        .ok_or_else(|| {
+                            format!(
+                                "music succeeded but missing audio_url: {}",
+                                truncate(&body_text, 200)
+                            )
+                        })?;
                     return Ok(MusicAsset {
                         url: url.to_string(),
                         provider_task_id: task_id.to_string(),
@@ -153,17 +176,26 @@ impl MiniMaxMusicAdapter {
                 }
                 "queued" | "running" => {
                     if attempt == POLL_MAX_ATTEMPTS - 1 {
-                        return Err(format!("music still {} after {} polls", task_status, POLL_MAX_ATTEMPTS));
+                        return Err(format!(
+                            "music still {} after {} polls",
+                            task_status, POLL_MAX_ATTEMPTS
+                        ));
                     }
                 }
                 _ => {
                     if attempt == POLL_MAX_ATTEMPTS - 1 {
-                        return Err(format!("music unknown status '{}' after {} polls", task_status, POLL_MAX_ATTEMPTS));
+                        return Err(format!(
+                            "music unknown status '{}' after {} polls",
+                            task_status, POLL_MAX_ATTEMPTS
+                        ));
                     }
                 }
             }
         }
-        Err(format!("music did not complete in {} polls", POLL_MAX_ATTEMPTS))
+        Err(format!(
+            "music did not complete in {} polls",
+            POLL_MAX_ATTEMPTS
+        ))
     }
 }
 
@@ -187,10 +219,10 @@ pub struct SelectedMusicAdapter {
 pub fn select_music_adapter() -> SelectedMusicAdapter {
     if let Ok(key) = std::env::var("MINIMAX_API_KEY") {
         if !key.is_empty() {
-            let base_url = std::env::var("MINIMAX_BASE_URL")
-                .unwrap_or_else(|_| DEFAULT_BASE_URL.to_string());
-            let model = std::env::var("MINIMAX_MUSIC_MODEL")
-                .unwrap_or_else(|_| DEFAULT_MODEL.to_string());
+            let base_url =
+                std::env::var("MINIMAX_BASE_URL").unwrap_or_else(|_| DEFAULT_BASE_URL.to_string());
+            let model =
+                std::env::var("MINIMAX_MUSIC_MODEL").unwrap_or_else(|_| DEFAULT_MODEL.to_string());
             return SelectedMusicAdapter {
                 adapter: Box::new(MiniMaxMusicAdapter::new(base_url, key, model)),
                 source: "minimax".to_string(),
@@ -231,11 +263,13 @@ mod tests {
     #[test]
     fn mock_returns_placeholder_url() {
         let a = MockMusicAdapter;
-        let out = a.generate(&MusicGenArgs {
-            prompt: "happy".into(),
-            duration_seconds: 30,
-            instrumental: true,
-        }).unwrap();
+        let out = a
+            .generate(&MusicGenArgs {
+                prompt: "happy".into(),
+                duration_seconds: 30,
+                instrumental: true,
+            })
+            .unwrap();
         assert_eq!(out.provider, "mock");
         assert!(out.url.contains("example.com/bgm/"));
         assert_eq!(out.duration_seconds, 30);
@@ -277,17 +311,22 @@ mod tests {
             .mock("GET", "/query/music")
             .match_query(mockito::Matcher::Any)
             .with_status(200)
-            .with_body(r#"{"status":"succeeded","data":{"audio_url":"https://cdn.example/bgm.mp3"}}"#)
+            .with_body(
+                r#"{"status":"succeeded","data":{"audio_url":"https://cdn.example/bgm.mp3"}}"#,
+            )
             .expect(1)
             .create();
         std::env::set_var("MINIMAX_BASE_URL", server.url());
         std::env::set_var("MINIMAX_API_KEY", "k");
         let a = select_music_adapter();
-        let out = a.adapter.generate(&MusicGenArgs {
-            prompt: "cheerful ukulele".into(),
-            duration_seconds: 30,
-            instrumental: true,
-        }).expect("ok");
+        let out = a
+            .adapter
+            .generate(&MusicGenArgs {
+                prompt: "cheerful ukulele".into(),
+                duration_seconds: 30,
+                instrumental: true,
+            })
+            .expect("ok");
         m1.assert();
         m2.assert();
         assert_eq!(out.url, "https://cdn.example/bgm.mp3");
@@ -312,11 +351,14 @@ mod tests {
         std::env::set_var("MINIMAX_BASE_URL", server.url());
         std::env::set_var("MINIMAX_API_KEY", "k");
         let a = select_music_adapter();
-        let err = a.adapter.generate(&MusicGenArgs {
-            prompt: "bad".into(),
-            duration_seconds: 30,
-            instrumental: true,
-        }).unwrap_err();
+        let err = a
+            .adapter
+            .generate(&MusicGenArgs {
+                prompt: "bad".into(),
+                duration_seconds: 30,
+                instrumental: true,
+            })
+            .unwrap_err();
         assert!(err.contains("prompt rejected"), "got: {err}");
         std::env::remove_var("MINIMAX_API_KEY");
     }
@@ -332,11 +374,14 @@ mod tests {
         std::env::set_var("MINIMAX_BASE_URL", server.url());
         std::env::set_var("MINIMAX_API_KEY", "super-secret-music-key");
         let a = select_music_adapter();
-        let err = a.adapter.generate(&MusicGenArgs {
-            prompt: "x".into(),
-            duration_seconds: 30,
-            instrumental: true,
-        }).unwrap_err();
+        let err = a
+            .adapter
+            .generate(&MusicGenArgs {
+                prompt: "x".into(),
+                duration_seconds: 30,
+                instrumental: true,
+            })
+            .unwrap_err();
         assert!(err.contains("HTTP 401"));
         assert!(!err.contains("super-secret-music-key"), "key leaked: {err}");
         std::env::remove_var("MINIMAX_API_KEY");

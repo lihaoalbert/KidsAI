@@ -6,8 +6,8 @@
 //
 // W3.2: trait 改 async + decide_stream，返回 (decision, chunks) 让 agent 层负责事件发射。
 
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
 use async_trait::async_trait;
 use serde::{Deserialize, Serialize};

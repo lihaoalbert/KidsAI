@@ -180,6 +180,29 @@ def process_one(
     return False, f"[fail] {rel}: {last_err}"
 
 
+def load_existing_images() -> dict[str, str]:
+    if not MANIFEST_PATH.exists():
+        return {}
+    try:
+        payload = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
+    except Exception:
+        return {}
+
+    images: dict[str, str] = {}
+
+    def collect(node: object) -> None:
+        if not isinstance(node, dict):
+            return
+        for key, value in node.items():
+            if key == "images":
+                collect(value)
+            elif isinstance(value, str):
+                images[key] = value
+
+    collect(payload)
+    return images
+
+
 # ─── main ──────────────────────────────────────────────────
 def main() -> int:
     p = argparse.ArgumentParser()
@@ -193,7 +216,8 @@ def main() -> int:
                    help="最多跑 N 条 (调试用)")
     args = p.parse_args()
 
-    entries = load_spec()
+    all_entries = load_spec()
+    entries = all_entries
     if args.kind:
         entries = [e for e in entries if e["kind"] == args.kind]
         if not entries:
@@ -209,12 +233,11 @@ def main() -> int:
         print(f"→ keys loaded: {len(keys)}")
         ASSETS_DIR.mkdir(parents=True, exist_ok=True)
 
-    manifest: dict[str, str] = {}
-    if MANIFEST_PATH.exists():
-        try:
-            manifest = json.loads(MANIFEST_PATH.read_text(encoding="utf-8"))
-        except Exception:
-            manifest = {}
+    manifest = load_existing_images()
+    for entry in all_entries:
+        rel = f"{entry['kind']}/{entry['key']}.png"
+        if (ASSETS_DIR / rel).exists():
+            manifest[entry["key"]] = rel
 
     failed: list[dict[str, str]] = []
     successes = 0
@@ -242,7 +265,7 @@ def main() -> int:
             json.dumps(
                 {
                     "version": int(time.time()),
-                    "generated_count": successes,
+                    "generated_count": len(manifest),
                     "images": manifest,
                 },
                 ensure_ascii=False,

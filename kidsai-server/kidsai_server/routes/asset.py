@@ -60,6 +60,7 @@ def get_asset_manifest(response: Response) -> dict:
     body = json.dumps(payload, ensure_ascii=False, sort_keys=True).encode("utf-8")
     etag = hashlib.md5(body).hexdigest()
     response.headers["Cache-Control"] = "public, max-age=3600"
+    response.headers["Access-Control-Allow-Origin"] = "*"
     response.headers["ETag"] = f'"{etag}"'
     response.headers["Content-Type"] = "application/json; charset=utf-8"
     return payload

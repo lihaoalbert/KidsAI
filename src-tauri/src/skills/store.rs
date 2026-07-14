@@ -325,6 +325,7 @@ mod tests {
             size_bytes: 0,
             publisher_signature: "BASE64SIGNATURE".into(),
             publisher_pubkey_id: "kidsai-dev-2026-q3".into(),
+            stages: vec![],
         };
         let c = manifest_canonical(&m);
         assert!(!c.contains("publisher_signature"));

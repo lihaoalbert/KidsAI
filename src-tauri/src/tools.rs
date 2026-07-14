@@ -3,15 +3,18 @@
 // 真实实现走 video_adapter / image_adapter / voice_adapter / music_adapter
 // （按 env key 自动选 real 或 mock）
 
+use crate::character::Character;
 use crate::image_adapter::{select_image_adapter, ImageGenArgs};
+use crate::music_adapter::{select_music_adapter, MusicGenArgs};
+use crate::prompt_builder::{
+    build_seedance_prompt, CharacterAsset, PromptOptions, SceneAsset, ShotCamera, ShotMood,
+    StyleAsset, NEGATIVE_PROMPT,
+};
+use crate::style::StylePreset;
 use crate::video_adapter::{select_video_adapter, VideoGenArgs};
 use crate::voice_adapter::{
     select_tts_adapter, select_voice_clone_adapter, TtsArgs, VoiceCloneArgs,
 };
-use crate::music_adapter::{select_music_adapter, MusicGenArgs};
-use crate::prompt_builder::{build_seedance_prompt, PromptOptions, ShotMood, ShotCamera, CharacterAsset, StyleAsset, SceneAsset, NEGATIVE_PROMPT};
-use crate::character::Character;
-use crate::style::StylePreset;
 use serde::{Deserialize, Serialize};
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
@@ -112,9 +115,7 @@ pub struct ToolRegistry {
 
 impl ToolRegistry {
     pub fn new() -> Self {
-        Self {
-            tools: Vec::new(),
-        }
+        Self { tools: Vec::new() }
     }
 
     pub fn register(&mut self, tool: Box<dyn Tool>) {
@@ -125,7 +126,10 @@ impl ToolRegistry {
     }
 
     pub fn get(&self, name: &str) -> Option<&dyn Tool> {
-        self.tools.iter().find(|t| t.name() == name).map(|t| t.as_ref())
+        self.tools
+            .iter()
+            .find(|t| t.name() == name)
+            .map(|t| t.as_ref())
     }
 
     /// 列出被允许的工具的描述（喂给模型）
@@ -205,7 +209,7 @@ impl Tool for GenerateImageTool {
                 thumbnail_url: None,
                 prompt: prompt.clone(),
                 tool: "generate_image".to_string(),
-                tokens_cost: 5,  // W6 计费: image_gen 5 学币
+                tokens_cost: 5, // W6 计费: image_gen 5 学币
                 model: asset.model,
             }],
         })
@@ -314,10 +318,8 @@ impl ImageToVideoTool {
         // 触发条件: 同时有 character + style (硬锚话术的有效基础).
         // seed_session 缺省时不强制, 用 0 占位 (也确保同 seed_session 必走相同 prompt 路径).
         // 后续 Task #4 DirectorShot 透传过来时, scene/mood/camera 也走 ctx 字段.
-        let (final_prompt, hard_anchor_active) = match (
-            ctx.character.as_ref(),
-            ctx.style.as_ref(),
-        ) {
+        let (final_prompt, hard_anchor_active) = match (ctx.character.as_ref(), ctx.style.as_ref())
+        {
             (Some(c), Some(s)) => {
                 let seed_session = ctx.seed_session.unwrap_or(0);
                 let character_asset = CharacterAsset {
@@ -514,14 +516,8 @@ impl Tool for EditImageTool {
             .and_then(|v| v.as_str())
             .ok_or("missing source_image_url")?
             .to_string();
-        let x = args
-            .get("x")
-            .and_then(|v| v.as_i64())
-            .ok_or("missing x")?;
-        let y = args
-            .get("y")
-            .and_then(|v| v.as_i64())
-            .ok_or("missing y")?;
+        let x = args.get("x").and_then(|v| v.as_i64()).ok_or("missing x")?;
+        let y = args.get("y").and_then(|v| v.as_i64()).ok_or("missing y")?;
         let prompt = args
             .get("prompt")
             .and_then(|v| v.as_str())
@@ -571,8 +567,14 @@ impl Tool for SynthesizeSpeechTool {
             .and_then(|v| v.as_str())
             .ok_or("missing text")?
             .to_string();
-        let voice_id = args.get("voice_id").and_then(|v| v.as_str()).map(|s| s.to_string());
-        let emotion = args.get("emotion").and_then(|v| v.as_str()).map(|s| s.to_string());
+        let voice_id = args
+            .get("voice_id")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
+        let emotion = args
+            .get("emotion")
+            .and_then(|v| v.as_str())
+            .map(|s| s.to_string());
 
         // W6 C2: 走 TTS adapter (MiniMax T2A 或 Mock)
         let adapter = select_tts_adapter();
@@ -642,7 +644,7 @@ impl Tool for VoiceCloneTool {
                 "已训练声音：voice_id={} (provider={})",
                 result.voice_id, result.provider
             ),
-            assets: vec![],  // voice_clone 不直接产资产, voice_id 由前端存
+            assets: vec![], // voice_clone 不直接产资产, voice_id 由前端存
         })
     }
 }
@@ -692,9 +694,7 @@ impl Tool for MusicGenTool {
         Ok(ToolOutput {
             result_text: format!(
                 "已生成 BGM（provider={}, task_id={}, {}秒）",
-                asset.provider,
-                asset.provider_task_id,
-                asset.duration_seconds
+                asset.provider, asset.provider_task_id, asset.duration_seconds
             ),
             assets: vec![GeneratedAsset {
                 kind: "audio".to_string(),
@@ -702,7 +702,7 @@ impl Tool for MusicGenTool {
                 thumbnail_url: None,
                 prompt: prompt.clone(),
                 tool: "music_gen".to_string(),
-                tokens_cost: 8,  // music_gen 8 学币/首
+                tokens_cost: 8, // music_gen 8 学币/首
                 model: asset.model,
             }],
         })
@@ -776,8 +776,8 @@ pub fn default_registry() -> ToolRegistry {
     reg.register(Box::new(EditImageTool));
     reg.register(Box::new(ImageToVideoTool));
     reg.register(Box::new(SynthesizeSpeechTool));
-    reg.register(Box::new(VoiceCloneTool));    // W6 C2
-    reg.register(Box::new(MusicGenTool));      // W6 C3
+    reg.register(Box::new(VoiceCloneTool)); // W6 C2
+    reg.register(Box::new(MusicGenTool)); // W6 C3
     reg.register(Box::new(AddSubtitleTool));
     reg.register(Box::new(AddBgmTool));
     reg.register(Box::new(TextChatTool));
@@ -882,7 +882,10 @@ mod tests {
     #[test]
     fn edit_image_registered_in_default_registry() {
         let reg = default_registry();
-        assert!(reg.get("edit_image").is_some(), "edit_image 应该注册到默认 registry");
+        assert!(
+            reg.get("edit_image").is_some(),
+            "edit_image 应该注册到默认 registry"
+        );
         // 已有工具不受影响
         assert!(reg.get("generate_image").is_some());
         assert!(reg.get("image_to_video").is_some());
@@ -899,7 +902,10 @@ mod tests {
         let tool = GenerateImageTool;
         let out = tool.execute(r#"{"prompt":"测试图"}"#, "sess").expect("ok");
         assert_eq!(out.assets.len(), 1);
-        assert!(out.assets[0].url.contains("picsum.photos"), "mock 仍返 picsum");
+        assert!(
+            out.assets[0].url.contains("picsum.photos"),
+            "mock 仍返 picsum"
+        );
         assert_eq!(out.assets[0].tool, "generate_image");
         assert_eq!(out.assets[0].tokens_cost, 5, "W6 计费: image_gen 5 学币");
     }
@@ -919,7 +925,12 @@ mod tests {
     fn music_gen_default_mock_returns_placeholder() {
         std::env::remove_var("MINIMAX_API_KEY");
         let tool = MusicGenTool;
-        let out = tool.execute(r#"{"prompt":"happy","duration_seconds":30,"instrumental":true}"#, "sess").expect("ok");
+        let out = tool
+            .execute(
+                r#"{"prompt":"happy","duration_seconds":30,"instrumental":true}"#,
+                "sess",
+            )
+            .expect("ok");
         assert_eq!(out.assets[0].kind, "audio");
         assert!(out.assets[0].url.contains("example.com/bgm/"));
         assert_eq!(out.assets[0].tokens_cost, 8, "W6 计费: music_gen 8 学币");
@@ -931,8 +942,17 @@ mod tests {
         std::env::remove_var("MINIMAX_API_KEY");
         let tool = VoiceCloneTool;
         // mock 模式不检查 audio_path 是否存在 — 避免"audio_path not found" 错误阻断测试
-        let out = tool.execute(r#"{"audio_path":"/any/path.wav","voice_id_hint":"kiki"}"#, "sess").expect("ok");
-        assert_eq!(out.result_text.contains("mock"), true, "mock 模式 result_text 应提示 mock");
+        let out = tool
+            .execute(
+                r#"{"audio_path":"/any/path.wav","voice_id_hint":"kiki"}"#,
+                "sess",
+            )
+            .expect("ok");
+        assert_eq!(
+            out.result_text.contains("mock"),
+            true,
+            "mock 模式 result_text 应提示 mock"
+        );
     }
 
     /// image_role=reference_image 透传到 VideoGenArgs → POST body 中 image_url 段出现 role
@@ -949,8 +969,14 @@ mod tests {
         // 更直接: 走 select_video_adapter() 但 mock 出错 → 拿不到 body 也不影响。
         // 简化: 直接断言 tool 的 schema() 包含 image_role 字段(文档级验证)。
         let schema = tool.schema();
-        assert!(schema.contains("image_role"), "schema 应声明 image_role 字段");
-        assert!(schema.contains("reference_image"), "schema 应说明 reference_image 取值");
+        assert!(
+            schema.contains("image_role"),
+            "schema 应声明 image_role 字段"
+        );
+        assert!(
+            schema.contains("reference_image"),
+            "schema 应说明 reference_image 取值"
+        );
         // 通过 execute 走通成功路径:传 image_role=reference_image + 没设 SEEDANCE_API_KEY → 走 mock
         // 这样不会真发 HTTP,只验证 tool 不报 image_role 解析错(以前的 None 路径会报错的字段不会冲突)
         std::env::remove_var("SEEDANCE_API_KEY"); // 确保走 mock
@@ -961,7 +987,10 @@ mod tests {
         }"#;
         let out = tool.execute(args, "sess_role").expect("ok");
         // mock 返回 w3schools URL
-        assert!(out.assets[0].url.contains("w3schools.com"), "应走 mock 返回 w3schools mp4");
+        assert!(
+            out.assets[0].url.contains("w3schools.com"),
+            "应走 mock 返回 w3schools mp4"
+        );
         // tool prompt 字段含 role 信息(便于排障)
         assert!(out.assets[0].prompt.contains("image_role=reference_image"));
         assert!(out.assets[0].prompt.contains("session=sess_role"));
@@ -974,7 +1003,10 @@ mod tests {
     fn image_to_video_passes_model_override_in_body() {
         let tool = ImageToVideoTool;
         let schema = tool.schema();
-        assert!(schema.contains("model"), "schema 应声明 model 字段(per-call override)");
+        assert!(
+            schema.contains("model"),
+            "schema 应声明 model 字段(per-call override)"
+        );
 
         std::env::remove_var("SEEDANCE_API_KEY");
         let args = r#"{
@@ -995,9 +1027,13 @@ mod tests {
             name: "小恐龙".into(),
             description: "green cartoon dinosaur with big eyes and yellow scarf".into(),
             style_tags: vec!["cartoon".into()],
-            reference_image_url: Some("https://assets.kids.ibi.ren/character/xiaolong.stand.png".into()),
+            reference_image_url: Some(
+                "https://assets.kids.ibi.ren/character/xiaolong.stand.png".into(),
+            ),
             // W4.6 #2: 测试用标准像 — 直接设, 模拟"首进 studio 后已生成三视图"状态
-            standard_image_url: Some("https://assets.kids.ibi.ren/character/xiaolong.stand.png".into()),
+            standard_image_url: Some(
+                "https://assets.kids.ibi.ren/character/xiaolong.stand.png".into(),
+            ),
             aliases: Some(vec!["小恐龙".into(), "恐龙".into(), "XiaoLong".into()]),
         }
     }
@@ -1025,7 +1061,10 @@ mod tests {
         let prompt_log = &out.assets[0].prompt;
         // 老路径: motion= 直接回显, 不是 [SEEDANCE_PROMPT]
         assert!(prompt_log.starts_with("motion=小猫跑"), "got: {prompt_log}");
-        assert!(!prompt_log.contains("[SEEDANCE_PROMPT]"), "无 context 不应走工业级路径");
+        assert!(
+            !prompt_log.contains("[SEEDANCE_PROMPT]"),
+            "无 context 不应走工业级路径"
+        );
         assert!(prompt_log.contains("session=sess_nocontext"));
     }
 
@@ -1071,9 +1110,18 @@ mod tests {
         assert!(prompt_text.contains("[Duration]"), "got: {prompt_text}");
 
         // 3) 硬锚话术三件套 — 默认 Seedance 2.0 也开启 hard_anchor
-        assert!(prompt_text.contains("MUST match first_frame"), "got: {prompt_text}");
-        assert!(prompt_text.contains("MUST stay identical"), "got: {prompt_text}");
-        assert!(prompt_text.contains("Use seed: 98765"), "got: {prompt_text}");
+        assert!(
+            prompt_text.contains("MUST match first_frame"),
+            "got: {prompt_text}"
+        );
+        assert!(
+            prompt_text.contains("MUST stay identical"),
+            "got: {prompt_text}"
+        );
+        assert!(
+            prompt_text.contains("Use seed: 98765"),
+            "got: {prompt_text}"
+        );
 
         // 4) Subject 防 pronoun drift — 用 full_name (= name + description)
         assert!(
@@ -1085,7 +1133,10 @@ mod tests {
         assert!(prompt_text.contains("Studio-Ghibli inspired"));
 
         // 6) Seedance 2.0 默认不输出 [Negative] (ark/mock 走 default)
-        assert!(!prompt_text.contains("[Negative]"), "Seedance 路径不应输出 [Negative]");
+        assert!(
+            !prompt_text.contains("[Negative]"),
+            "Seedance 路径不应输出 [Negative]"
+        );
     }
 
     /// Seedance 路径用 seed_session, 不被 per-call seed 覆盖 — 设计如此 (跨镜同 seed 锁)
@@ -1105,8 +1156,14 @@ mod tests {
             .execute_with_context(args, "sess_seed", &ctx)
             .expect("ok");
         let prompt_log = &out.assets[0].prompt;
-        assert!(prompt_log.contains("Use seed: 88888"), "seed_session 应优先: got: {prompt_log}");
-        assert!(!prompt_log.contains("Use seed: 11111"), "per-call seed 不应覆盖 seed_session");
+        assert!(
+            prompt_log.contains("Use seed: 88888"),
+            "seed_session 应优先: got: {prompt_log}"
+        );
+        assert!(
+            !prompt_log.contains("Use seed: 11111"),
+            "per-call seed 不应覆盖 seed_session"
+        );
     }
 
     /// Seedance 路径下, prompt 里没有 motion 原文 — 工业级 prompt 完全替换 motion 字段
@@ -1127,7 +1184,10 @@ mod tests {
             .expect("ok");
         let prompt_log = &out.assets[0].prompt;
         // 工业级 prompt 把 motion 当 action
-        assert!(prompt_log.contains("[Action] 一只小猫跳起来"), "motion 应嵌入 [Action] 行");
+        assert!(
+            prompt_log.contains("[Action] 一只小猫跳起来"),
+            "motion 应嵌入 [Action] 行"
+        );
         // 但 prompt log 不以 "motion=" 起头
         assert!(!prompt_log.contains("motion=一只小猫跳起来"));
     }
@@ -1145,8 +1205,14 @@ mod tests {
 
         // Hailuo → opt-in Negative
         let opts_hailuo = build_options_for_provider("hailuo");
-        assert_eq!(opts_hailuo.negative_prompt.as_deref(), Some(NEGATIVE_PROMPT));
-        assert!(opts_hailuo.hard_anchor, "Hailuo 路径也开 hard_anchor (调研说开没坏处)");
+        assert_eq!(
+            opts_hailuo.negative_prompt.as_deref(),
+            Some(NEGATIVE_PROMPT)
+        );
+        assert!(
+            opts_hailuo.hard_anchor,
+            "Hailuo 路径也开 hard_anchor (调研说开没坏处)"
+        );
     }
 
     /// ToolContext Default 是空 ctx (向后兼容)
@@ -1171,9 +1237,7 @@ mod tests {
         assert!(!out.result_text.is_empty());
         // execute_with_context 走默认 impl → 退回到 execute
         let ctx = ToolContext::default();
-        let out2 = tool
-            .execute_with_context(args, "sess", &ctx)
-            .expect("ok");
+        let out2 = tool.execute_with_context(args, "sess", &ctx).expect("ok");
         assert_eq!(out.result_text, out2.result_text);
     }
 

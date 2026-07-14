@@ -12,12 +12,14 @@
 // 4. shot 整个缺失 (None) → 老路径 (默认 Calm/Medium), 不破坏 W4.6 #5 的兼容
 // 5. 5 拍节奏下, 三种 beat 都能解析 → prompt_for_log 输出含 beat 字符串 (排障可见)
 
+use kidsai_studio_lib::character::Character;
 use kidsai_studio_lib::prompt_builder::{
     build_seedance_prompt, CharacterAsset, PromptOptions, SceneAsset, StyleAsset,
 };
-use kidsai_studio_lib::tools::{parse_shot_camera, parse_shot_mood, ImageToVideoTool, ShotContext, Tool, ToolContext};
-use kidsai_studio_lib::character::Character;
 use kidsai_studio_lib::style::StylePreset;
+use kidsai_studio_lib::tools::{
+    parse_shot_camera, parse_shot_mood, ImageToVideoTool, ShotContext, Tool, ToolContext,
+};
 
 fn sample_character() -> Character {
     Character {
@@ -37,7 +39,9 @@ fn sample_style() -> StylePreset {
         name: "卡通".into(),
         description: "明亮卡通风格".into(),
         style_tags: vec!["cartoon".into()],
-        seedance_style_keyword: Some("bright cartoon style, bold outlines, saturated palette".into()),
+        seedance_style_keyword: Some(
+            "bright cartoon style, bold outlines, saturated palette".into(),
+        ),
     }
 }
 
@@ -147,8 +151,8 @@ fn case_2_different_mood_camera_yields_different_prompt() {
 fn case_3_unknown_mood_camera_silently_falls_back_to_default() {
     // 不存在的枚举值 → 静默回退 Calm/Medium, 不报错
     let shot = ShotContext {
-        mood: Some("happiness".into()),  // ❌ 不在白名单
-        camera: Some("overhead-shot".into()),  // ❌ 不在白名单 (overhead 是)
+        mood: Some("happiness".into()),       // ❌ 不在白名单
+        camera: Some("overhead-shot".into()), // ❌ 不在白名单 (overhead 是)
         ..Default::default()
     };
     let prompt_log = run_with_shot(shot, "小猫跑");
@@ -225,13 +229,31 @@ fn case_6_parse_shot_mood_unit() {
     assert!(matches!(parse_shot_mood(Some("")), ShotMood::Calm));
 
     assert!(matches!(parse_shot_camera(Some("wide")), ShotCamera::Wide));
-    assert!(matches!(parse_shot_camera(Some("medium")), ShotCamera::Medium));
-    assert!(matches!(parse_shot_camera(Some("close")), ShotCamera::Close));
-    assert!(matches!(parse_shot_camera(Some("extreme")), ShotCamera::Extreme));
-    assert!(matches!(parse_shot_camera(Some("follow")), ShotCamera::Follow));
-    assert!(matches!(parse_shot_camera(Some("overhead")), ShotCamera::Overhead));
+    assert!(matches!(
+        parse_shot_camera(Some("medium")),
+        ShotCamera::Medium
+    ));
+    assert!(matches!(
+        parse_shot_camera(Some("close")),
+        ShotCamera::Close
+    ));
+    assert!(matches!(
+        parse_shot_camera(Some("extreme")),
+        ShotCamera::Extreme
+    ));
+    assert!(matches!(
+        parse_shot_camera(Some("follow")),
+        ShotCamera::Follow
+    ));
+    assert!(matches!(
+        parse_shot_camera(Some("overhead")),
+        ShotCamera::Overhead
+    ));
     assert!(matches!(parse_shot_camera(None), ShotCamera::Medium));
-    assert!(matches!(parse_shot_camera(Some("drone")), ShotCamera::Medium)); // "drone" 不在白名单
+    assert!(matches!(
+        parse_shot_camera(Some("drone")),
+        ShotCamera::Medium
+    )); // "drone" 不在白名单
 }
 
 #[test]

@@ -12,7 +12,6 @@ use kidsai_studio_lib::test_helpers::run_agent_sync;
 // 串行化"会动环境变量"的测试
 static ENV_LOCK: Mutex<()> = Mutex::new(());
 
-
 #[tokio::test]
 async fn mock_model_runs_l1_without_real_api() {
     // 没设任何 API key，应该自动走 mock
@@ -46,10 +45,18 @@ fn model_factory_falls_back_to_mock_without_keys() {
     let selected = kidsai_studio_lib::model_factory::select_model();
     assert_eq!(selected.source, "mock");
     unsafe {
-        if let Some(v) = saved.0 { std::env::set_var("MINIMAX_API_KEY", v); }
-        if let Some(v) = saved.1 { std::env::set_var("DEEPSEEK_API_KEY", v); }
-        if let Some(v) = saved.2 { std::env::set_var("OPENAI_API_KEY", v); }
-        if let Some(v) = saved.3 { std::env::set_var("DASHSCOPE_API_KEY", v); }
+        if let Some(v) = saved.0 {
+            std::env::set_var("MINIMAX_API_KEY", v);
+        }
+        if let Some(v) = saved.1 {
+            std::env::set_var("DEEPSEEK_API_KEY", v);
+        }
+        if let Some(v) = saved.2 {
+            std::env::set_var("OPENAI_API_KEY", v);
+        }
+        if let Some(v) = saved.3 {
+            std::env::set_var("DASHSCOPE_API_KEY", v);
+        }
     }
 }
 
@@ -137,11 +144,7 @@ fn parses_deepseek_final_answer_response() {
 
     assert!(decision.tool.is_none());
     assert!(decision.tool_args.is_none());
-    assert!(decision
-        .final_answer
-        .as_deref()
-        .unwrap()
-        .contains("太棒啦"));
+    assert!(decision.final_answer.as_deref().unwrap().contains("太棒啦"));
     assert_eq!(decision.tokens_used, 80);
 }
 
@@ -162,7 +165,12 @@ fn parses_deepseek_no_usage() {
 fn openai_compatible_constructs_with_dummy_key() {
     // 不发请求，只验证构造和 name
     use kidsai_studio_lib::model_openai::OpenAiCompatible;
-    let m = OpenAiCompatible::new("deepseek", "deepseek-chat", "https://api.deepseek.com", "sk-fake");
+    let m = OpenAiCompatible::new(
+        "deepseek",
+        "deepseek-chat",
+        "https://api.deepseek.com",
+        "sk-fake",
+    );
     assert_eq!(m.name(), "deepseek:deepseek-chat");
 }
 

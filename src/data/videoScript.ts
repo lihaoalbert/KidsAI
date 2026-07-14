@@ -10,6 +10,8 @@ export interface OptionCard {
   label: string;
   value: string;
   emoji?: string;
+  imageUrl?: string;
+  imageAlt?: string;
   kind?: OptionKind; // 默认 'choice'
 }
 

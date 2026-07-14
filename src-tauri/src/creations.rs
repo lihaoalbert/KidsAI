@@ -40,10 +40,7 @@ pub struct CreationWithAssets {
 }
 
 #[tauri::command]
-pub fn save_creation(
-    request: SaveCreationRequest,
-    db: State<'_, Db>,
-) -> Result<(), String> {
+pub fn save_creation(request: SaveCreationRequest, db: State<'_, Db>) -> Result<(), String> {
     let agent_output_str = serde_json::to_string(&request.agent_output)
         .map_err(|e| format!("serialize agent_output: {e}"))?;
     let rubric_str = match &request.rubric {
@@ -82,7 +79,9 @@ pub fn list_creations(
     level_id: Option<String>,
     db: State<'_, Db>,
 ) -> Result<Vec<CreationWithAssets>, String> {
-    let rows = db.list_creations(level_id.as_deref()).map_err(|e| e.to_string())?;
+    let rows = db
+        .list_creations(level_id.as_deref())
+        .map_err(|e| e.to_string())?;
     let mut out = Vec::with_capacity(rows.len());
     for row in rows {
         let assets = db.list_assets(&row.id).map_err(|e| e.to_string())?;

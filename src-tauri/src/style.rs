@@ -150,9 +150,7 @@ pub fn build_system_prompt_with_style(base: &str, style: Option<&StylePreset>) -
     match style {
         Some(s) => format!(
             "{}\n\n[当前风格]\n名称: {}\n视觉描述: {}\n（请在生成图片 / 视频时保持该视觉风格一致）",
-            base,
-            s.name,
-            s.description,
+            base, s.name, s.description,
         ),
         None => base.to_string(),
     }
@@ -272,8 +270,16 @@ mod tests {
         let out = inject_style_into_image_args(args, &s);
         let v: serde_json::Value = serde_json::from_str(&out).unwrap();
         let prompt = v["prompt"].as_str().unwrap();
-        assert!(prompt.contains("在花园里玩"), "original preserved: {}", prompt);
-        assert!(prompt.contains("中国传统水墨画风格"), "style description injected: {}", prompt);
+        assert!(
+            prompt.contains("在花园里玩"),
+            "original preserved: {}",
+            prompt
+        );
+        assert!(
+            prompt.contains("中国传统水墨画风格"),
+            "style description injected: {}",
+            prompt
+        );
         // 其他字段不动
         assert_eq!(v["style"], "line");
     }

@@ -59,12 +59,7 @@ pub fn init(app_data_dir: &Path) {
 
 /// 写一条日志. 同时写到文件 (如果 init 过) 和 stderr (开发期可见).
 pub fn event(tag: &str, msg: &str) {
-    let line = format!(
-        "{} [{}] {}\n",
-        chrono_like_now(),
-        tag,
-        msg.trim_end()
-    );
+    let line = format!("{} [{}] {}\n", chrono_like_now(), tag, msg.trim_end());
     if let Ok(mut g) = LOG_FILE.lock() {
         if let Some(f) = g.as_mut() {
             let _ = f.write_all(line.as_bytes());
@@ -102,10 +97,7 @@ fn chrono_like_now() -> String {
     let ss = s_of_day % 60;
     // 1970-01-01 是周四. 用 Howard Hinnant 算法 (civil_from_days) 算日期.
     let (y, m, d) = civil_from_days(days);
-    format!(
-        "{:04}-{:02}-{:02} {:02}:{:02}:{:02}",
-        y, m, d, hh, mm, ss
-    )
+    format!("{:04}-{:02}-{:02} {:02}:{:02}:{:02}", y, m, d, hh, mm, ss)
 }
 
 /// Howard Hinnant civil_from_days: 把 days since 1970-01-01 转成 (Y, M, D).
@@ -131,10 +123,7 @@ fn open_today(logs_dir: &Path) -> std::io::Result<File> {
     let days = (secs / 86_400) as i64;
     let (y, m, d) = civil_from_days(days);
     let path = logs_dir.join(format!("kidsai-{:04}-{:02}-{:02}.log", y, m, d));
-    OpenOptions::new()
-        .create(true)
-        .append(true)
-        .open(path)
+    OpenOptions::new().create(true).append(true).open(path)
 }
 
 #[cfg(test)]

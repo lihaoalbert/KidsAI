@@ -107,7 +107,9 @@ impl LicenseClient {
                     api_keys: ApiKeys {
                         llm: std::env::var("LLM_API_KEY").unwrap_or_default(),
                         video: std::env::var("SEEDANCE_API_KEY").unwrap_or_default(),
-                        minimax: std::env::var("MINIMAX_API_KEY").ok().filter(|s| !s.is_empty()),
+                        minimax: std::env::var("MINIMAX_API_KEY")
+                            .ok()
+                            .filter(|s| !s.is_empty()),
                     },
                     balance: 100,
                     daily_quota: 30,
@@ -206,10 +208,7 @@ impl LicenseClient {
         }
     }
 
-    pub async fn refresh_license(
-        &self,
-        license_token: &str,
-    ) -> Result<RefreshResponse, String> {
+    pub async fn refresh_license(&self, license_token: &str) -> Result<RefreshResponse, String> {
         match &self.mode {
             LicenseMode::Demo => Ok(RefreshResponse {
                 device_id: "demo".into(),
@@ -217,7 +216,9 @@ impl LicenseClient {
                 api_keys: ApiKeys {
                     llm: "demo".into(),
                     video: "demo".into(),
-                    minimax: std::env::var("MINIMAX_API_KEY").ok().filter(|s| !s.is_empty()),
+                    minimax: std::env::var("MINIMAX_API_KEY")
+                        .ok()
+                        .filter(|s| !s.is_empty()),
                 },
             }),
             LicenseMode::Server { base_url } => {
@@ -275,7 +276,10 @@ mod tests {
     async fn demo_record_spend_accepts_with_zero_cost() {
         std::env::remove_var("KIDSAI_SERVER_URL");
         let c = LicenseClient::from_env();
-        let r = c.record_spend("tok", "call-x", "video_draft", 1).await.unwrap();
+        let r = c
+            .record_spend("tok", "call-x", "video_draft", 1)
+            .await
+            .unwrap();
         assert!(r.accepted);
         assert_eq!(r.cost, 0);
     }

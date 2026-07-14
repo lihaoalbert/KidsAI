@@ -1,11 +1,11 @@
 // Agent Loop 集成测试（W2.4 + W2.5 + W2.6 + W2.7 + W3.2 async + W3.pre 边界/失败/审核 + W3.4 角色）
 // 验证 ReAct 循环 + 工具执行 + 资产收集 + 事件流 + 角色一致性
 
-use kidsai_studio_lib::test_helpers::{run_agent_sync, CollectingSink};
 use kidsai_studio_lib::agent::{run_loop, AgentRunRequest, SessionRegistry};
 use kidsai_studio_lib::model::ModelRouter;
 use kidsai_studio_lib::model_mock::{MockConfig, MockModel};
 use kidsai_studio_lib::model_openai::OaiToolCall;
+use kidsai_studio_lib::test_helpers::{run_agent_sync, CollectingSink};
 
 #[tokio::test]
 async fn agent_loop_runs_l1_trajectory() {
@@ -21,12 +21,24 @@ async fn agent_loop_runs_l1_trajectory() {
 
     assert_eq!(result.level_id, "L1");
     assert!(!result.final_answer.is_empty(), "final answer missing");
-    assert!(result.steps >= 2, "should run at least 2 steps for L1, got {}", result.steps);
+    assert!(
+        result.steps >= 2,
+        "should run at least 2 steps for L1, got {}",
+        result.steps
+    );
     assert!(!result.thoughts.is_empty(), "thoughts should be collected");
 
     let kinds: Vec<&str> = result.assets.iter().map(|a| a.kind.as_str()).collect();
-    assert!(kinds.contains(&"image"), "should generate image, got {:?}", kinds);
-    assert!(kinds.contains(&"video"), "should generate video, got {:?}", kinds);
+    assert!(
+        kinds.contains(&"image"),
+        "should generate image, got {:?}",
+        kinds
+    );
+    assert!(
+        kinds.contains(&"video"),
+        "should generate video, got {:?}",
+        kinds
+    );
 
     let tool_names: Vec<&str> = result.tool_calls.iter().map(|t| t.tool.as_str()).collect();
     assert!(tool_names.contains(&"generate_image"));
@@ -48,7 +60,11 @@ async fn agent_loop_runs_l2_trajectory() {
     .expect("run");
 
     let kinds: Vec<&str> = result.assets.iter().map(|a| a.kind.as_str()).collect();
-    assert!(kinds.contains(&"audio"), "should generate audio, got {:?}", kinds);
+    assert!(
+        kinds.contains(&"audio"),
+        "should generate audio, got {:?}",
+        kinds
+    );
 }
 
 #[tokio::test]
@@ -81,7 +97,9 @@ async fn agent_loop_emits_full_event_stream() {
         character_id: None,
         style_id: None,
     };
-    run_loop(&sink, &registry, &router, request, None, None).await.expect("run");
+    run_loop(&sink, &registry, &router, request, None, None)
+        .await
+        .expect("run");
 
     let kinds = sink.kinds();
     assert!(kinds.contains(&"started".to_string()));
@@ -145,14 +163,24 @@ async fn agent_loop_respects_max_steps_six() {
         .await
         .expect("max steps should not error");
 
-    assert_eq!(result.steps, 6, "should hit MAX_STEPS=6, got {}", result.steps);
+    assert_eq!(
+        result.steps, 6,
+        "should hit MAX_STEPS=6, got {}",
+        result.steps
+    );
     assert!(!result.cancelled);
     assert_eq!(result.tool_calls.len(), 6, "expected 6 tool_call records");
     assert!(result.final_answer.is_empty() || result.final_answer.contains("出错了"));
     let kinds = sink.kinds();
     assert_eq!(kinds.iter().filter(|k| k.as_str() == "thought").count(), 6);
-    assert_eq!(kinds.iter().filter(|k| k.as_str() == "tool_call").count(), 6);
-    assert_eq!(kinds.iter().filter(|k| k.as_str() == "tool_result").count(), 6);
+    assert_eq!(
+        kinds.iter().filter(|k| k.as_str() == "tool_call").count(),
+        6
+    );
+    assert_eq!(
+        kinds.iter().filter(|k| k.as_str() == "tool_result").count(),
+        6
+    );
     assert_eq!(kinds.last(), Some(&"done".to_string()));
 }
 
@@ -354,7 +382,10 @@ async fn agent_loop_l1_event_pairing_and_tool_call_completeness() {
         tc_steps, tr_steps,
         "tool_call and tool_result step lists must match"
     );
-    assert!(!tc_steps.is_empty(), "should have at least one tool_call/tool_result pair");
+    assert!(
+        !tc_steps.is_empty(),
+        "should have at least one tool_call/tool_result pair"
+    );
     let kinds = sink.kinds();
     let chunk_count = kinds.iter().filter(|k| k.as_str() == "chunk").count();
     assert_eq!(
@@ -411,7 +442,10 @@ async fn character_injects_into_repeated_generate_image_args() {
             _req: &kidsai_studio_lib::model::ModelRequest,
             _cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
         ) -> Result<
-            (kidsai_studio_lib::model::ModelDecision, Vec<kidsai_studio_lib::model::Chunk>),
+            (
+                kidsai_studio_lib::model::ModelDecision,
+                Vec<kidsai_studio_lib::model::Chunk>,
+            ),
             String,
         > {
             self.captured
@@ -463,7 +497,11 @@ async fn character_injects_into_repeated_generate_image_args() {
     assert_eq!(result.tool_calls.len(), 6);
     // 6 个 image 资产
     let image_count = result.assets.iter().filter(|a| a.kind == "image").count();
-    assert_eq!(image_count, 6, "expected 6 image assets, got {}", image_count);
+    assert_eq!(
+        image_count, 6,
+        "expected 6 image assets, got {}",
+        image_count
+    );
 }
 
 /// 角色设定后：system_prompt 含角色描述（用 recording model 验证）
@@ -489,7 +527,10 @@ async fn character_appends_to_system_prompt() {
             req: &kidsai_studio_lib::model::ModelRequest,
             _cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
         ) -> Result<
-            (kidsai_studio_lib::model::ModelDecision, Vec<kidsai_studio_lib::model::Chunk>),
+            (
+                kidsai_studio_lib::model::ModelDecision,
+                Vec<kidsai_studio_lib::model::Chunk>,
+            ),
             String,
         > {
             *self.captured.lock().await = req.system_prompt.clone();
@@ -535,11 +576,27 @@ async fn character_appends_to_system_prompt() {
 
     let prompt = captured_prompt.lock().await.clone();
     // system_prompt 应含：原 prompt + [当前角色] 段 + 工具描述
-    assert!(prompt.contains("你是小启"), "original prompt preserved: {}", prompt);
-    assert!(prompt.contains("[当前角色]"), "character section added: {}", prompt);
+    assert!(
+        prompt.contains("你是小启"),
+        "original prompt preserved: {}",
+        prompt
+    );
+    assert!(
+        prompt.contains("[当前角色]"),
+        "character section added: {}",
+        prompt
+    );
     assert!(prompt.contains("小月"), "character name: {}", prompt);
-    assert!(prompt.contains("双马尾红裙"), "character description: {}", prompt);
-    assert!(prompt.contains("cartoon"), "character style tag: {}", prompt);
+    assert!(
+        prompt.contains("双马尾红裙"),
+        "character description: {}",
+        prompt
+    );
+    assert!(
+        prompt.contains("cartoon"),
+        "character style tag: {}",
+        prompt
+    );
     assert_eq!(result.final_answer, "done");
 }
 
@@ -624,7 +681,10 @@ async fn style_appends_to_system_prompt() {
             req: &kidsai_studio_lib::model::ModelRequest,
             _cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
         ) -> Result<
-            (kidsai_studio_lib::model::ModelDecision, Vec<kidsai_studio_lib::model::Chunk>),
+            (
+                kidsai_studio_lib::model::ModelDecision,
+                Vec<kidsai_studio_lib::model::Chunk>,
+            ),
             String,
         > {
             *self.captured.lock().await = req.system_prompt.clone();
@@ -668,7 +728,10 @@ async fn style_appends_to_system_prompt() {
     let prompt = captured_prompt.lock().await.clone();
     assert!(prompt.contains("你是小启"), "original prompt preserved");
     assert!(prompt.contains("[当前风格]"), "style section added");
-    assert!(prompt.contains("中国传统水墨画风格"), "style description injected");
+    assert!(
+        prompt.contains("中国传统水墨画风格"),
+        "style description injected"
+    );
     assert_eq!(result.final_answer, "ok");
 }
 
@@ -689,7 +752,10 @@ async fn style_injects_into_repeated_generate_image_args() {
             _req: &kidsai_studio_lib::model::ModelRequest,
             _cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
         ) -> Result<
-            (kidsai_studio_lib::model::ModelDecision, Vec<kidsai_studio_lib::model::Chunk>),
+            (
+                kidsai_studio_lib::model::ModelDecision,
+                Vec<kidsai_studio_lib::model::Chunk>,
+            ),
             String,
         > {
             Ok((
@@ -730,11 +796,7 @@ async fn style_injects_into_repeated_generate_image_args() {
         .expect("run should succeed");
 
     // 6 步都执行 tool，每个 image 资产的 prompt 字段应该含风格描述
-    let images: Vec<_> = result
-        .assets
-        .iter()
-        .filter(|a| a.kind == "image")
-        .collect();
+    let images: Vec<_> = result.assets.iter().filter(|a| a.kind == "image").collect();
     assert_eq!(images.len(), 6, "expected 6 image assets");
     for (i, asset) in images.iter().enumerate() {
         assert!(
@@ -772,7 +834,10 @@ async fn style_id_not_in_registry_behaves_as_unset() {
             req: &kidsai_studio_lib::model::ModelRequest,
             _cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
         ) -> Result<
-            (kidsai_studio_lib::model::ModelDecision, Vec<kidsai_studio_lib::model::Chunk>),
+            (
+                kidsai_studio_lib::model::ModelDecision,
+                Vec<kidsai_studio_lib::model::Chunk>,
+            ),
             String,
         > {
             *self.captured.lock().await = req.system_prompt.clone();
@@ -832,7 +897,10 @@ async fn character_and_style_compose_in_image_prompt() {
             _req: &kidsai_studio_lib::model::ModelRequest,
             _cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
         ) -> Result<
-            (kidsai_studio_lib::model::ModelDecision, Vec<kidsai_studio_lib::model::Chunk>),
+            (
+                kidsai_studio_lib::model::ModelDecision,
+                Vec<kidsai_studio_lib::model::Chunk>,
+            ),
             String,
         > {
             Ok((
@@ -877,22 +945,37 @@ async fn character_and_style_compose_in_image_prompt() {
         character_id: Some(character.id.clone()),
         style_id: Some(style.id.clone()),
     };
-    let result = run_loop(&sink, &registry, &router, request, Some(character), Some(style))
-        .await
-        .expect("run should succeed");
+    let result = run_loop(
+        &sink,
+        &registry,
+        &router,
+        request,
+        Some(character),
+        Some(style),
+    )
+    .await
+    .expect("run should succeed");
 
-    let images: Vec<_> = result
-        .assets
-        .iter()
-        .filter(|a| a.kind == "image")
-        .collect();
+    let images: Vec<_> = result.assets.iter().filter(|a| a.kind == "image").collect();
     assert_eq!(images.len(), 6);
     for (i, asset) in images.iter().enumerate() {
         let prompt = &asset.prompt;
-        assert!(prompt.contains("小启"), "step {i}: character name, got: {prompt}");
-        assert!(prompt.contains("9岁小猫女孩"), "step {i}: character desc, got: {prompt}");
-        assert!(prompt.contains("中国传统水墨画风格"), "step {i}: style desc, got: {prompt}");
-        assert!(prompt.contains("在森林里"), "step {i}: original prompt, got: {prompt}");
+        assert!(
+            prompt.contains("小启"),
+            "step {i}: character name, got: {prompt}"
+        );
+        assert!(
+            prompt.contains("9岁小猫女孩"),
+            "step {i}: character desc, got: {prompt}"
+        );
+        assert!(
+            prompt.contains("中国传统水墨画风格"),
+            "step {i}: style desc, got: {prompt}"
+        );
+        assert!(
+            prompt.contains("在森林里"),
+            "step {i}: original prompt, got: {prompt}"
+        );
     }
 }
 
@@ -920,7 +1003,10 @@ async fn character_and_style_compose_in_system_prompt() {
             req: &kidsai_studio_lib::model::ModelRequest,
             _cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
         ) -> Result<
-            (kidsai_studio_lib::model::ModelDecision, Vec<kidsai_studio_lib::model::Chunk>),
+            (
+                kidsai_studio_lib::model::ModelDecision,
+                Vec<kidsai_studio_lib::model::Chunk>,
+            ),
             String,
         > {
             *self.captured.lock().await = req.system_prompt.clone();
@@ -966,9 +1052,16 @@ async fn character_and_style_compose_in_system_prompt() {
         character_id: Some(character.id.clone()),
         style_id: Some(style.id.clone()),
     };
-    run_loop(&sink, &registry, &router, request, Some(character), Some(style))
-        .await
-        .expect("run should succeed");
+    run_loop(
+        &sink,
+        &registry,
+        &router,
+        request,
+        Some(character),
+        Some(style),
+    )
+    .await
+    .expect("run should succeed");
 
     let prompt = captured_prompt.lock().await.clone();
     assert!(prompt.contains("[当前角色]"));
@@ -979,7 +1072,10 @@ async fn character_and_style_compose_in_system_prompt() {
     // 段顺序：角色在前，风格在后
     let char_pos = prompt.find("[当前角色]").unwrap();
     let style_pos = prompt.find("[当前风格]").unwrap();
-    assert!(char_pos < style_pos, "[当前角色] should come before [当前风格]");
+    assert!(
+        char_pos < style_pos,
+        "[当前角色] should come before [当前风格]"
+    );
 }
 
 // =====================================================================
@@ -1024,11 +1120,22 @@ async fn edit_image_tool_call_returns_new_image_asset() {
     assert!(
         result.tool_calls.iter().any(|t| t.tool == "edit_image"),
         "should have edit_image tool call, got: {:?}",
-        result.tool_calls.iter().map(|t| &t.tool).collect::<Vec<_>>(),
+        result
+            .tool_calls
+            .iter()
+            .map(|t| &t.tool)
+            .collect::<Vec<_>>(),
     );
     // 生成了新的 image 资产（mock 每个 step 都调 → 多次 edit_image；断言 ≥1）
-    let edit_assets: Vec<_> = result.assets.iter().filter(|a| a.tool == "edit_image").collect();
-    assert!(edit_assets.len() >= 1, "should have at least 1 edit_image asset");
+    let edit_assets: Vec<_> = result
+        .assets
+        .iter()
+        .filter(|a| a.tool == "edit_image")
+        .collect();
+    assert!(
+        edit_assets.len() >= 1,
+        "should have at least 1 edit_image asset"
+    );
     let edit_asset = &edit_assets[0];
     // URL 不应等于 source（picsum seed 包含坐标 + prompt）
     assert_ne!(edit_asset.url, "https://example.com/cat.jpg");
@@ -1054,7 +1161,8 @@ async fn edit_image_whitelist_enforced() {
             kind: "function".to_string(),
             function: kidsai_studio_lib::model_openai::OaiFunction {
                 name: "edit_image".to_string(),
-                arguments: r#"{"source_image_url":"https://a","x":10,"y":20,"prompt":"改色"}"#.to_string(),
+                arguments: r#"{"source_image_url":"https://a","x":10,"y":20,"prompt":"改色"}"#
+                    .to_string(),
             },
         }),
         chunk_delay_ms: 0,
@@ -1082,7 +1190,10 @@ async fn edit_image_whitelist_enforced() {
         .iter()
         .filter(|a| a.tool == "edit_image")
         .count();
-    assert_eq!(edit_count, 0, "edit_image not in whitelist → no edit assets");
+    assert_eq!(
+        edit_count, 0,
+        "edit_image not in whitelist → no edit assets"
+    );
 
     // 事件流里应有 error 事件（"tool edit_image not in whitelist"）
     let kinds = sink.kinds();
@@ -1118,7 +1229,10 @@ async fn edit_image_with_character_and_style_inherits_injection() {
             req: &kidsai_studio_lib::model::ModelRequest,
             _cancel: std::sync::Arc<std::sync::atomic::AtomicBool>,
         ) -> Result<
-            (kidsai_studio_lib::model::ModelDecision, Vec<kidsai_studio_lib::model::Chunk>),
+            (
+                kidsai_studio_lib::model::ModelDecision,
+                Vec<kidsai_studio_lib::model::Chunk>,
+            ),
             String,
         > {
             *self.captured.lock().await = req.system_prompt.clone();
@@ -1167,9 +1281,16 @@ async fn edit_image_with_character_and_style_inherits_injection() {
         character_id: Some(character.id.clone()),
         style_id: Some(style.id.clone()),
     };
-    let result = run_loop(&sink, &registry, &router, request, Some(character), Some(style))
-        .await
-        .expect("run should succeed");
+    let result = run_loop(
+        &sink,
+        &registry,
+        &router,
+        request,
+        Some(character),
+        Some(style),
+    )
+    .await
+    .expect("run should succeed");
 
     let prompt = captured_prompt.lock().await.clone();
     // system_prompt 应含角色 + 风格 + edit_image schema
@@ -1177,13 +1298,23 @@ async fn edit_image_with_character_and_style_inherits_injection() {
     assert!(prompt.contains("9岁小猫女孩"));
     assert!(prompt.contains("[当前风格]"));
     assert!(prompt.contains("中国传统水墨画"));
-    assert!(prompt.contains("edit_image"), "system_prompt 应含 edit_image schema");
+    assert!(
+        prompt.contains("edit_image"),
+        "system_prompt 应含 edit_image schema"
+    );
 
     // edit_image 工具被正常调用 + 资产生成（prompt 不变 — 因为 edit_image 不走角色/风格注入路径）
-    let edit_assets: Vec<_> = result.assets.iter().filter(|a| a.tool == "edit_image").collect();
+    let edit_assets: Vec<_> = result
+        .assets
+        .iter()
+        .filter(|a| a.tool == "edit_image")
+        .collect();
     assert!(edit_assets.len() >= 1, "at least 1 edit_image asset");
     for asset in &edit_assets {
-        assert_eq!(asset.prompt, "改色", "edit_image 的 prompt 字段保持原值（不走注入）");
+        assert_eq!(
+            asset.prompt, "改色",
+            "edit_image 的 prompt 字段保持原值（不走注入）"
+        );
     }
 }
 

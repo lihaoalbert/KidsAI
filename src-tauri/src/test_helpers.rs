@@ -5,8 +5,8 @@
 // W3.4: 支持 character 参数
 // W3.6: 支持 character + style 两个独立维度
 
-use std::sync::Arc;
 use std::sync::atomic::AtomicBool;
+use std::sync::Arc;
 
 use crate::agent::{
     run_loop, AgentEvent, AgentRunRequest, AgentRunResponse, NoopEventSink, SessionRegistry,
@@ -22,7 +22,8 @@ pub async fn run_agent_sync(
     system_prompt: &str,
     tools: Vec<String>,
 ) -> Result<AgentRunResponse, String> {
-    run_agent_sync_with_character_and_style(level_id, user_input, system_prompt, tools, None, None).await
+    run_agent_sync_with_character_and_style(level_id, user_input, system_prompt, tools, None, None)
+        .await
 }
 
 /// W3.4: 带 character 的版本（兼容旧调用）
@@ -33,7 +34,15 @@ pub async fn run_agent_sync_with_character(
     tools: Vec<String>,
     character: Option<Character>,
 ) -> Result<AgentRunResponse, String> {
-    run_agent_sync_with_character_and_style(level_id, user_input, system_prompt, tools, character, None).await
+    run_agent_sync_with_character_and_style(
+        level_id,
+        user_input,
+        system_prompt,
+        tools,
+        character,
+        None,
+    )
+    .await
 }
 
 /// W3.6: 角色 + 风格 两个维度都能注入
@@ -55,7 +64,15 @@ pub async fn run_agent_sync_with_character_and_style(
         character_id: character.as_ref().map(|c| c.id.clone()),
         style_id: style.as_ref().map(|s| s.id.clone()),
     };
-    run_loop(&NoopEventSink, &registry, &router, request, character, style).await
+    run_loop(
+        &NoopEventSink,
+        &registry,
+        &router,
+        request,
+        character,
+        style,
+    )
+    .await
 }
 
 /// 新版：调用方传入任意模型（真实 LLM / mock / 等），可选 character

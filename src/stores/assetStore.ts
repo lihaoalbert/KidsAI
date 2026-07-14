@@ -14,6 +14,13 @@ import { fetchAssetManifest, type AssetManifest } from '../api/tauri';
 
 const STORAGE_KEY = 'kidsai:asset-manifest';
 const STALE_MS = 6 * 60 * 1000;
+const ASSET_BASE_URL = (
+  import.meta.env.VITE_KIDSAI_ASSETS_URL ?? 'https://assets.kids.ibi.ren'
+).replace(/\/$/, '');
+
+export function generatedAssetUrl(kind: string, key: string): string {
+  return `${ASSET_BASE_URL}/${encodeURIComponent(kind)}/${encodeURIComponent(key)}.png`;
+}
 
 interface CachedManifest {
   version: number;

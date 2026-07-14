@@ -35,6 +35,21 @@ pub struct LicenseFile {
     /// 首次激活时间 (ms)
     #[serde(default)]
     pub activated_at: Option<i64>,
+    /// 用户当前模式 (Part C). 默认 Child, 家长 PIN 解锁后切 Adult.
+    /// 缺省 → Child (向后兼容老 license.json).
+    #[serde(default)]
+    pub mode: UserMode,
+    /// 上次模式切换时间 (ms)
+    #[serde(default)]
+    pub mode_switched_at: Option<i64>,
+}
+
+#[derive(Debug, Clone, Copy, Serialize, Deserialize, PartialEq, Eq, Default)]
+#[serde(rename_all = "kebab-case")]
+pub enum UserMode {
+    #[default]
+    Child,
+    Adult,
 }
 
 pub struct LicenseStore {
@@ -78,7 +93,8 @@ impl LicenseStore {
         let tmp = self.path.with_extension("json.tmp");
         {
             let mut f = fs::File::create(&tmp).map_err(|e| format!("create tmp: {e}"))?;
-            f.write_all(json.as_bytes()).map_err(|e| format!("write: {e}"))?;
+            f.write_all(json.as_bytes())
+                .map_err(|e| format!("write: {e}"))?;
             f.sync_all().map_err(|e| format!("sync: {e}"))?;
         }
         // chmod 600 (Unix only)
@@ -117,12 +133,52 @@ mod tests {
             nickname: Some("小明".to_string()),
             age_tier: Some(2),
             activated_at: Some(1718234567890),
+            ..Default::default()
         };
         store.save(&f).unwrap();
         let loaded = store.load().unwrap();
         assert_eq!(loaded.device_id, "dev-001");
         assert_eq!(loaded.license_token, "eyJ...");
         assert_eq!(loaded.last_balance, Some(85));
+        assert_eq!(loaded.mode, crate::license_store::UserMode::default());
+    }
+
+    #[test]
+    fn mode_field_defaults_to_child_when_loading_old_license() {
+        let dir = tempdir().unwrap();
+        let store = LicenseStore::new(dir.path());
+        // 老格式 license.json 不含 mode 字段 — 加载应默认 Child, 不报错.
+        let old = serde_json::json!({
+            "device_id": "dev-old",
+            "license_token": "tok",
+            "llm_api_key": "",
+            "video_api_key": "",
+        });
+        std::fs::write(store.path(), old.to_string()).unwrap();
+        let loaded = store.load().unwrap();
+        assert_eq!(loaded.mode, crate::license_store::UserMode::Child);
+        assert_eq!(loaded.mode_switched_at, None);
+    }
+
+    #[test]
+    fn mode_field_roundtrips_as_kebab_case() {
+        let dir = tempdir().unwrap();
+        let store = LicenseStore::new(dir.path());
+        let f = LicenseFile {
+            device_id: "d".into(),
+            license_token: "t".into(),
+            llm_api_key: "".into(),
+            video_api_key: "".into(),
+            mode: crate::license_store::UserMode::Adult,
+            mode_switched_at: Some(1718234567890),
+            ..Default::default()
+        };
+        store.save(&f).unwrap();
+        let text = std::fs::read_to_string(store.path()).unwrap();
+        assert!(text.contains("\"mode\": \"adult\""), "got: {text}");
+        let loaded = store.load().unwrap();
+        assert_eq!(loaded.mode, crate::license_store::UserMode::Adult);
+        assert_eq!(loaded.mode_switched_at, Some(1718234567890));
     }
 
     #[test]

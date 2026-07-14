@@ -11,6 +11,13 @@
 - POST /api/v1/me/refresh-license
 - POST /api/v1/admin/devices/{id}/grant
 - POST /api/v1/admin/devices/{id}/revoke
+- W10 路由:
+  - GET  /api/v1/skills/index
+  - GET  /api/v1/skills/{id}/manifest
+  - GET  /api/v1/skills/{id}/blob
+  - POST /api/v1/skills/install-authorize
+  - POST /api/v1/me/set-mode
+  - GET  /api/v1/me/mode
 """
 from __future__ import annotations
 
@@ -27,7 +34,7 @@ from .config import Config, load_config
 from .db import open_db
 from .dependencies import get_cfg, get_conn
 from .models import HealthResponse
-from .routes import activate, admin, asset, me
+from .routes import activate, admin, asset, me, skills
 
 
 def _make_license_dep(secret: str):
@@ -91,6 +98,7 @@ def create_app(cfg: Config | None = None, db_path: str | None = None) -> FastAPI
     app.include_router(me.router)
     app.include_router(admin.router)
     app.include_router(asset.router)
+    app.include_router(skills.router)  # W10 — Skill market + user mode
 
     return app
 

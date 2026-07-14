@@ -49,13 +49,15 @@ def client(manifest_dir: Path):
         cost_voice_clone=10,
         cost_music_gen=8,
         cost_hailuo_video=12,
+        skills_root=str(manifest_dir.parent / "skills"),
+        secrets_root=str(manifest_dir.parent / "secrets"),
     )
     app = create_app(cfg=cfg, db_path=cfg.database_path)
     return TestClient(app)
 
 
 def _write_manifest(d: Path, payload: dict) -> None:
-    (d / "asset_manifest.json").write_text(json.dumps(payload), encoding="utf-8")
+    (d / "asset-manifest.json").write_text(json.dumps(payload), encoding="utf-8")
 
 
 def test_missing_manifest_returns_503(client: TestClient) -> None:
@@ -83,6 +85,7 @@ def test_returns_full_urls(client: TestClient, manifest_dir: Path) -> None:
     assert body["images"]["l1.my_ai_companion"] == "https://assets.kids.ibi.ren/bg/l1.my_ai_companion.png"
     # cache + etag headers
     assert "max-age=3600" in r.headers["cache-control"]
+    assert r.headers["access-control-allow-origin"] == "*"
     assert r.headers["etag"].startswith('"') and r.headers["etag"].endswith('"')
 
 
@@ -101,7 +104,7 @@ def test_etag_is_stable_for_same_payload(client: TestClient, manifest_dir: Path)
 
 
 def test_corrupt_manifest_returns_500(client: TestClient, manifest_dir: Path) -> None:
-    (manifest_dir / "asset_manifest.json").write_text("{ not valid json", encoding="utf-8")
+    (manifest_dir / "asset-manifest.json").write_text("{ not valid json", encoding="utf-8")
     r = client.get("/api/v1/asset-manifest")
     assert r.status_code == 500
 

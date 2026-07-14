@@ -35,6 +35,9 @@ class Config:
     cost_voice_clone: int
     cost_music_gen: int
     cost_hailuo_video: int
+    # W10: Skill marketplace + W11: Secrets bundle — 公开包/加密包分别落盘
+    skills_root: str
+    secrets_root: str
 
 
 def load_config(env_file: str | None = None) -> Config:
@@ -86,4 +89,6 @@ def load_config(env_file: str | None = None) -> Config:
         cost_voice_clone=int(os.getenv("COST_VOICE_CLONE", "10")),
         cost_music_gen=int(os.getenv("COST_MUSIC_GEN", "8")),
         cost_hailuo_video=int(os.getenv("COST_HAILUO_VIDEO", "12")),
+        skills_root=os.getenv("SKILLS_ROOT", "./skills"),
+        secrets_root=os.getenv("SECRETS_ROOT", "./secrets_out"),
     )

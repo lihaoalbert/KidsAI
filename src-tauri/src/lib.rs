@@ -21,6 +21,7 @@ pub mod music_adapter; // W6 C3
 pub mod projects;
 pub mod prompt_builder; // W4.6 #1 — Seedance 翻译层
 pub mod safety;
+pub mod skills; // W10 — Skill Market (manifest schema + store + verifier + 5 IPC)
 pub mod style;
 pub mod tools;
 pub mod trusted_storage; // W10/W11 共享底座 — 原子写 + chmod 600
@@ -103,6 +104,7 @@ async fn activate_device(
         nickname: Some(nickname),
         age_tier: Some(age_tier),
         activated_at: Some(crate::agent::now_millis_pub()),
+        ..Default::default()
     };
     store.save(&license_file)?;
     Ok(resp)
@@ -244,6 +246,23 @@ pub fn run() {
                 Err(e) => eprintln!("[signer] init failed (will skip signature checks): {e}"),
             }
 
+            // W10: Skills state — TrustedStorage + MarketplaceClient + 5 IPC handlers.
+            // 在 server 模式下, MarketplaceClient 启动期不带 token; LicenseStore 加载后注入.
+            use std::sync::Arc;
+            let marketplace_cache_dir = data_dir.join("marketplace_cache");
+            let _ = std::fs::create_dir_all(&marketplace_cache_dir);
+            let marketplace_client = crate::marketplace_client::MarketplaceClient::from_env(marketplace_cache_dir);
+            elog!(
+                "[marketplace] mode = {} (KIDSAI_SERVER_URL={:?})",
+                marketplace_client.mode_label(),
+                std::env::var("KIDSAI_SERVER_URL").ok()
+            );
+            let skills_state = Arc::new(
+                crate::skills::SkillsState::new(data_dir.clone(), marketplace_client.clone())
+            );
+            app.manage(skills_state);
+            app.manage(marketplace_client);
+
             let window = app.get_webview_window("main").unwrap();
             window.set_title("KidsAI Studio").ok();
             Ok(())
@@ -289,6 +308,12 @@ pub fn run() {
             refresh_license,
             get_license_info,
             reset_license,
+            // Skills（W10 Day 3）
+            crate::skills::list_installed_skills,
+            crate::skills::list_available_skills,
+            crate::skills::install_skill,
+            crate::skills::uninstall_skill,
+            crate::skills::toggle_skill,
         ])
         .run(tauri::generate_context!())
         .expect("启动 KidsAI Studio 时出错");

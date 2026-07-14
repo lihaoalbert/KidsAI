@@ -25,6 +25,8 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
         const stubs: Record<string, unknown> = {
           get_license_info: { deviceId: 'dev-screenshot-1', nickname: '小明', ageTier: 1, isDemo: false, llmApiKey: 'sk-stub', videoApiKey: 'sk-stub', lastBalance: 100 },
           get_balance: { deviceId: 'dev-screenshot-1', balance: 100, dailyConsumed: 11, dailyQuota: 30, dailyRemaining: 19 },
+          // userModeStore.load() 在 ModeBadge mount 时调一次, 这里给个稳定值避免 null 覆盖默认 child
+          get_user_mode: 'child',
           list_levels: LEVEL_STUBS,
           list_progress: [],
           completed_level_ids: [],
@@ -72,7 +74,7 @@ if (import.meta.env.DEV && typeof window !== 'undefined') {
   }
 }
 
-import { useEffect, useState } from 'react';
+import { useEffect, useMemo, useState } from 'react';
 import Sidebar from './components/Sidebar';
 import HomePage from './pages/HomePage';
 import LibraryPage from './pages/LibraryPage';
@@ -109,6 +111,13 @@ function App() {
   const [currentPage, setCurrentPage] = useState<PageKey>('home');
   const [selectedLevelId, setSelectedLevelId] = useState<string>('L1');
   const mode = useUserModeStore((s) => s.mode);
+  // SCREENSHOT-DEV: 截图模式覆盖 — ?mode=adult 强制成人 mode (生产构建被 DCE 删)
+  const modeOverride = useMemo(() => {
+    if (!import.meta.env.DEV) return null;
+    const m = new URLSearchParams(window.location.search).get('mode');
+    return m === 'adult' || m === 'child' ? m : null;
+  }, []);
+  const effectiveMode = modeOverride ?? mode;
 
   useEffect(() => {
     let cancelled = false;
@@ -203,7 +212,7 @@ function App() {
     // 探测中, 简单 loader (生产可以加 spinner)
     return (
       <div
-        data-mode={mode === 'adult' ? 'adult' : 'child'}
+        data-mode={effectiveMode === 'adult' ? 'adult' : 'child'}
         className="flex h-full items-center justify-center bg-bg text-ink-2"
       >
         加载中...
@@ -269,12 +278,16 @@ function App() {
 
   return (
     <div
-      data-mode={mode === 'adult' ? 'adult' : 'child'}
+      data-mode={effectiveMode === 'adult' ? 'adult' : 'child'}
       className="flex h-full bg-bg text-ink"
     >
       <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
       <main className="flex-1 overflow-auto">{renderPage()}</main>
-      <PetCorner onNavigate={(p) => setCurrentPage(p === 'home' ? 'home' : 'library')} />
+      {effectiveMode === 'child' && (
+        <PetCorner
+          onNavigate={(p) => setCurrentPage(p === 'home' ? 'home' : 'library')}
+        />
+      )}
       <ToastHost />
     </div>
   );

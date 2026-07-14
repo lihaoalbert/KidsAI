@@ -173,3 +173,51 @@ body,
 .animate-shimmer {
   animation: shimmer 1.6s ease-in-out infinite;
 }
+
+/* =============================================================
+ * Pet Corner keyframes — DESIGN.md §5.6 / §8.2
+ * 仅 transform / opacity, 不触发 layout. prefers-reduced-motion
+ * 在上面的 media query 内统一关闭.
+ * ============================================================= */
+@keyframes pet-breathe {
+  0%,
+  100% {
+    transform: scale(1);
+  }
+  50% {
+    transform: scale(1.04);
+  }
+}
+.animate-pet-breathe {
+  animation: pet-breathe 4s ease-in-out infinite;
+}
+
+@keyframes pet-pop-in {
+  from {
+    opacity: 0;
+    transform: translateY(8px) scale(0.9);
+  }
+  to {
+    opacity: 1;
+    transform: translateY(0) scale(1);
+  }
+}
+.animate-pet-pop-in {
+  animation: pet-pop-in 0.4s cubic-bezier(0.34, 1.56, 0.64, 1) both;
+}
+
+@keyframes pet-wiggle {
+  0%,
+  100% {
+    transform: rotate(0deg);
+  }
+  25% {
+    transform: rotate(-4deg);
+  }
+  75% {
+    transform: rotate(4deg);
+  }
+}
+.animate-pet-wiggle {
+  animation: pet-wiggle 0.6s ease-in-out 1;
+}

@@ -1,111 +1,128 @@
-// P0 fix: Pet MVP - 火苗 MVP, 在右下角常驻
-// M1 起步: 单只宠物 + 基础呼吸动画 + hover 显示心情
-// 不做: 完整等级 / 跨设备同步 / 复杂状态机 / 主动问候 (留给 M2)
+// Pet Corner — DESIGN.md §5.6 (Forest 陪伴)
+//
+// 唯一的常驻角落 (bottom-right, 56px 圆形). 后端 PetEngine 通过
+// useAgentStore.petMood / petRecall 推数据;本组件只读, 不维护 shadow state.
+// - §5.6.2: 三种 mood → 不同渐变背景 (happy / sleepy / thinking)
+// - §5.6.4: Recall 气泡 = honey-soft 底 + Forest ink 字, 6s 自动关
+// - §5.6.5: 本组件只在 Forest (child) 模式下挂载, 父级 App.tsx 控制
+// - §8.2: breathing 4s 循环 (animate-pet-breathe, 已在 globals.css 注册, 尊重 reduced-motion)
+// - §8.4: 仅 transform / opacity
+//
+// 不做 (留 M2 / 后续): 3D 立绘 standee, bounded wandering path, 多等级.
+// 现在仍用 🔥 emoji stand-in — 资产准备好后只需替 emoji 节点.
 
-import { useState } from 'react';
-import { usePetStore } from '../../stores/petStore';
+import { useEffect, useState } from 'react';
+import { useAgentStore } from '../../stores/agentStore';
+import { useUserModeStore } from '../../stores/userModeStore';
 
 interface PetCornerProps {
   onNavigate?: (page: 'home' | 'library') => void;
 }
 
 const PET_EMOJI: Record<string, string> = {
-  huomiao: '🔥', // 火苗 (默认 - 小月)
+  huomiao: '🔥',
 };
 
 const PET_NAME: Record<string, string> = {
   huomiao: '火苗',
 };
 
-const PET_MESSAGES: Record<string, string[]> = {
-  huomiao: [
-    '咿呀~ 我在呢',
-    '今天想做啥?',
-    '我明天还在哦',
-    '你不在的时候我会想你的',
-  ],
+// mood → tailwind gradient (token 化, 全部走 --c-highlight / --c-accent)
+const MOOD_GRADIENT: Record<string, string> = {
+  happy: 'bg-gradient-to-br from-highlight to-highlight/60',
+  sleepy: 'bg-gradient-to-br from-highlight/40 to-highlight-soft',
+  thinking: 'bg-gradient-to-br from-accent-soft to-highlight/70',
+};
+
+// mood → 一个字符标签 (a11y 用)
+const MOOD_LABEL: Record<string, string> = {
+  happy: '开心',
+  sleepy: '犯困',
+  thinking: '在想事情',
 };
 
 export default function PetCorner(_props: PetCornerProps) {
-  const petId = usePetStore((s) => s.petId);
-  const mood = usePetStore((s) => s.mood);
-  const lastSeen = usePetStore((s) => s.lastSeenAt);
-  const bumpLastSeen = usePetStore((s) => s.bumpLastSeen);
-  const [showBubble, setShowBubble] = useState(false);
+  // 从 agentStore 读后端 PetEngine 真值 — petStore 留作 M2 等级系统的本地补充
+  const petMood = useAgentStore((s) => s.petMood);
+  const petRecall = useAgentStore((s) => s.petRecall);
+  const clearPetRecall = useAgentStore((s) => s.clearPetRecall);
+  const mode = useUserModeStore((s) => s.mode);
 
-  const emoji = PET_EMOJI[petId] ?? '🔥';
-  const name = PET_NAME[petId] ?? '火苗';
-  const daysSince = Math.floor((Date.now() - lastSeen) / 86_400_000);
+  // petId: 目前 onboarding 写死 huomiao, 后续 persona 多样化时改读 Identity.petId
+  const [petId] = useState<string>('huomiao');
+
+  // Recall 气泡自管理显示 — 6s 后自动调 clearPetRecall
+  useEffect(() => {
+    if (!petRecall) return;
+    const t = setTimeout(() => {
+      clearPetRecall();
+    }, 6000);
+    return () => clearTimeout(t);
+  }, [petRecall, clearPetRecall]);
+
+  // petId 走白名单 — 不认识的 pet 兜底回 huomiao, 防止后端乱推数据炸 UI
+  const emoji = PET_EMOJI[petId] ?? PET_EMOJI.huomiao;
+  const name = PET_NAME[petId] ?? PET_NAME.huomiao;
+  const gradient = MOOD_GRADIENT[petMood] ?? MOOD_GRADIENT.happy;
+  const moodLabel = MOOD_LABEL[petMood] ?? MOOD_LABEL.happy;
 
   const handleClick = () => {
-    bumpLastSeen();
-    setShowBubble(true);
-    setTimeout(() => setShowBubble(false), 3000);
+    if (petRecall) clearPetRecall();
   };
 
-  // 根据心情选择呼吸色
-  const moodColor: Record<string, string> = {
-    happy: 'from-highlight to-yellow-400',
-    sleepy: 'from-highlight/80 to-highlight-soft',
-    thinking: 'from-accent-soft to-highlight/80',
-  };
-  const gradient = moodColor[mood] ?? moodColor.happy;
+  const showRecall = petRecall !== null;
+
+  // Coast 模式冗余防御 — App.tsx 已不挂载, 这里再 return null 保证视觉一致
+  if (mode === 'adult') return null;
 
   return (
-    <div className="fixed bottom-4 right-4 z-40 select-none">
-      {/* Bubble */}
-      {showBubble && (
-        <div className="absolute bottom-20 right-0 w-44 rounded-2xl bg-surface px-3 py-2 text-xs text-ink-2 shadow-lg border border-highlight-soft animate-fade-in">
+    <div
+      className="fixed bottom-4 right-4 z-40 select-none"
+      data-testid="pet-corner"
+      data-mode={mode}
+    >
+      {/* Recall 气泡 — §5.6.4: 弹出 + wiggle 一次 */}
+      {showRecall && (
+        <div
+          role="status"
+          aria-live="polite"
+          className="absolute bottom-20 right-0 w-44 rounded-2xl bg-surface px-3 py-2 text-xs text-ink shadow-lg border border-highlight-soft animate-pet-pop-in"
+        >
           <div className="font-semibold text-highlight mb-1">{name}</div>
-          <div>{PET_MESSAGES[petId]?.[0] ?? '咿呀~'}</div>
-          <div className="absolute -bottom-2 right-6 h-3 w-3 rotate-45 border-r border-b border-highlight-soft bg-surface" />
+          <div>{petRecall}</div>
+          <div className="absolute -bottom-1.5 right-6 h-3 w-3 rotate-45 border-r border-b border-highlight-soft bg-surface" />
         </div>
       )}
 
-      {/* Pet */}
+      {/* Pet standee — §8.2 breathing 4s 循环 */}
       <button
         type="button"
         onClick={handleClick}
-        title={`${name} - ${mood}${daysSince > 0 ? ` (${daysSince} 天没见)` : ''}`}
+        title={`${name} · ${moodLabel}`}
+        aria-label={`宠物 ${name}, 当前心情 ${moodLabel}`}
         className={[
-          'group relative flex h-20 w-20 items-center justify-center rounded-full',
-          'bg-gradient-to-br shadow-lg hover:shadow-xl transition-all duration-300',
-          'animate-pulse-slow active:scale-95',
+          'group relative flex h-14 w-14 items-center justify-center rounded-full',
+          'shadow-lg hover:shadow-xl transition-shadow duration-300',
+          'active:scale-95',
+          'animate-pet-breathe',
           gradient,
         ].join(' ')}
-        aria-label={`宠物 ${name}, 当前心情 ${mood}`}
       >
-        {/* 头顶小火苗呆毛 (装饰) */}
-        <span className="absolute -top-1 left-1/2 -translate-x-1/2 text-2xl animate-flicker">
-          ✨
-        </span>
-        {/* 主 emoji */}
-        <span className="text-4xl drop-shadow-md group-hover:scale-110 transition-transform">
+        {/* 主 emoji stand-in — 资产到位后换成 SVG / 图片 */}
+        <span
+          className={[
+            'text-3xl drop-shadow-md transition-transform duration-300',
+            showRecall ? 'animate-pet-wiggle' : 'group-hover:scale-110',
+          ].join(' ')}
+          aria-hidden
+        >
           {emoji}
         </span>
         {/* 名字标签 */}
-        <span className="absolute -bottom-1 left-1/2 -translate-x-1/2 text-[10px] font-bold text-highlight bg-surface/90 px-1.5 py-0.5 rounded-full">
+        <span className="absolute -bottom-1.5 left-1/2 -translate-x-1/2 text-[10px] font-bold text-highlight bg-surface px-1.5 py-0.5 rounded-full whitespace-nowrap shadow-sm">
           {name}
         </span>
       </button>
-
-      <style>{`
-        @keyframes pulse-slow {
-          0%, 100% { transform: scale(1); box-shadow: 0 0 0 0 rgba(255, 165, 0, 0.4); }
-          50% { transform: scale(1.05); box-shadow: 0 0 0 8px rgba(255, 165, 0, 0); }
-        }
-        @keyframes flicker {
-          0%, 100% { opacity: 1; transform: translateX(-50%) translateY(0); }
-          50% { opacity: 0.7; transform: translateX(-50%) translateY(-2px); }
-        }
-        @keyframes fade-in {
-          from { opacity: 0; transform: translateY(8px); }
-          to { opacity: 1; transform: translateY(0); }
-        }
-        .animate-pulse-slow { animation: pulse-slow 3s ease-in-out infinite; }
-        .animate-flicker { animation: flicker 1.5s ease-in-out infinite; }
-        .animate-fade-in { animation: fade-in 0.3s ease-out; }
-      `}</style>
     </div>
   );
 }

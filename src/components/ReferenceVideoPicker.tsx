@@ -179,7 +179,7 @@ export function ReferenceVideoPicker({
     <div className="space-y-3">
       <div className="flex items-center justify-between">
         <h4 className="text-sm font-semibold text-ink">🎞️ 上传参考视频</h4>
-        <span className="text-[11px] text-ink-2">
+        <span className="text-xs text-ink-2">
           支持 mp4 / webm,≤ {maxSizeMb}MB,≤ {maxDurationSec}s
         </span>
       </div>

@@ -226,14 +226,14 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                     ].join(' ')}
                   >
                     <div className="font-semibold">{c.name}</div>
-                    <div className="text-[11px] text-ink-2 mt-0.5 line-clamp-2">
+                    <div className="text-xs text-ink-2 mt-0.5 line-clamp-2">
                       {c.description}
                     </div>
                   </button>
                 );
               })}
               {characters.length === 0 && (
-                <div className="text-[11px] text-ink-3 italic px-1 py-1">
+                <div className="text-xs text-ink-3 italic px-1 py-1">
                   （暂无角色，模型默认按关卡指令生成）
                 </div>
               )}
@@ -278,14 +278,14 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                     ].join(' ')}
                   >
                     <div className="font-semibold">{s.name}</div>
-                    <div className="text-[11px] text-ink-2 mt-0.5 line-clamp-2">
+                    <div className="text-xs text-ink-2 mt-0.5 line-clamp-2">
                       {s.description}
                     </div>
                   </button>
                 );
               })}
               {styles.length === 0 && (
-                <div className="text-[11px] text-ink-3 italic px-1 py-1">
+                <div className="text-xs text-ink-3 italic px-1 py-1">
                   （暂无风格，模型默认按关卡指令生成）
                 </div>
               )}
@@ -333,7 +333,7 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                       </span>
                     </span>
                   )}
-                  <span className="text-ink-3 text-[11px]">
+                  <span className="text-ink-3 text-xs">
                     （本次生成的图片都会保持这个形象 + 风格）
                   </span>
                 </div>
@@ -343,7 +343,7 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                       type="button"
                       onClick={() => setCharacter(null)}
                       disabled={isRunning}
-                      className="text-[11px] text-ink-3 hover:text-ink-2 disabled:opacity-50"
+                      className="text-xs text-ink-3 hover:text-ink-2 disabled:opacity-50"
                     >
                       清除角色
                     </button>
@@ -353,7 +353,7 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                       type="button"
                       onClick={() => setStyle(null)}
                       disabled={isRunning}
-                      className="text-[11px] text-ink-3 hover:text-ink-2 disabled:opacity-50"
+                      className="text-xs text-ink-3 hover:text-ink-2 disabled:opacity-50"
                     >
                       清除风格
                     </button>
@@ -502,7 +502,7 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
           {assets.length > 0 && (
             <Card className="mt-3">
               <h3 className="font-semibold text-ink mb-2 text-sm">🎁 生成的资产</h3>
-              <p className="text-[11px] text-ink-2 mb-2">
+              <p className="text-xs text-ink-2 mb-2">
                 ✏️ 点击图片任意位置可"指哪打哪"精修
               </p>
               <div className="grid grid-cols-2 gap-2">

@@ -97,7 +97,7 @@ export default function LibraryPage() {
                       )}
                     </div>
                     <div className="text-sm font-semibold text-ink truncate">{p.title}</div>
-                    <div className="mt-1 flex items-center justify-between text-[11px] text-ink-2">
+                    <div className="mt-1 flex items-center justify-between text-xs text-ink-2">
                       <span className="rounded-full bg-surface-2 px-1.5 py-0.5">
                         {stageLabel(p.cursor)}
                       </span>

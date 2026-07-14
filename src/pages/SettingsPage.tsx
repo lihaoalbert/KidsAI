@@ -92,7 +92,7 @@ export default function SettingsPage() {
           >
             {mode === 'child' ? '切到成人模式' : '切回儿童模式'}
           </Button>
-          <p className="text-[11px] text-ink-3 mt-2">
+          <p className="text-xs text-ink-3 mt-2">
             切换需要家长 PIN 验证, 双向都需要
           </p>
         </Card>

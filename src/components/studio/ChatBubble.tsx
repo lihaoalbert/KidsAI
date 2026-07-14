@@ -1,3 +1,5 @@
+import Skeleton from '../ui/Skeleton';
+
 interface ChatBubbleProps {
   role: 'ai' | 'kid' | 'system';
   text: string;
@@ -9,9 +11,7 @@ export default function ChatBubble({ role, text, loading }: ChatBubbleProps) {
     return (
       <div className="flex justify-center my-1">
         <div className="inline-flex items-center gap-2 rounded-full bg-surface-2 px-3 py-1.5 text-xs text-ink-2">
-          {loading && (
-            <span className="inline-block w-3 h-3 border-2 border-accent border-t-transparent rounded-full animate-spin" />
-          )}
+          {loading && <Skeleton variant="text" lines={1} className="w-24" />}
           <span className="whitespace-pre-wrap">{text}</span>
         </div>
       </div>

@@ -138,7 +138,7 @@ export function EditPanel({
               }
             }}
           />
-          <div className="mt-1 text-[11px] text-ink-3">
+          <div className="mt-1 text-xs text-ink-3">
             提示：按 ⌘+Enter 提交
           </div>
         </div>

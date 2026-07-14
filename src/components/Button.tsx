@@ -1,4 +1,5 @@
 import type { ButtonHTMLAttributes, ReactNode } from 'react';
+import Skeleton from './ui/Skeleton';
 
 export type ButtonVariant = 'primary' | 'secondary' | 'ghost' | 'danger';
 export type ButtonSize = 'sm' | 'md' | 'lg' | 'xl';
@@ -52,7 +53,7 @@ export default function Button({
       {...rest}
     >
       {loading && (
-        <span className="inline-block w-3.5 h-3.5 border-2 border-current border-t-transparent rounded-full animate-spin" />
+        <Skeleton variant="block" className="h-3.5 w-12" />
       )}
       {children}
     </button>

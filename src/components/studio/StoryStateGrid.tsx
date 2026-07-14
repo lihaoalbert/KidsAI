@@ -1,8 +1,11 @@
 // W9: 故事状态网格 — 把 7 维 spine + narrative + 资产状态显示成"数据已填多少"的网格
 // 不门控任何字段；任何格子可点 → 调对应 action
+// P0 fix: 用内联 PromptDialog 替代 window.prompt()
 
+import { useState } from 'react';
 import { useDirectorStore } from '../../stores/directorStore';
 import type { StoryTone } from '../../stores/directorStore';
+import PromptDialog from '../ui/PromptDialog';
 
 const TONE_LABEL: Record<StoryTone, string> = {
   playful: '🎈 欢乐',
@@ -22,6 +25,11 @@ interface GridCell {
   onClick?: () => void;
 }
 
+type EditTarget =
+  | { kind: 'spine'; field: 'core' | 'conflict' | 'world' | 'audience' | 'theme_color' | 'ending_moral'; title: string; placeholder?: string; hint?: string }
+  | { kind: 'narrative' }
+  | null;
+
 export default function StoryStateGrid() {
   const story = useDirectorStore((s) => s.story);
   const character = useDirectorStore((s) => s.character);
@@ -30,6 +38,14 @@ export default function StoryStateGrid() {
   const finalVideoUrl = useDirectorStore((s) => s.finalVideoUrl);
   const setSpineField = useDirectorStore((s) => s.setSpineField);
   const setNarrative = useDirectorStore((s) => s.setNarrative);
+  const [editTarget, setEditTarget] = useState<EditTarget>(null);
+
+  const openSpinePrompt = (
+    field: 'core' | 'conflict' | 'world' | 'audience' | 'theme_color' | 'ending_moral',
+    title: string,
+    placeholder?: string,
+    hint?: string,
+  ) => setEditTarget({ kind: 'spine', field, title, placeholder, hint });
 
   const cells: GridCell[] = [
     {
@@ -37,30 +53,21 @@ export default function StoryStateGrid() {
       emoji: '✨',
       value: story.spine.core || '—',
       filled: Boolean(story.spine.core),
-      onClick: () => {
-        const v = prompt('故事内核（勇气 / 友情 / 成长…）', story.spine.core);
-        if (v !== null) setSpineField('core', v.trim());
-      },
+      onClick: () => openSpinePrompt('core', '故事内核（勇气 / 友情 / 成长…）', '例如：勇气 / 友情 / 成长'),
     },
     {
       label: '冲突',
       emoji: '⚡',
       value: story.spine.conflict || '—',
       filled: Boolean(story.spine.conflict),
-      onClick: () => {
-        const v = prompt('冲突（主角 vs 什么）', story.spine.conflict);
-        if (v !== null) setSpineField('conflict', v.trim());
-      },
+      onClick: () => openSpinePrompt('conflict', '冲突（主角 vs 什么）', '例如：小狮子 vs 内心的恐惧'),
     },
     {
       label: '世界观',
       emoji: '🌍',
       value: story.spine.world || '—',
       filled: Boolean(story.spine.world),
-      onClick: () => {
-        const v = prompt('世界观（火山世界 / 现代都市 / 太空站…）', story.spine.world);
-        if (v !== null) setSpineField('world', v.trim());
-      },
+      onClick: () => openSpinePrompt('world', '世界观（火山世界 / 现代都市 / 太空站…）'),
     },
     {
       label: '调性',
@@ -79,30 +86,21 @@ export default function StoryStateGrid() {
       emoji: '👶',
       value: story.spine.audience || '—',
       filled: Boolean(story.spine.audience),
-      onClick: () => {
-        const v = prompt('适龄（6-9 / 10-13 / 14+）', story.spine.audience);
-        if (v !== null) setSpineField('audience', v.trim());
-      },
+      onClick: () => openSpinePrompt('audience', '适龄（6-9 / 10-13 / 14+）'),
     },
     {
       label: '主色',
       emoji: '🎨',
       value: story.spine.theme_color || '—',
       filled: Boolean(story.spine.theme_color),
-      onClick: () => {
-        const v = prompt('主色调（暖橙 / 冷蓝 / 莫兰迪…）', story.spine.theme_color);
-        if (v !== null) setSpineField('theme_color', v.trim());
-      },
+      onClick: () => openSpinePrompt('theme_color', '主色调（暖橙 / 冷蓝 / 莫兰迪…）'),
     },
     {
       label: '寓意',
       emoji: '🌟',
       value: story.spine.ending_moral || '—',
       filled: Boolean(story.spine.ending_moral),
-      onClick: () => {
-        const v = prompt('结尾寓意', story.spine.ending_moral);
-        if (v !== null) setSpineField('ending_moral', v.trim());
-      },
+      onClick: () => openSpinePrompt('ending_moral', '结尾寓意'),
     },
     // 资产状态
     {
@@ -135,6 +133,25 @@ export default function StoryStateGrid() {
     ? story.narrative.paragraphs.slice(0, 2).join(' / ') + (story.narrative.paragraphs.length > 2 ? '…' : '')
     : '（点空白处让 AI 充实剧本）';
 
+  const promptDefault = (): string => {
+    if (!editTarget) return '';
+    if (editTarget.kind === 'spine') {
+      return (story.spine[editTarget.field] as string) ?? '';
+    }
+    return story.narrative.paragraphs.join('\n\n');
+  };
+
+  const promptTitle = (): string => {
+    if (!editTarget) return '';
+    if (editTarget.kind === 'spine') return editTarget.title;
+    return '剧本段落（用空行分段）';
+  };
+
+  const promptHint = (): string | undefined => {
+    if (editTarget?.kind === 'spine') return editTarget.hint;
+    return '用空行分段，每段一段剧情';
+  };
+
   return (
     <div className="space-y-3">
       {/* 7 维骨架 + 资产状态 — 4 列网格 */}
@@ -166,19 +183,34 @@ export default function StoryStateGrid() {
       {/* narrative 摘要 — 可点编辑 */}
       <button
         type="button"
-        onClick={() => {
-          const current = story.narrative.paragraphs.join('\n\n');
-          const v = prompt('剧本段落（用空行分段）', current);
-          if (v !== null) {
-            const paragraphs = v.split(/\n\s*\n/).map((p) => p.trim()).filter(Boolean);
-            setNarrative(paragraphs);
-          }
-        }}
+        onClick={() => setEditTarget({ kind: 'narrative' })}
         className="block w-full rounded-lg border border-gray-100 bg-white px-3 py-2 text-left text-xs text-gray-600 hover:border-brand-200 hover:bg-brand-50"
       >
         <div className="mb-0.5 text-[10px] font-semibold text-gray-500">📖 剧本</div>
         <div className="line-clamp-3 leading-relaxed">{narrativeSummary}</div>
       </button>
+
+      <PromptDialog
+        open={editTarget !== null}
+        title={promptTitle()}
+        defaultValue={promptDefault()}
+        placeholder={editTarget?.kind === 'spine' ? editTarget.placeholder : undefined}
+        hint={promptHint()}
+        onCancel={() => setEditTarget(null)}
+        onConfirm={(v) => {
+          if (!editTarget) return;
+          if (editTarget.kind === 'spine') {
+            if (v) setSpineField(editTarget.field, v);
+          } else {
+            const paragraphs = v
+              .split(/\n\s*\n/)
+              .map((p) => p.trim())
+              .filter(Boolean);
+            setNarrative(paragraphs);
+          }
+          setEditTarget(null);
+        }}
+      />
     </div>
   );
 }

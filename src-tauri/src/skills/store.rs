@@ -249,6 +249,7 @@ pub fn manifest_canonical(m: &SkillManifestFull) -> String {
 mod tests {
     use super::*;
     use crate::skills::SkillTemplates;
+    use std::path::Path;
     use tempfile::tempdir;
 
     fn fixture(dir: &Path) -> TrustedStorage {

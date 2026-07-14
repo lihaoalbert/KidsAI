@@ -82,7 +82,9 @@ import LevelDetailPage from './pages/LevelDetailPage';
 import AgentRunnerPage from './pages/AgentRunnerPage';
 import StudioPage from './pages/StudioPage';
 import MarketplacePage from './pages/MarketplacePage';
+import SettingsPage from './pages/SettingsPage';
 import OnboardingPage from './pages/OnboardingPage';
+import PetCorner from './components/pet/PetCorner';
 import { checkAlreadyActivated } from './pages/OnboardingPage';
 import type { ActivateResponse } from './api/tauri';
 import { useAssetStore } from './stores/assetStore';
@@ -197,14 +199,13 @@ function App() {
       case 'library':
         return <LibraryPage />;
       case 'studio':
-        return <StudioPage />;
+        return <StudioPage onBackHome={handleBackToHome} />;
       case 'agent':
         return <MyAgentPage />;
       case 'marketplace':
         return <MarketplacePage />;
       case 'settings':
-        // 暂未实现 SettingsPage; 落到 marketplace
-        return <MarketplacePage />;
+        return <SettingsPage />;
       case 'level':
         return (
           <LevelDetailPage
@@ -227,6 +228,7 @@ function App() {
     <div className="flex h-full bg-warm-50">
       <Sidebar currentPage={currentPage} onNavigate={setCurrentPage} />
       <main className="flex-1 overflow-auto">{renderPage()}</main>
+      <PetCorner onNavigate={(p) => setCurrentPage(p === 'home' ? 'home' : 'library')} />
     </div>
   );
 }

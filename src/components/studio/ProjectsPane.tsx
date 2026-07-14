@@ -1,7 +1,10 @@
+import { useState } from 'react';
 import { convertFileSrc } from '@tauri-apps/api/core';
 import { useProjectStore } from '../../stores/projectStore';
 import { useStudioStore } from '../../stores/studioStore';
 import type { ProjectSummary } from '../../api/tauri';
+import PromptDialog from '../ui/PromptDialog';
+import ConfirmDialog from '../ui/ConfirmDialog';
 
 interface ProjectsPaneProps {
   onBackHome: () => void;
@@ -31,24 +34,12 @@ export default function ProjectsPane({ onBackHome }: ProjectsPaneProps) {
     }
   };
 
-  const rename = async (project: ProjectSummary) => {
-    const title = window.prompt('给项目起个名字', project.title)?.trim();
-    if (!title || title === project.title) return;
-    try {
-      await useProjectStore.getState().rename(project.id, title);
-    } catch {
-      return;
-    }
-  };
+  const [renameTarget, setRenameTarget] = useState<ProjectSummary | null>(null);
+  const [deleteTarget, setDeleteTarget] = useState<ProjectSummary | null>(null);
 
-  const remove = async (project: ProjectSummary) => {
-    if (!window.confirm(`删除“${project.title}”？项目会先移到本机回收区。`)) return;
-    try {
-      await useProjectStore.getState().remove(project.id);
-    } catch {
-      return;
-    }
-  };
+  const rename = (project: ProjectSummary) => setRenameTarget(project);
+
+  const remove = (project: ProjectSummary) => setDeleteTarget(project);
 
   return (
     <div className="flex h-full min-h-0 flex-col">
@@ -174,6 +165,35 @@ export default function ProjectsPane({ onBackHome }: ProjectsPaneProps) {
           ＋ 新建项目
         </button>
       </div>
+
+      <PromptDialog
+        open={renameTarget !== null}
+        title="给项目起个名字"
+        defaultValue={renameTarget?.title ?? ''}
+        onCancel={() => setRenameTarget(null)}
+        onConfirm={(title) => {
+          const target = renameTarget;
+          setRenameTarget(null);
+          if (!target) return;
+          if (!title || title === target.title) return;
+          void useProjectStore.getState().rename(target.id, title).catch(() => undefined);
+        }}
+      />
+      <ConfirmDialog
+        open={deleteTarget !== null}
+        title="删除项目"
+        message={`删除“${deleteTarget?.title ?? ''}”？项目会先移到本机回收区。`}
+        confirmText="删除"
+        cancelText="取消"
+        destructive
+        onCancel={() => setDeleteTarget(null)}
+        onConfirm={() => {
+          const target = deleteTarget;
+          setDeleteTarget(null);
+          if (!target) return;
+          void useProjectStore.getState().remove(target.id).catch(() => undefined);
+        }}
+      />
     </div>
   );
 }

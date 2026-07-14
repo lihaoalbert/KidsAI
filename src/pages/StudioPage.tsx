@@ -3,11 +3,16 @@ import StudioLayout from '../components/studio/StudioLayout';
 import StudioCenter from '../components/studio/StudioCenter';
 import ResultPane from '../components/studio/ResultPane';
 import StoryWorkspace from '../components/studio/StoryWorkspace';
+import ProjectsPane from '../components/studio/ProjectsPane';
 import PendingConfirmationBanner from '../components/studio/PendingConfirmationBanner';
 import { useProjectStore } from '../stores/projectStore';
 import { useStudioStore } from '../stores/studioStore';
 
-export default function StudioPage() {
+interface StudioPageProps {
+  onBackHome?: () => void;
+}
+
+export default function StudioPage({ onBackHome }: StudioPageProps) {
   const started = useStudioStore((s) => s.started);
   const start = useStudioStore((s) => s.start);
 
@@ -32,11 +37,19 @@ export default function StudioPage() {
 
   return (
     <>
-      <StudioLayout
-        left={<StoryWorkspace />}
-        center={<StudioCenter />}
-        right={<ResultPane />}
-      />
+      {/* P0 fix: ProjectsPane 移到 studio 页面内部, Sidebar 永远显示完整导航 */}
+      <div className="flex h-full w-full">
+        <aside className="w-56 shrink-0 border-r border-gray-200 bg-white">
+          <ProjectsPane onBackHome={() => onBackHome?.()} />
+        </aside>
+        <div className="flex-1 min-w-0">
+          <StudioLayout
+            left={<StoryWorkspace />}
+            center={<StudioCenter />}
+            right={<ResultPane />}
+          />
+        </div>
+      </div>
       <PendingConfirmationBanner />
     </>
   );

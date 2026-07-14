@@ -12,6 +12,7 @@ import Card from '../components/Card';
 import EditPanel from '../components/EditPanel';
 import ReferenceVideoPicker from '../components/ReferenceVideoPicker';
 import FrameSelector from '../components/FrameSelector';
+import AlertDialog from '../components/ui/AlertDialog';
 import { useAgentStore } from '../stores/agentStore';
 import { useLevelStore } from '../stores/levelStore';
 import { checkSafety, saveCreation, type AgentAsset } from '../api/tauri';
@@ -61,6 +62,8 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
 
   const [userInput, setUserInput] = useState('');
   const [safetyWarning, setSafetyWarning] = useState<string | null>(null);
+  const [submitMessage, setSubmitMessage] = useState<string | null>(null);
+  const [pickerMessage, setPickerMessage] = useState<string | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   useEffect(() => {
@@ -147,8 +150,8 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
       console.warn('save_creation failed:', e);
     }
 
-    alert(`🎉 提交成功！得分 ${total}/100`);
-    onBack?.();
+    setSubmitMessage(`🎉 提交成功！得分 ${total}/100`);
+    // 用户点 "好" 后由 AlertDialog onClose 回调触发 onBack?.();
   };
 
   const handleCancel = async () => {
@@ -414,7 +417,7 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
                 // ---------- W3.7+ 拉片复刻 ----------
                 <ReferenceVideoPicker
                   onChange={setExtractedFrames}
-                  onError={(msg) => alert(msg)}
+                  onError={(msg) => setPickerMessage(msg)}
                 />
               ) : (
                 // ---------- L1-L5 文本输入 ----------
@@ -538,6 +541,22 @@ export default function AgentRunnerPage({ levelId, onBack }: AgentRunnerPageProp
           }}
         />
       )}
+
+      <AlertDialog
+        open={submitMessage !== null}
+        title="提交成功"
+        message={submitMessage ?? ''}
+        onClose={() => {
+          setSubmitMessage(null);
+          onBack?.();
+        }}
+      />
+      <AlertDialog
+        open={pickerMessage !== null}
+        title="参考视频出错"
+        message={pickerMessage ?? ''}
+        onClose={() => setPickerMessage(null)}
+      />
     </div>
   );
 }

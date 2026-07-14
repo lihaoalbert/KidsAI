@@ -1,4 +1,5 @@
 // Home (W4.5 B2: 学币栏 + 反馈入口)
+// P0 fix: 移除"游戏开发"和"我的 Agent"两个死按钮, 避免首次启动 2/3 按钮不可点的灾难体验
 
 import { useEffect, useMemo } from 'react';
 import Card from '../components/Card';
@@ -40,31 +41,26 @@ export default function HomePage({ onOpenLevel, onOpenStudio }: HomePageProps) {
         </p>
       </div>
 
-      {/* 三大主菜单卡片 */}
-      <div className="grid grid-cols-3 gap-4 mb-10">
-        <Card variant="elevated">
-          <div className="text-center py-4">
-            <div className="text-4xl mb-2">🎮</div>
-            <div className="font-semibold text-gray-900">游戏开发</div>
-            <div className="text-xs text-gray-500 mt-1">用 AI 制作小游戏</div>
-          </div>
-        </Card>
+      {/* 主菜单卡 - 只保留一个核心 CTA (视频创作), 避免死按钮 */}
+      <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 mb-10">
         <Card
           variant="elevated"
           className={onOpenStudio ? 'cursor-pointer hover:shadow-lg transition-shadow' : ''}
           onClick={onOpenStudio}
         >
-          <div className="text-center py-4">
-            <div className="text-4xl mb-2">🎬</div>
+          <div className="text-center py-6">
+            <div className="text-5xl mb-2">🎬</div>
             <div className="font-semibold text-gray-900">视频创作</div>
             <div className="text-xs text-gray-500 mt-1">让 AI 帮你做视频</div>
           </div>
         </Card>
         <Card variant="elevated">
-          <div className="text-center py-4">
-            <div className="text-4xl mb-2">🤖</div>
-            <div className="font-semibold text-gray-900">我的 Agent</div>
-            <div className="text-xs text-gray-500 mt-1">打造专属 AI 助手</div>
+          <div className="text-center py-6">
+            <div className="text-5xl mb-2">📚</div>
+            <div className="font-semibold text-gray-900">推荐关卡</div>
+            <div className="text-xs text-gray-500 mt-1">
+              7 个挑战等你探索（已解锁 {stats.unlocked}）
+            </div>
           </div>
         </Card>
       </div>

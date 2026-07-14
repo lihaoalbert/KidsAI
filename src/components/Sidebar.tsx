@@ -1,6 +1,5 @@
 import type { PageKey } from '../App';
 import { useTokenStore } from '../stores/tokenStore';
-import ProjectsPane from './studio/ProjectsPane';
 import { ModeBadge } from './system/ModeBadge';
 
 interface SidebarProps {
@@ -18,31 +17,16 @@ const navItems: NavItem[] = [
   { key: 'home', label: '课程中心', icon: '🏠' },
   { key: 'workshop', label: '作品工坊', icon: '🎨' },
   { key: 'library', label: '作品库', icon: '📚' },
+  { key: 'studio', label: '视频创作', icon: '🎬' },
   { key: 'agent', label: '我的 Agent', icon: '🤖' },
   { key: 'marketplace', label: 'Skill 市场', icon: '📦' },
 ];
 
 export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
   const balance = useTokenStore((s) => s.balance);
-  // W8 反馈: 左侧只能一屏。在 Studio 页面用 ProjectsPane 顶替全局导航,
-  // 保留 Logo + 学币角标, 顶部加"← 课程中心"回首页, 避免与课程中心侧栏视觉重复.
-  if (currentPage === 'studio') {
-    return (
-      <aside className="w-60 shrink-0 border-r border-gray-200 bg-white flex flex-col">
-        <ProjectsPane onBackHome={() => onNavigate('home')} />
-        <div className="mt-auto border-t border-gray-100 px-3 py-3 space-y-2">
-          <div className="rounded-md bg-gradient-to-br from-warm-50 to-brand-50 px-3 py-2">
-            <div className="text-[10px] text-gray-500">学币余额</div>
-            <div className="text-base font-bold text-brand-700">💎 {balance}</div>
-          </div>
-          <div className="flex justify-center">
-            <ModeBadge onNavigate={(p) => onNavigate(p)} />
-          </div>
-        </div>
-      </aside>
-    );
-  }
 
+  // P0 fix: Sidebar 永远显示完整导航, 不再在 studio 路由时替换为 ProjectsPane.
+  // ProjectsPane 现在作为 StudioPage 内部组件渲染.
   return (
     <aside className="w-60 bg-white border-r border-gray-200 flex flex-col">
       {/* Logo */}

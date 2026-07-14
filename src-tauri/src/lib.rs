@@ -23,6 +23,10 @@ pub mod projects;
 pub mod prompt_builder; // W4.6 #1 — Seedance 翻译层
 pub mod safety;
 pub mod secrets; // W11 Day 6 — SecretCipher (HKDF + AES-GCM) + verify_and_decrypt
+pub mod secrets_ipc; // W11 Day 7 — 4 IPC commands (get/check/apply/rollback)
+pub mod secrets_loader; // W11 Day 7 — 启动期 bootstrap
+pub mod secrets_runtime; // W11 Day 7 — SecretsRuntime 单例 + get(path) + fallback
+pub mod secrets_store; // W11 Day 7 — TrustedStorage wrapper (manifest + bundle + history)
 pub mod skills; // W10 — Skill Market (manifest schema + store + verifier + 5 IPC)
 pub mod skills_runtime; // W10 Day 5 — Skill mount 解释器 (system_prompt + characters)
 pub mod style;
@@ -286,6 +290,41 @@ pub fn run() {
             );
             app.manage(parent_pin_store);
 
+            // W11 Day 7 — Secrets store + runtime + bootstrap.
+            // SecretsStore 始终创建 (无论 server 是否可达); runtime 默认空, 走 fallback.
+            // bootstrap 失败不阻塞启动 — fallback 兜底.
+            let secrets_store = crate::secrets_store::SecretsStore::new(&data_dir);
+            let secrets_runtime = crate::secrets_runtime::SecretsRuntime::new();
+            // 同步当前 user_mode 到 runtime (从 license.json; 老 license 默认 Child)
+            {
+                let ls = crate::license_store::LicenseStore::new(&data_dir);
+                if let Some(lf) = ls.load() {
+                    let rt = secrets_runtime.clone();
+                    tauri::async_runtime::spawn(async move {
+                        rt.set_mode(lf.mode).await;
+                    });
+                }
+            }
+            // 用现有 license_token 派生 KEK (无 token 时走 fallback)
+            let boot_report = crate::secrets_loader::bootstrap_with_token(
+                &secrets_store,
+                existing_token.as_deref(),
+                &secrets_runtime,
+            );
+            elog!(
+                "[secrets] bootstrap: child={} ({}), adult={} ({}), errors={}",
+                boot_report.child_loaded,
+                boot_report.child_version.as_deref().unwrap_or("none"),
+                boot_report.adult_loaded,
+                boot_report.adult_version.as_deref().unwrap_or("none"),
+                boot_report.errors.len()
+            );
+            for e in &boot_report.errors {
+                eprintln!("[secrets_loader] {e}");
+            }
+            app.manage(secrets_store);
+            app.manage(secrets_runtime);
+
             let window = app.get_webview_window("main").unwrap();
             window.set_title("KidsAI Studio").ok();
             Ok(())
@@ -345,6 +384,11 @@ pub fn run() {
             crate::parent_pin::reset_parent_pin,
             crate::user_mode::get_user_mode,
             crate::user_mode::set_user_mode,
+            // Secrets IPC (W11 Day 7)
+            crate::secrets_ipc::get_current_secret_version,
+            crate::secrets_ipc::check_secrets_update,
+            crate::secrets_ipc::apply_secrets_update,
+            crate::secrets_ipc::rollback_secrets,
         ])
         .run(tauri::generate_context!())
         .expect("启动 KidsAI Studio 时出错");

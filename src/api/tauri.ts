@@ -799,3 +799,33 @@ export async function setUserMode(
 ): Promise<SetModeResponse> {
   return invoke<SetModeResponse>('set_user_mode', { mode, parentPin });
 }
+
+// ============ Secrets (W11 Day 7) ============
+
+export interface UpdateInfo {
+  profile: string;
+  remoteVersion: string;
+  currentVersion: string | null;
+}
+
+export async function getCurrentSecretVersion(): Promise<Record<string, string>> {
+  return invoke<Record<string, string>>('get_current_secret_version');
+}
+
+export async function checkSecretsUpdate(): Promise<UpdateInfo[]> {
+  return invoke<UpdateInfo[]>('check_secrets_update');
+}
+
+export async function applySecretsUpdate(
+  profile: string,
+  parentPin: string,
+): Promise<string> {
+  return invoke<string>('apply_secrets_update', { profile, parentPin });
+}
+
+export async function rollbackSecrets(
+  profile: string,
+  toVersion: string,
+): Promise<void> {
+  return invoke<void>('rollback_secrets', { profile, toVersion });
+}

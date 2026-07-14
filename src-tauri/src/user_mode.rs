@@ -147,6 +147,10 @@ pub async fn set_user_mode(
     lf.mode_switched_at = Some(now);
     store.save(&lf).map_err(|e| UserModeError::Local(e).to_string())?;
 
+    // 5. 通知 secrets_runtime 模式切换 (下次 get() 路由到对应 profile)
+    let runtime = app.state::<crate::secrets_runtime::SecretsRuntime>().inner().clone();
+    runtime.set_mode(mode).await;
+
     let _ = resp; // 当前不需要解析
     Ok(SetModeResponse {
         device_id: lf.device_id,

@@ -15,6 +15,7 @@ import {
   activateDevice,
   getFingerprintHash,
   getLicenseInfo,
+  saveIdentity,
   type ActivateResponse,
 } from '../api/tauri';
 
@@ -23,6 +24,13 @@ const AGE_TIERS = [
   { value: 2, label: '11-13 岁', emoji: '🐥' },
   { value: 3, label: '14-16 岁', emoji: '🦅' },
 ] as const;
+
+/// ageTier 数字 (W4.5) → kernel 字符串 (pet_engine.rs recall_threshold_for_age 匹配)
+const AGE_TIER_TO_KERNEL: Record<number, string> = {
+  1: '8-10',
+  2: '11-13',
+  3: '14-16',
+};
 
 interface OnboardingPageProps {
   onActivated: (resp: ActivateResponse) => void;
@@ -54,6 +62,18 @@ export default function OnboardingPage({
     try {
       const fp = await getFingerprintHash();
       const resp = await activateDevice(fp, name, ageTier);
+      // Day 17 P0-1: 把 identity 写入 kernel, PetEngine tick 才有 user 上下文.
+      // 失败不阻塞激活 (kernel fallback / unavailable 时, PetEngine 会 NoOp)
+      try {
+        await saveIdentity({
+          userId: resp.deviceId,
+          nickname: name,
+          petId: 'huomiao',
+          ageTier: AGE_TIER_TO_KERNEL[ageTier] ?? '8-10',
+        });
+      } catch (idErr) {
+        console.warn('[onboarding] saveIdentity failed (non-blocking):', idErr);
+      }
       onActivated(resp);
     } catch (e) {
       const msg = e instanceof Error ? e.message : String(e);

@@ -250,6 +250,12 @@ pub fn run() {
 
             // W10/W11: 加载 RSA-PSS 公钥 — skills/secrets manifest 验签用.
             // 失败不阻塞启动 (demo 模式无 signing 也允许), 仅记日志.
+            // Day 17 P0-1: KernelState — PetEngine / IdentityService 单例.
+            // 与其他 managed service 同模式; bootstrap 失败走 Unavailable fallback.
+            let kernel_state = crate::kernel::state::KernelState::bootstrap(&data_dir);
+            crate::kernel::ipc::spawn_pet_mood_bridge(app.handle().clone());
+            app.manage(kernel_state);
+
             match crate::license_signer::LicenseSigner::init_from_env() {
                 Ok(()) => elog!(
                     "[signer] loaded pubkey id = {}",
@@ -405,6 +411,11 @@ pub fn run() {
             crate::secrets_ipc::check_secrets_update,
             crate::secrets_ipc::apply_secrets_update,
             crate::secrets_ipc::rollback_secrets,
+            // Kernel IPC (Day 17 P0-1: PetEngine 接通 + Identity)
+            crate::kernel::ipc::pet_tick,
+            crate::kernel::ipc::save_identity,
+            crate::kernel::ipc::load_identity,
+            crate::kernel::ipc::bump_last_seen,
         ])
         .run(tauri::generate_context!())
         .expect("启动 KidsAI Studio 时出错");

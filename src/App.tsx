@@ -85,9 +85,12 @@ import SettingsPage from './pages/SettingsPage';
 import OnboardingPage from './pages/OnboardingPage';
 import PetCorner from './components/pet/PetCorner';
 import { checkAlreadyActivated } from './pages/OnboardingPage';
-import type { ActivateResponse } from './api/tauri';
+import { getLicenseInfo, type ActivateResponse } from './api/tauri';
 import { useAssetStore } from './stores/assetStore';
 import { initializeProjectPersistence, useProjectStore } from './stores/projectStore';
+import { useAgentStore } from './stores/agentStore';
+import { useTokenStore } from './stores/tokenStore';
+import { getBalance } from './api/tauri';
 
 export type PageKey =
   | 'home'
@@ -119,6 +122,24 @@ function App() {
     };
   }, []);
 
+  // Day 17 P0-3: 激活后立即拉真 server balance, 覆盖 tokenStore 默认值 (DEFAULT_BALANCE=500).
+  // demo 模式 (server 不可达) getBalance 会失败, 静默保留 500 默认值, 不阻塞首屏.
+  useEffect(() => {
+    if (activated !== true || !('__TAURI_INTERNALS__' in window)) return;
+    let cancelled = false;
+    void getBalance()
+      .then((resp) => {
+        if (cancelled) return;
+        useTokenStore.getState().setBalance(resp.balance);
+      })
+      .catch(() => {
+        // demo 模式 / 暂时网络问题 — 保留 DEFAULT_BALANCE
+      });
+    return () => {
+      cancelled = true;
+    };
+  }, [activated]);
+
   // W6 B3: 启动时拉 asset manifest (如果 license info 有 server url, 跟着走).
   // fallback: 默认 https://api.kids.ibi.ren (production ECS).
   useEffect(() => {
@@ -148,6 +169,23 @@ function App() {
     return () => {
       cancelled = true;
       disposePersistence();
+    };
+  }, [activated]);
+
+  // Day 17 P0-1: App mount 后启动 PetEngine 轮询.
+  // identity 必须先存在 (Onboarding 已完成), 否则 pet_tick 返回 NoIdentity 静默忽略.
+  useEffect(() => {
+    if (activated !== true || !('__TAURI_INTERNALS__' in window)) return;
+    let cancelled = false;
+    void getLicenseInfo().then((li) => {
+      if (cancelled) return;
+      const userId = li?.deviceId ?? '';
+      if (!userId) return;
+      useAgentStore.getState().startPetTick(userId);
+    });
+    return () => {
+      cancelled = true;
+      useAgentStore.getState().stopPetTick();
     };
   }, [activated]);
 

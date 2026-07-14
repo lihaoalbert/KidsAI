@@ -829,3 +829,63 @@ export async function rollbackSecrets(
 ): Promise<void> {
   return invoke<void>('rollback_secrets', { profile, toVersion });
 }
+
+// ============ Kernel Pet Engine (Day 17 P0-1) ============
+
+export type PetTickResponse =
+  | { kind: 'no_identity' }
+  | { kind: 'noop'; currentMood: string }
+  | { kind: 'mood_changed'; from: string; to: string; reason: string }
+  | { kind: 'recall'; currentMood: string; message: string };
+
+export interface PetTickRequest {
+  userId: string;
+  isInConversation?: boolean;
+  conversationStartedSecsAgo?: number;
+}
+
+export async function petTick(request: PetTickRequest): Promise<PetTickResponse> {
+  return invoke<PetTickResponse>('pet_tick', { request });
+}
+
+export interface IdentityDto {
+  userId: string;
+  nickname: string;
+  petId: string;
+  petMood: string;
+  lastSeenAt: number;
+  ageTier: string;
+  parentId: string | null;
+}
+
+export interface SaveIdentityRequest {
+  userId: string;
+  nickname: string;
+  petId: string;
+  ageTier: string;
+  parentId?: string | null;
+}
+
+export async function saveIdentity(request: SaveIdentityRequest): Promise<void> {
+  return invoke<void>('save_identity', { request });
+}
+
+export async function loadIdentity(userId: string): Promise<IdentityDto | null> {
+  return invoke<IdentityDto | null>('load_identity', { userId });
+}
+
+export async function bumpLastSeen(userId: string): Promise<void> {
+  return invoke<void>('bump_last_seen', { userId });
+}
+
+export interface PetMoodEvent {
+  from: string;
+  to: string;
+  reason: string;
+}
+
+export async function onPetMood(
+  handler: (event: PetMoodEvent) => void,
+): Promise<UnlistenFn> {
+  return listen<PetMoodEvent>('kernel://pet_mood', (e) => handler(e.payload));
+}

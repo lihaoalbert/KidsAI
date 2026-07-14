@@ -15,11 +15,15 @@ import {
   onAgentEvent,
   listCharacters,
   listStyles,
+  petTick,
+  onPetMood,
+  bumpLastSeen,
   type AgentEvent,
   type AgentAsset,
   type AgentRunResponse,
   type Character,
   type StylePreset,
+  type PetMoodEvent,
 } from '../api/tauri';
 import type { ExtractedFrame } from '../utils/frameExtractor';
 
@@ -82,6 +86,17 @@ interface AgentState {
   // W3.7+: 整段复刻进度(L7 batch 模式)
   recreateProgress: { done: number; total: number } | null;
 
+  // Day 17 P0-1: 宠物情绪状态 (Kernel PetEngine 通过 IPC 推过来)
+  petMood: 'happy' | 'sleepy' | 'thinking';
+  /// 最近一次 recall 消息 (UI 顶部 toast 用). 一次性, 用户看完就清.
+  petRecall: string | null;
+  /// Pet tick 周期 (默认 60s)
+  petTickIntervalMs: number;
+  /// 内部: pet tick setInterval handle
+  petTickTimer: ReturnType<typeof setInterval> | null;
+  /// 内部: pet mood 事件 listen unlisten
+  petMoodUnlisten: (() => void) | null;
+
   // actions
   startSession: (levelId: string) => void;
   appendMessage: (msg: Omit<AgentMessage, 'id' | 'createdAt'>) => void;
@@ -125,6 +140,14 @@ interface AgentState {
     styleId?: string;
     tools: string[];
   }) => Promise<void>;
+  /// Day 17 P0-1: 启动 PetEngine 轮询 (App mount 调一次)
+  startPetTick: (userId: string) => void;
+  /// Day 17 P0-1: 停止 PetEngine 轮询 (App unmount 调)
+  stopPetTick: () => void;
+  /// Day 17 P0-1: 用户做了任何动作, bump last_seen + 立即触发一次 tick
+  notifyUserAction: (userId: string) => Promise<void>;
+  /// Day 17 P0-1: 清掉 recall 消息 (UI 看完点关闭)
+  clearPetRecall: () => void;
 }
 
 function nowId(prefix: string) {
@@ -152,6 +175,12 @@ export const useAgentStore = create<AgentState>((set, get) => ({
   // W3.7+: 抽好的帧初始空
   extractedFrames: [],
   recreateProgress: null,
+  // Day 17 P0-1: Pet 状态初始值
+  petMood: 'happy',
+  petRecall: null,
+  petTickIntervalMs: 60_000,
+  petTickTimer: null as ReturnType<typeof setInterval> | null,
+  petMoodUnlisten: null as (() => void) | null,
 
   startSession: (levelId) => {
     set({
@@ -207,9 +236,12 @@ export const useAgentStore = create<AgentState>((set, get) => ({
         characterId,
         styleId,
       });
-      // 如果已经 streaming 但还没收到 final_answer 事件（mock / 错误路径），
-      // 这里用 lastResponse.finalAnswer 兜底写入
+      // Day 17 P0-2: 合并 assets 而不是覆盖 — 取消时已生成的图必须保留
+      // 用 URL 去重 (tool_result 事件已先累加, resp.assets 是 backend 兜底)
       set((s) => {
+        const existing = s.assets;
+        const existingUrls = new Set(existing.map((a) => a.url));
+        const newAssets = resp.assets.filter((a) => !existingUrls.has(a.url));
         const messages = s.streaming
           ? s.messages.map((m) =>
               m.id === s.streaming!.messageId
@@ -225,11 +257,23 @@ export const useAgentStore = create<AgentState>((set, get) => ({
                 createdAt: Date.now(),
               },
             ];
+        // 取消时追加一条 system 消息告知用户保留了多少图
+        const cancelMsg =
+          resp.cancelled && (existing.length + newAssets.length) > 0
+            ? [
+                {
+                  id: nowId('cancel-summary'),
+                  role: 'system' as const,
+                  content: `⏹️ 已取消 · 已为你保留 ${existing.length + newAssets.length} 张图`,
+                  createdAt: Date.now(),
+                },
+              ]
+            : [];
         return {
           isRunning: false,
           lastResponse: resp,
-          messages,
-          assets: resp.assets,
+          messages: [...messages, ...cancelMsg],
+          assets: [...existing, ...newAssets],
           streaming: null,
         };
       });
@@ -251,6 +295,7 @@ export const useAgentStore = create<AgentState>((set, get) => ({
 
   reset: () => {
     get().unsubscribeEvents();
+    get().stopPetTick();
     set({
       sessionId: null,
       levelId: null,
@@ -263,6 +308,8 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       // W3.7+: 跨关清掉抽帧状态
       extractedFrames: [],
       recreateProgress: null,
+      // Day 17 P0-1: pet recall 重置
+      petRecall: null,
     });
   },
 
@@ -382,8 +429,14 @@ export const useAgentStore = create<AgentState>((set, get) => ({
           break;
         }
         case 'cancelled': {
-          // W3.3: 中途取消 — 设置 error + 清空 streaming
-          set({ error: '已取消', isRunning: false, streaming: null });
+          // W3.3 + Day 17 P0-2: 中途取消 — 清 streaming, 保留已生成 assets.
+          // send() 完成时会拿 resp.assets 兜底合并; 这里只清掉 streaming 状态.
+          set({
+            error: '已取消',
+            isRunning: false,
+            streaming: null,
+            // assets 不动 — 之前 tool_result 事件已累加进 store
+          });
           break;
         }
         case 'error': {
@@ -555,4 +608,101 @@ export const useAgentStore = create<AgentState>((set, get) => ({
       });
     }
   },
+
+  // ========== Day 17 P0-1: PetEngine 轮询 ==========
+
+  startPetTick: (userId: string) => {
+    // 已有 timer 不重复启 (避免多份 setInterval)
+    const existing = get().petTickTimer;
+    if (existing) return;
+
+    // 1. 订阅 backend 推过来的 PetMoodChanged 事件 (实时, 不等下一次 tick)
+    if (!get().petMoodUnlisten) {
+      onPetMood((evt: PetMoodEvent) => {
+        set({ petMood: evt.to as AgentState['petMood'] });
+      }).then((un) => {
+        set({ petMoodUnlisten: un });
+      }).catch(() => {
+        // listen 失败不阻塞 (例如 backend 没 kernel module) — polling 仍会跑
+      });
+    }
+
+    // 2. 立即 tick 一次 (恢复 backend mood 状态到 UI)
+    petTick({
+      userId,
+      isInConversation: false,
+      conversationStartedSecsAgo: 0,
+    }).then((resp) => {
+      if (resp.kind === 'mood_changed') {
+        set({ petMood: resp.to as AgentState['petMood'] });
+      } else if (resp.kind === 'recall') {
+        set({
+          petMood: 'sleepy',
+          petRecall: resp.message,
+        });
+      } else if (resp.kind === 'noop' && resp.currentMood) {
+        set({ petMood: resp.currentMood as AgentState['petMood'] });
+      }
+      // no_identity 静默忽略 — onboarding 没完成就不走 pet engine
+    }).catch(() => {});
+
+    // 3. 起周期 tick
+    const interval = get().petTickIntervalMs;
+    const timer = setInterval(() => {
+      const s = get();
+      petTick({
+        userId,
+        isInConversation: s.isRunning,
+        conversationStartedSecsAgo: 0,
+      }).then((resp) => {
+        if (resp.kind === 'mood_changed') {
+          set({ petMood: resp.to as AgentState['petMood'] });
+        } else if (resp.kind === 'recall') {
+          set({
+            petMood: 'sleepy',
+            petRecall: resp.message,
+          });
+        }
+      }).catch(() => {});
+    }, interval);
+    set({ petTickTimer: timer });
+  },
+
+  stopPetTick: () => {
+    const timer = get().petTickTimer;
+    if (timer) {
+      clearInterval(timer);
+      set({ petTickTimer: null });
+    }
+    const un = get().petMoodUnlisten;
+    if (un) {
+      un();
+      set({ petMoodUnlisten: null });
+    }
+  },
+
+  notifyUserAction: async (userId: string) => {
+    // bump last_seen + 立即 tick (让 idle 计时重置, mood 立刻回到 happy)
+    try {
+      await bumpLastSeen(userId);
+    } catch {
+      // bump 失败不阻塞 UI — 下一次 tick 仍会自己更新
+    }
+    try {
+      const resp = await petTick({
+        userId,
+        isInConversation: get().isRunning,
+        conversationStartedSecsAgo: 0,
+      });
+      if (resp.kind === 'mood_changed') {
+        set({ petMood: resp.to as AgentState['petMood'] });
+      } else if (resp.kind === 'noop' && resp.currentMood) {
+        set({ petMood: resp.currentMood as AgentState['petMood'] });
+      }
+    } catch {
+      // tick 失败静默
+    }
+  },
+
+  clearPetRecall: () => set({ petRecall: null }),
 }));

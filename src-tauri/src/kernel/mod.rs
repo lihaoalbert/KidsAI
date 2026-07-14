@@ -16,12 +16,14 @@
 
 pub mod event_bus;
 pub mod identity;
+pub mod ipc;
 pub mod lesson_templates;
 pub mod memory_bus;
 pub mod memory_store;
 pub mod pet_engine;
 pub mod seed_skills;
 pub mod skill_loader;
+pub mod state;
 pub mod tool_bus;
 
 pub use event_bus::{EventBus, KernelEvent};

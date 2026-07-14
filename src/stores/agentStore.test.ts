@@ -158,6 +158,98 @@ describe('agentStore', () => {
     expect(state.streaming).toBeNull();
   });
 
+  // Day 17 P0-2: 取消后保留 tool_result 已累加的 assets (不能丢娃已看到的图)
+  it('cancelled 事件保留已生成 assets — 不清空 store.assets', async () => {
+    await useAgentStore.getState().subscribeEvents();
+
+    runAgentMock.mockImplementation(
+      () => new Promise<AgentRunResponse>(() => {}),
+    );
+
+    void useAgentStore.getState().send('L1', 'hi', 'system');
+    await Promise.resolve();
+
+    // tool_result 事件触发 — 模拟 backend 已生成 2 张图
+    push({
+      kind: 'tool_result',
+      sessionId: 's',
+      step: 1,
+      tool: 'generate_image',
+      result: 'ok',
+      assets: [
+        { type: 'image', url: 'http://cdn/a.png', prompt: 'cat', tool: 'generate_image', tokensCost: 5 },
+        { type: 'image', url: 'http://cdn/b.png', prompt: 'dog', tool: 'generate_image', tokensCost: 5 },
+      ],
+    });
+
+    expect(useAgentStore.getState().assets).toHaveLength(2);
+
+    // 用户点取消
+    push({ kind: 'cancelled', sessionId: 's' });
+
+    const state = useAgentStore.getState();
+    expect(state.isRunning).toBe(false);
+    expect(state.error).toBe('已取消');
+    expect(state.streaming).toBeNull();
+    // 关键断言: 2 张图还在
+    expect(state.assets).toHaveLength(2);
+    expect(state.assets.map((a) => a.url)).toEqual(['http://cdn/a.png', 'http://cdn/b.png']);
+  });
+
+  // Day 17 P0-2: send() 完成时合并 resp.assets (URL 去重) — backend 兜底返回的 assets
+  // 不能覆盖 tool_result 事件已累加的
+  it('send() 完成时合并 resp.assets：URL 去重，不覆盖已累加资产', async () => {
+    await useAgentStore.getState().subscribeEvents();
+
+    // 用 deferred promise 模拟真实时序 — 让 caller 决定何时 resolve,
+    // 这样 tool_result / cancelled 先 fire, 然后 runAgent 才返回 (符合真实 Tauri 链路)
+    let resolveRunAgent!: (resp: AgentRunResponse) => void;
+    runAgentMock.mockImplementation(
+      () => new Promise<AgentRunResponse>((r) => { resolveRunAgent = r; }),
+    );
+
+    void useAgentStore.getState().send('L1', 'hi', 'system');
+    await Promise.resolve();
+
+    // 1. tool_result 先累加 a.png
+    push({
+      kind: 'tool_result',
+      sessionId: 's',
+      step: 1,
+      tool: 'generate_image',
+      result: 'ok',
+      assets: [
+        { type: 'image', url: 'http://cdn/a.png', prompt: 'cat', tool: 'generate_image', tokensCost: 5 },
+      ],
+    });
+    // 2. cancelled 事件
+    push({ kind: 'cancelled', sessionId: 's' });
+    // 3. send 才拿到 resp (a.png 重复 + c.png 新)
+    resolveRunAgent(
+      makeRunResponse({
+        cancelled: true,
+        assets: [
+          { type: 'image', url: 'http://cdn/a.png', prompt: 'cat', tool: 'generate_image', tokensCost: 5 },
+          { type: 'image', url: 'http://cdn/c.png', prompt: 'bird', tool: 'generate_image', tokensCost: 5 },
+        ],
+        finalAnswer: '（已被用户取消）',
+      }),
+    );
+    // 等 microtask 跑完
+    await new Promise((r) => setTimeout(r, 10));
+
+    const state = useAgentStore.getState();
+    // 应该 a.png (1) + c.png (1) = 2 张, a.png 没重复
+    expect(state.assets).toHaveLength(2);
+    const urls = state.assets.map((a) => a.url);
+    expect(urls).toContain('http://cdn/a.png');
+    expect(urls).toContain('http://cdn/c.png');
+    // 追加了 system 消息告知保留
+    const lastMsg = state.messages[state.messages.length - 1];
+    expect(lastMsg.role).toBe('system');
+    expect(lastMsg.content).toMatch(/已取消.*保留.*2.*张图/);
+  });
+
   // ---------- error ----------
   it('error 事件设置 error 消息 + isRunning=false + 清空 streaming', async () => {
     await useAgentStore.getState().subscribeEvents();

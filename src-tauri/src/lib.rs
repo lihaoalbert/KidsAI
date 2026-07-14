@@ -23,6 +23,7 @@ pub mod projects;
 pub mod prompt_builder; // W4.6 #1 — Seedance 翻译层
 pub mod safety;
 pub mod skills; // W10 — Skill Market (manifest schema + store + verifier + 5 IPC)
+pub mod skills_runtime; // W10 Day 5 — Skill mount 解释器 (system_prompt + characters)
 pub mod style;
 pub mod tools;
 pub mod trusted_storage; // W10/W11 共享底座 — 原子写 + chmod 600
@@ -335,6 +336,7 @@ pub fn run() {
             crate::skills::install_skill,
             crate::skills::uninstall_skill,
             crate::skills::toggle_skill,
+            crate::skills::get_mounted_skills,
             // Parent PIN + User Mode (W10 Day 4 — Part C)
             crate::parent_pin::set_parent_pin,
             crate::parent_pin::verify_parent_pin,

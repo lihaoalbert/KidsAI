@@ -74,3 +74,12 @@ promo/**/clips/
 promo/**/stills/
 promo/**/*.mp4
 promo/**/*.mp3
+
+# W10 Day 5: 技能发布者 dev 私钥 (pubkey 可以入 git, 客户端用来验签;
+# 私钥绝对不能入仓, 否则任何人能伪造 skill 签名)
+# 生产环境应该用 KIDSAI_SKILL_SIGNING_KEY_PEM env 注入
+src-tauri/assets/dev_signing_key.pem
+# skills_publisher 临时输出目录 (publish 到 ./skills 默认; 用 /skills/ 锚定到 repo 根,
+# 不影响 src-tauri/src/skills/ 这种源码目录)
+/skills/
+

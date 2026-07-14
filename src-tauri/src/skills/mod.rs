@@ -24,9 +24,10 @@ pub use verifier::{verify_skill_manifest, SkillManifest};
 
 // ========== Manifest schema (kidsai.skill/1) ==========
 
-#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq)]
+#[derive(Debug, Clone, Serialize, Deserialize, PartialEq, Eq, Default)]
 #[serde(rename_all = "kebab-case")]
 pub enum Audience {
+    #[default]
     Child,
     Adult,
     Both,
@@ -262,4 +263,42 @@ pub async fn toggle_skill(
     st.store
         .set_enabled(&skill_id, enabled)
         .map_err(|e| format!("toggle: {e}"))
+}
+
+/// W10 Day 5 — 读取所有已装 + 启用 skill, 按当前 mode 过滤, 返回 mount 结果.
+/// 前端 directorStore 调用此接口拿 character / story_arc 模板 + system_prompt 片段.
+#[tauri::command]
+pub async fn get_mounted_skills(
+    app: AppHandle,
+    mode: String,
+) -> Result<Vec<crate::skills_runtime::MountedSkill>, String> {
+    use crate::skills::Audience;
+    use crate::skills_runtime::mount_enabled_skills;
+
+    let st = app.state::<Arc<SkillsState>>();
+    let installed = st
+        .store
+        .list_installed()
+        .map_err(|e| format!("list_installed: {e}"))?;
+
+    // 当前 mode → 过滤 audience
+    let audience_filter = match mode.as_str() {
+        "adult" => Audience::Adult,
+        _ => Audience::Child, // 默认 child
+    };
+
+    // 只取启用的 skill (enabled=true), 然后从磁盘读 manifest
+    let mut manifests = Vec::new();
+    for rec in installed.iter().filter(|r| r.enabled) {
+        let rel = std::path::Path::new(&rec.id).join("manifest.json");
+        let bytes = match st.store.storage().read_bytes(&rel) {
+            Ok(Some(b)) => b,
+            _ => continue,
+        };
+        if let Ok(m) = serde_json::from_slice::<SkillManifestFull>(&bytes) {
+            manifests.push(m);
+        }
+    }
+
+    Ok(mount_enabled_skills(&manifests, audience_filter))
 }

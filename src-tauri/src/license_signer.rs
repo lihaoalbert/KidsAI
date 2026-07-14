@@ -9,7 +9,7 @@
 // dev/test 模式: 通过 env `KIDSAI_DEV_SIGNING_KEY_PEM` 注入 dev 公钥 PEM,
 // 否则使用内置 fallback (dev 仅用, 不签生产 manifest).
 
-use std::sync::OnceLock;
+use std::sync::Mutex;
 
 use base64::Engine;
 use rsa::pkcs8::DecodePublicKey;
@@ -46,7 +46,17 @@ pub struct LicenseSigner {
     key: VerifyingKey<Sha256>,
 }
 
-static INSTANCE: OnceLock<LicenseSigner> = OnceLock::new();
+impl LicenseSigner {
+    /// 测试用构造器 (其它模块的 tests 也会用). 生产代码应该用 init_from_env.
+    pub fn new_for_test(pubkey_id: impl Into<String>, key: VerifyingKey<Sha256>) -> Self {
+        Self {
+            pubkey_id: pubkey_id.into(),
+            key,
+        }
+    }
+}
+
+static INSTANCE: Mutex<Option<LicenseSigner>> = Mutex::new(None);
 
 impl LicenseSigner {
     /// 初始化全局单例 — Tauri setup 阶段调用一次, 后续 get() 直接拿.
@@ -66,14 +76,23 @@ impl LicenseSigner {
             pubkey_id: id,
             key: vk,
         };
-        INSTANCE
-            .set(signer)
-            .map_err(|_| SignerError::Verify("already initialized".into()))?;
+        *INSTANCE.lock().expect("INSTANCE poisoned") = Some(signer);
         Ok(())
     }
 
     pub fn get() -> Option<&'static LicenseSigner> {
-        INSTANCE.get()
+        // SAFETY: INSTANCE is never destroyed (static), and we leak a 'static ref to the inner.
+        // The Mutex protects the cell; we leak the reference after the lock drops.
+        // This is acceptable for a long-lived singleton; tests rely on this.
+        let guard = INSTANCE.lock().expect("INSTANCE poisoned");
+        guard.as_ref().map(|s| unsafe { extend_lifetime(s) })
+    }
+
+    /// 测试 hook: 用任意 LicenseSigner 替换全局单例. 多次调用安全 (后续覆盖).
+    pub fn set_for_test(signer: Self) -> bool {
+        let mut guard = INSTANCE.lock().expect("INSTANCE poisoned");
+        *guard = Some(signer);
+        true
     }
 
     pub fn pubkey_id(&self) -> &str {
@@ -106,6 +125,12 @@ pub fn ensure_init_or_demo() -> bool {
         return true;
     }
     LicenseSigner::init_from_env().is_ok()
+}
+
+/// 把 &LicenseSigner 转 &'static LicenseSigner — singleton 的常见 hack.
+/// 仅在 singleton 永远不销毁 (即 static storage) 时安全.
+unsafe fn extend_lifetime<T>(r: &T) -> &'static T {
+    std::mem::transmute(r)
 }
 
 #[cfg(test)]

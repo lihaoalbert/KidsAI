@@ -94,6 +94,25 @@ def require_license(
     return verify_license(secret, token)
 
 
+def require_license_token(
+    authorization: Annotated[str | None, Header()] = None,
+    secret: str = "",  # 由 main.py 通过 Depends 注入
+) -> str:
+    """FastAPI dependency: 校验 + 返 raw JWT token (用做 KEK 派生入参).
+
+    与 require_license 区别: 返 string 而非 LicenseClaims, 因为 server 要用 token 原文派生 KEK.
+    """
+    if not authorization or not authorization.lower().startswith("bearer "):
+        raise HTTPException(
+            status_code=status.HTTP_401_UNAUTHORIZED,
+            detail="missing Authorization: Bearer <license_token>",
+        )
+    token = authorization.split(" ", 1)[1].strip()
+    # 仍要走一次 verify, 防止 wrap 拿未授权 token
+    verify_license(secret, token)
+    return token
+
+
 def require_admin(
     x_admin_token: Annotated[str | None, Header()] = None,
     expected: str = "",  # 由 main.py 通过 Depends 注入

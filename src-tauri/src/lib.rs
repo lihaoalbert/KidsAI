@@ -22,6 +22,7 @@ pub mod parent_pin; // W10 Day 4 — argon2 hash, app_data_dir/parent_pin.json
 pub mod projects;
 pub mod prompt_builder; // W4.6 #1 — Seedance 翻译层
 pub mod safety;
+pub mod secrets; // W11 Day 6 — SecretCipher (HKDF + AES-GCM) + verify_and_decrypt
 pub mod skills; // W10 — Skill Market (manifest schema + store + verifier + 5 IPC)
 pub mod skills_runtime; // W10 Day 5 — Skill mount 解释器 (system_prompt + characters)
 pub mod style;

@@ -29,12 +29,12 @@ from contextlib import asynccontextmanager
 from fastapi import Depends, FastAPI, Header, HTTPException, Request, status
 
 from . import __version__
-from .auth import assert_device_active, require_admin, require_license, verify_license
+from .auth import assert_device_active, require_admin, require_license, require_license_token, verify_license
 from .config import Config, load_config
 from .db import open_db
 from .dependencies import get_cfg, get_conn
 from .models import HealthResponse
-from .routes import activate, admin, asset, me, skills
+from .routes import activate, admin, asset, me, secrets, skills
 
 
 def _make_license_dep(secret: str):
@@ -55,6 +55,29 @@ def _make_license_dep(secret: str):
         claims = verify_license(secret, authorization.split(" ", 1)[1].strip())
         assert_device_active(conn, claims.device_id)
         return claims
+
+    return _dep
+
+
+def _make_license_token_dep(secret: str):
+    """返 raw license_token (字符串) 而非 LicenseClaims.
+
+    用做 KEK 派生入参 (server /api/v1/secrets/wrap 拿它算 KEK 包裹 master_key).
+    仍走 verify_license + assert_device_active, 鉴权不打折.
+    """
+
+    def _dep(
+        authorization: str | None = Header(default=None),
+        conn=Depends(get_conn),
+    ):
+        if not authorization or not authorization.lower().startswith("bearer "):
+            raise HTTPException(
+                status.HTTP_401_UNAUTHORIZED, "missing Authorization: Bearer <license_token>"
+            )
+        token = authorization.split(" ", 1)[1].strip()
+        claims = verify_license(secret, token)
+        assert_device_active(conn, claims.device_id)
+        return token
 
     return _dep
 
@@ -88,6 +111,7 @@ def create_app(cfg: Config | None = None, db_path: str | None = None) -> FastAPI
     )
 
     app.dependency_overrides[require_license] = _make_license_dep(cfg.jwt_secret)
+    app.dependency_overrides[require_license_token] = _make_license_token_dep(cfg.jwt_secret)
     app.dependency_overrides[require_admin] = _make_admin_dep(cfg.admin_token)
 
     @app.get("/healthz", response_model=HealthResponse)
@@ -99,6 +123,7 @@ def create_app(cfg: Config | None = None, db_path: str | None = None) -> FastAPI
     app.include_router(admin.router)
     app.include_router(asset.router)
     app.include_router(skills.router)  # W10 — Skill market + user mode
+    app.include_router(secrets.router)  # W11 Day 6 — Secrets manifest + bundle + wrap
 
     return app
 

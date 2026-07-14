@@ -11,6 +11,7 @@ pub mod key_pool; // Token Plan task #31: MiniMax key pool + 失败转移
 pub mod levels;
 pub mod license_client;
 pub mod license_signer; // W10/W11 共享底座 — RSA-PSS 公钥验签
+pub mod marketplace_client; // W10/W11 共享底座 — Bearer HTTPS + retry + offline cache
 pub mod license_store;
 pub mod model;
 pub mod model_factory;

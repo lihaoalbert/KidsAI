@@ -12,7 +12,6 @@
 // 不解密 prompts — skill 是公开包, 不走 license_token; server 直接下原文.
 
 use std::collections::HashMap;
-use std::path::Path;
 
 use serde::{Deserialize, Serialize};
 

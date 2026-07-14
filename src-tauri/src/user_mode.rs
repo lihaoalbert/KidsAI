@@ -21,7 +21,6 @@ use crate::parent_pin::ParentPinStore;
 mod tests {
     use super::*;
     use crate::license_store::{LicenseFile, LicenseStore};
-    use crate::parent_pin::ParentPinStore;
     use tempfile::tempdir;
 
     /// 验证 mode 字段正确持久化到 LicenseFile.

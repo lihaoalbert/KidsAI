@@ -155,4 +155,21 @@ body,
   *::after {
     transition: none;
   }
+  .before\:animate-shimmer::before,
+  .animate-shimmer {
+    animation: none !important;
+  }
+}
+
+/* Skeleton shimmer keyframe — 仅 transform, 不触发 layout */
+@keyframes shimmer {
+  0% {
+    transform: translateX(-100%);
+  }
+  100% {
+    transform: translateX(100%);
+  }
+}
+.animate-shimmer {
+  animation: shimmer 1.6s ease-in-out infinite;
 }

@@ -13,12 +13,37 @@ interface NavItem {
   icon: string;
 }
 
-const navItems: NavItem[] = [
-  { key: 'home', label: '课程中心', icon: '🏠' },
-  { key: 'library', label: '作品库', icon: '📚' },
-  { key: 'studio', label: '视频创作', icon: '🎬' },
-  { key: 'agent', label: '我的 Agent', icon: '🤖' },
-  { key: 'marketplace', label: 'Skill 市场', icon: '📦' },
+interface NavGroup {
+  /** 分组标题 (小字) */
+  label: string;
+  /** 仅在某些 mode 显示 (默认都显示) */
+  modes?: ('child' | 'adult')[];
+  items: NavItem[];
+}
+
+// 分组: 创作 / 学习 / 系统 — per DESIGN.md §5.3 sidebar 风格
+const navGroups: NavGroup[] = [
+  {
+    label: '创作',
+    items: [
+      { key: 'studio', label: '视频创作', icon: '🎬' },
+      { key: 'agent', label: '我的 Agent', icon: '🤖' },
+      { key: 'library', label: '作品库', icon: '📚' },
+    ],
+  },
+  {
+    label: '学习',
+    items: [
+      { key: 'home', label: '课程中心', icon: '🏠' },
+      { key: 'marketplace', label: 'Skill 市场', icon: '📦' },
+    ],
+  },
+  {
+    label: '系统',
+    items: [
+      { key: 'settings', label: '设置', icon: '⚙️' },
+    ],
+  },
 ];
 
 export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
@@ -41,26 +66,35 @@ export default function Sidebar({ currentPage, onNavigate }: SidebarProps) {
         </div>
       </div>
 
-      {/* 导航 */}
-      <nav className="flex-1 px-3 py-4 space-y-1">
-        {navItems.map((item) => {
-          const isActive = currentPage === item.key;
-          return (
-            <button
-              key={item.key}
-              onClick={() => onNavigate(item.key)}
-              className={[
-                'w-full flex items-center gap-3 px-3 py-2.5 rounded-md text-sm font-medium transition-colors',
-                isActive
-                  ? 'bg-accent-soft text-accent-ink'
-                  : 'text-ink-2 hover:bg-surface-2 hover:text-ink',
-              ].join(' ')}
-            >
-              <span className="text-base">{item.icon}</span>
-              <span>{item.label}</span>
-            </button>
-          );
-        })}
+      {/* 导航 — 分组 */}
+      <nav className="flex-1 px-3 py-4 overflow-y-auto">
+        {navGroups.map((group, gi) => (
+          <div key={group.label} className={gi > 0 ? 'mt-5' : ''}>
+            <div className="px-3 mb-1.5 text-2xs font-semibold uppercase tracking-wider text-ink-3">
+              {group.label}
+            </div>
+            <div className="space-y-1">
+              {group.items.map((item) => {
+                const isActive = currentPage === item.key;
+                return (
+                  <button
+                    key={item.key}
+                    onClick={() => onNavigate(item.key)}
+                    className={[
+                      'w-full flex items-center gap-3 px-3 py-2 rounded-md text-sm font-medium transition-colors',
+                      isActive
+                        ? 'bg-accent-soft text-accent-ink'
+                        : 'text-ink-2 hover:bg-surface-2 hover:text-ink',
+                    ].join(' ')}
+                  >
+                    <span className="text-base">{item.icon}</span>
+                    <span>{item.label}</span>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+        ))}
       </nav>
 
       {/* 底部 Token 余额 + Mode 徽章 */}

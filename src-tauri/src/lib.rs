@@ -253,8 +253,8 @@ pub fn run() {
             // Day 17 P0-1: KernelState — PetEngine / IdentityService 单例.
             // 与其他 managed service 同模式; bootstrap 失败走 Unavailable fallback.
             let kernel_state = crate::kernel::state::KernelState::bootstrap(&data_dir);
-            crate::kernel::ipc::spawn_pet_mood_bridge(app.handle().clone());
             app.manage(kernel_state);
+            crate::kernel::ipc::spawn_pet_mood_bridge(app.handle().clone());
 
             match crate::license_signer::LicenseSigner::init_from_env() {
                 Ok(()) => elog!(
@@ -349,6 +349,37 @@ pub fn run() {
 
             let window = app.get_webview_window("main").unwrap();
             window.set_title("KidsAI Studio").ok();
+
+            // macOS WKWebView 白屏修复 (page has no displayID):
+            // 启动后等 1s, 强制窗口重新触发 display link.
+            // 这是 macOS 14+ WKWebView 在某些显示器配置下的已知问题.
+            // Tauri 没法直接控制 NSWindow 内部 displayID, 但重新设置 frame + 显示
+            // 能触发 webkit 的 RemoteLayerTree 重新初始化.
+            #[cfg(target_os = "macos")]
+            {
+                let window_clone = window.clone();
+                std::thread::spawn(move || {
+                    std::thread::sleep(std::time::Duration::from_millis(1500));
+                    if let (Ok(pos), Ok(size)) = (window_clone.outer_position(), window_clone.outer_size()) {
+                        // 微调 1px 触发 display link 重新绑定
+                        let _ = window_clone.set_position(tauri::PhysicalPosition::new(pos.x + 1, pos.y + 1));
+                        std::thread::sleep(std::time::Duration::from_millis(100));
+                        let _ = window_clone.set_position(pos);
+                        eprintln!("[macos-fix] re-positioned window to force display link rebind");
+                    }
+                });
+            }
+
+            // 真机调试: 给 WKWebView 开 remote DevTools, 让 Playwright 能连进来.
+            // 仅在 dev 模式 (cargo run 触发, 不会有 release .dmg/.app 里的 binary 跑这个).
+            #[cfg(debug_assertions)]
+            {
+                use tauri::Manager;
+                if let Some(wv) = app.get_webview_window("main") {
+                    wv.open_devtools();
+                    eprintln!("[debug] DevTools opened");
+                }
+            }
             Ok(())
         })
         .manage(LevelStore::default())

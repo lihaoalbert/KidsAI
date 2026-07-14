@@ -29,4 +29,15 @@ export default defineConfig(async () => ({
       },
     },
   },
+  optimizeDeps: {
+    // 启动时立刻预构建, 避免首次启动触发 "optimized dependencies changed. reloading"
+    // (那次 reload 会让 Tauri webview 在 React 树挂载中途 reload, 出现白屏).
+    include: [
+      'react',
+      'react-dom',
+      'react-dom/client',
+      'zustand',
+      'zustand/middleware',
+    ],
+  },
 }));

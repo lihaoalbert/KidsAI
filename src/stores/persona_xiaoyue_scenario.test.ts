@@ -25,7 +25,6 @@ import { useDirectorStore } from './directorStore';
 import { useTokenStore } from './tokenStore';
 import { useToastStore } from './toastStore';
 import { useProjectStore } from './projectStore';
-import { useAgentStore } from './agentStore';
 import type { AgentRunResponse } from '../api/tauri';
 
 const runAgentMock: Mock = vi.fn();
@@ -284,10 +283,12 @@ describe('小月 persona: 阶段6 定稿', () => {
         id: 'c_xiaoyue_001',
         levelId: 'director',
         userInput: '小月的勇气森林',
-        title: '小月的勇气森林',
+        agentOutput: JSON.stringify({ title: '小月的勇气森林' }),
         createdAt: Date.now(),
         score: null,
-        assets: [{ kind: 'video', url: 'https://hailuo.mock/final.mp4' }],
+        rubric: null,
+        feedback: null,
+        assets: [{ kind: 'video', url: 'https://hailuo.mock/final.mp4', thumbnailUrl: null, prompt: 'p', tool: 'image_to_video', tokensCost: 19 }],
       },
     ]);
 
@@ -302,7 +303,7 @@ describe('小月 persona: 阶段6 定稿', () => {
     // 作品墙: listCreations 应能拉到
     const list = await (await import('../api/tauri')).listCreations();
     expect(list).toHaveLength(1);
-    expect(list[0].title).toBe('小月的勇气森林');
+    expect(list[0].userInput).toBe('小月的勇气森林');
   });
 
   it('定稿 hailuo 抛异常 → 学币回退, finalVideoUrl null', async () => {
@@ -312,8 +313,8 @@ describe('小月 persona: 阶段6 定稿', () => {
 
     const s = useDirectorStore.getState();
     expect(s.finalVideoUrl).toBeNull();
-    expect(s.error).toMatch(/定稿失败/);
-    expect(useTokenStore.getState().balance).toBe(startBalance, '失败全额退款');
+    expect(s.error).toContain('定稿失败');
+    expect(useTokenStore.getState().balance).toBe(startBalance);
   });
 });
 
